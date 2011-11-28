@@ -1,0 +1,44 @@
+[% WRAPPER 'layout.tx' %]
+
+<form method="post" action="[% c.uri_for('/storage', storage.id, 'edit') %]">
+[% error_msgs(result) %]
+<table class="info">
+  <tr>
+    <th><label for="id">ID</label></th>
+    <td>[% storage.id %]</td>
+  </tr>
+  <tr>
+    <th><label for="uri">URI</label></th>
+    <td><input size="60" type="text" name="uri" id="uri" /></td>
+  </tr>
+  <tr>
+    <th><label for="capacity">Capacity</label></th>
+    <td><input type="text" name="capacity" id="capacity" /></td>
+  </tr>
+  <tr>
+    <th><label for="mode">Mode</label></th>
+    <td>
+      <select name="mode" id="mode">
+        <option value="[% const.STORAGE_MODE_READ_WRITE %]">[% mode_str(const.STORAGE_MODE_READ_WRITE) %]</option>
+        <option value="[% const.STORAGE_MODE_READ_ONLY %]">[% mode_str(const.STORAGE_MODE_READ_ONLY) %]</option>
+        <option value="[% const.STORAGE_MODE_DOWN %]">[% mode_str(const.STORAGE_MODE_DOWN) %]</option>
+        <option value="[% const.STORAGE_MODE_RETIRE %]">[% mode_str(const.STORAGE_MODE_RETIRE) %]</option>
+        <option value="[% const.STORAGE_MODE_CRASH %]">[% mode_str(const.STORAGE_MODE_CRASH) %]</option>
+        [% IF storage.mode > const.STORAGE_MODE_RETIRE OR storage.mode < const.STORAGE_MODE_CRASH %]
+        <option value="[% storage.mode %]">[% mode_str(storage.mode) %]</option>
+        [% END %]
+      </select>
+    </td>
+  </tr>
+</table>
+<div class="submit">
+<input type="submit" value=" Update " />
+<input type="button" value=" Delete " onClick="javascript: if(confirm('Are you sure you want to delete this object?')) { this.form.action='[% c.uri_for('/storage', storage.id, 'delete') %]'; this.form.submit(); } else { return false; }" />
+</div>
+
+</form>
+
+
+[% END %]
+
+

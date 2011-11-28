@@ -1,0 +1,29 @@
+[% WRAPPER 'layout.tx' %]
+<div class="op">
+<a href="[% c.uri_for('/storage/add') %]">Add new storage node</a>
+</div>
+<table class="list">
+  <tr>
+    <th>ID</th>
+    <th>URI</th>
+    <th>Capacity</th>
+    <th>Mode</th>
+    <th>Entities</th>
+  </tr>
+  [% FOREACH storage IN storages %]
+  <tr>
+    <td style="width: 50px;"><a href="[% c.uri_for('/storage', storage.id, 'edit') %]">[% storage.id %]</a></td>
+    <td>[% storage.uri %]</td>
+    <td class="digit">[% storage.capacity | human_readable%]</td>
+    <td class="digit">[% mode_str(storage.mode) %]</td>
+    <td class="digit __num-entities" id="num-entities-[% storage.id %]"><a href="[% c.uri_for('/storage/', storage.id, 'entities') %]"><img src="[% c.uri_for('/static/images/img_sankaku.gif') %]" /></a></td>
+  </tr>
+  [% END %]
+</table>
+<div class="op">
+<a href="[% c.uri_for('/storage/add') %]">Add new storage node</a>
+</div>
+
+[% paginate( c.uri_for('/storage/list'), pager ) %]
+
+[% END %]

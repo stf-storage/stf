@@ -1,0 +1,40 @@
+[% WRAPPER 'layout.tx' %]
+
+<form method="post" action="[% c.uri_for('/storage/add') %]">
+[% error_msgs(result) %]
+<table class="info">
+  <tr>
+    <th><label for="id">ID</label></th>
+    <td><input type="text" name="id" id="id" style="width: 30px" /></td>
+  </tr>
+  <tr>
+    <th><label for="uri">URI</label></th>
+    <td><input type="text" name="uri" id="uri" /></td>
+  </tr>
+  <tr>
+    <th><label for="capacity">Capacity</label></th>
+    <td><input type="text" name="capacity" id="capacity" /></td>
+  </tr>
+  <tr>
+    <th><label for="mode">Mode</label></th>
+    <td>
+      <select name="mode" id="mode">
+        <option value="[% const.STORAGE_MODE_READ_WRITE %]">[% mode_str(const.STORAGE_MODE_READ_WRITE) %]</option>
+        <option value="[% const.STORAGE_MODE_READ_ONLY %]">[% mode_str(const.STORAGE_MODE_READ_ONLY) %]</option>
+        <option value="[% const.STORAGE_MODE_DOWN %]">[% mode_str(const.STORAGE_MODE_DOWN) %]</option>
+        <option value="[% const.STORAGE_MODE_RETIRE %]">[% mode_str(const.STORAGE_MODE_RETIRE) %]</option>
+        <option value="[% const.STORAGE_MODE_CRASH %]">[% mode_str(const.STORAGE_MODE_CRASH) %]</option>
+      </select>
+    </td>
+  </tr>
+</table>
+<div class="submit">
+<input type="submit" value=" Create " />
+</div>
+
+</form>
+
+
+[% END %]
+
+

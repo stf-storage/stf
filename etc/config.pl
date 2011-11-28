@@ -1,0 +1,96 @@
+use Carp ();
+
++{
+    # Dispatcher settings
+    'Dispatcher' => {
+        # host_id is used to generate unique object IDs.
+        # It is very important to use a UNIQUE value for EACH DISPATCHER
+        # INSTANCE. DO NOT USE THE SAME ID! 
+        # You've been warned.
+        host_id => $ENV{STF_HOST_ID} || Carp::croak("STF_HOST_ID is not set")
+    },
+
+    # Used for Admin interface. Change the stf_base URL as appropriate
+    'AdminWeb' => {
+        stf_base => "http://stf.mycompany.com",
+        default_view_class => 'Xslate',
+    },
+    # Used for Admin interface. You should not nee to change this
+    'AdminWeb::Router' => {
+        routes => path_to("etc/admin/routes.pl"),
+    },
+    # Used for Admin interface. You should not nee to change this
+    'AdminWeb::Validator' => {
+        profiles => path_to('etc/admin/profiles.pl'),
+    },
+    # Used for Admin interface. You should not nee to change this
+    'AdminWeb::View::Xslate' => {
+        path => [
+            path_to("view"),
+            path_to("view", "inc"),
+        ],
+        module => [
+            'STF::Xslate::Utils',
+        ],
+        suffix => '.tx',
+        syntax => 'TTerse',
+    },
+
+    # Memcached settings
+    Memcached => {
+        # Add as many servers as you may have.
+        servers => [ '127.0.0.1:11211' ],
+        namespace => 'stf.',
+        compress_threshold => 100_000,
+    },
+
+    # Database settings.
+    # The master DB.
+    'DB::Master' => [
+        "dbi:mysql:dbname=stf",
+        "root",
+        undef,
+        {
+            AutoCommit => 1,
+            AutoInactiveDestroy => 1,
+            RaiseError => 1,
+            mysql_enable_utf8 => 1,
+        }
+    ],
+    # The slave (readonly) DB - but see XXX below
+    'DB::Slave' => [
+        # XXX Currently the plan is to REMOVE this slave connection.
+        # For all practical purposes, you should be using the SAME
+        # DSN as the master MySQL here.
+        "dbi:mysql:dbname=stf",
+        "root",
+        undef,
+        {
+            AutoCommit => 1,
+            AutoInactiveDestroy => 1,
+            RaiseError => 1,
+            mysql_enable_utf8 => 1,
+        }
+    ],
+
+    # The Q4M DB.
+    'DB::Queue' => [
+        "dbi:mysql:dbname=stf_queue",
+        "root",
+        undef,
+        {
+            AutoCommit => 1,
+            AutoInactiveDestroy => 1,
+            RaiseError => 1,
+            mysql_enable_utf8 => 1,
+        }
+    ],
+
+    # The Worker config
+    # XXX Need to write more docs here
+    'Worker::Drone' => {
+        pid_file       => '/tmp/worker-drone.pid',
+        spawn_interval => 1,
+    },
+}
+    

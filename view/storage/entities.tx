@@ -1,0 +1,21 @@
+[% WRAPPER 'layout.tx' %]
+
+<h1>[% loc('Storage ID') %]: [% storage.id %]</h1>
+
+<table class="list">
+  <tr>
+    <th>[% loc('Object ID') %]</th><th>[% loc('Entity URL') %]</th><th>[% loc('Status') %]</th>
+  </tr>
+  [% FOREACH entity IN entities %]
+  <tr>
+    <td class="digit"><a href="[% c.uri_for('/object', entity.object_id) %]">[% entity.object_id %]</a></td>
+    <td class="text"><a href="[% entity.url %]">[% entity.url %]</a></td>
+    <td class="digit">[% entity.status %]</td>
+  </tr>
+  [% END %]
+</table>
+
+[% paginate( c.uri_for('/storage/' _ storage.id _ '/entities'), pager ) %]
+
+[% END %]
+

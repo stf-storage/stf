@@ -1,0 +1,6 @@
+"--exec=perl -Ilib"
+--color
+-Pt::lib::App::Prove::Plugin::StartMemcached
+-Pt::lib::App::Prove::Plugin::StartDatabase
+-Pt::lib::App::Prove::Plugin::SchemaUpdater
+-Pt::lib::App::Prove::Plugin::StartBackend

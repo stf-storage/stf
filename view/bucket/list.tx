@@ -1,0 +1,37 @@
+[% WRAPPER 'layout.tx' %]
+<div class="op">
+<form method="get" action="[% c.uri_for('/bucket/list') %]">
+<input type="text" name="name" style="width: 200px;" /><input type="submit" value="[% loc('Find Bucket') %]" />
+</form>
+</div>
+
+<table class="list">
+  <tr>
+    <th>[% loc('Bucket ID') %]</th>
+    <th>[% loc('Bucket Name') %]</th>
+    <th>[% loc('Objects') %]</th>
+  </tr>
+  [% FOREACH bucket IN buckets %]
+  <tr>
+    <td class="digit">[% bucket.id | html %]</td>
+    <td>[% bucket.name | html %]</td>
+    <td class="digit num-objects" id="num-objects-[% bucket.id %]"><a href="[% c.uri_for('/bucket', bucket.id) %]"><img src="[% c.uri_for('/static/images/ajax-loader.gif') %]" /></a></td>
+  </tr>
+  [% END %]
+</table>
+[% paginate(c.uri_for('/bucket/list'), pager) %]
+
+<script type="text/javascript">
+<!--
+jQuery(document).ready(function() {
+    jQuery('.num-objects').each(function() {
+        var idStr = this.id.replace(/^num-objects-/, '');
+        var url = "[% c.uri_for('/ajax/num_objects/') %]" + idStr;
+        jQuery('#' + this.id + ' a').load( url );
+    });
+});
+//-->
+</script>
+
+[% END %]
+

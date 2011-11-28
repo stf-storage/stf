@@ -1,0 +1,35 @@
+[% WRAPPER 'layout.tx' %]
+
+<h1>[% c.stf_uri( bucket, object) %]</h1>
+
+<table class="list">
+  <tr>
+    <th>[% loc('Object ID') %]</th>
+    <td>[% object.id %]</td>
+  </tr>
+  <tr>
+    <th>[% loc('mtime') %]</th>
+    <td>[% object.updated_at %]</td>
+  </tr>
+  <tr class="[% object.status == const.OBJECT_ACTIVE ? "acitve" : "inactive" %]">
+    <th>[% loc('Status') %]</th>
+    <td>[% object.status %]</td>
+  </tr>
+</table>
+
+
+<table class="list">
+  <tr>
+    <th>[% loc('Storage ID') %]</th><th>[% loc('Entity URL') %]</th><th>[% loc('Status') %]</th>
+  </tr>
+  [% FOREACH entity IN entities %]
+  <tr>
+    <td class="digit">[% entity.storage_id %]</td>
+    <td class="text"><a href="[% entity.url %]">[% entity.url %]</a></td>
+    <td class="digit">[% entity.status %]</td>
+  </tr>
+  [% END %]
+</table>
+
+[% END %]
+

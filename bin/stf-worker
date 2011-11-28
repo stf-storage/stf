@@ -1,0 +1,5 @@
+#!/usr/bin/env perl
+use strict;
+use STF::Worker::Drone;
+my $drone = STF::Worker::Drone->bootstrap();
+$drone->run;

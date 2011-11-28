@@ -1,0 +1,26 @@
+[% WRAPPER 'layout.tx' %]
+
+<h1>[% stf_base %]/[% bucket.name %]</h1>
+<table class="list">
+  <tr>
+    <th>[% loc('URL') %]</th>
+    <th>[% loc('Admin') %]</th>
+    <th>[% loc('Size') %]</th>
+    <th>[% loc('mtime') %]</th>
+    <th>[% loc('Replication') %]</th>
+  </tr>
+  [% FOREACH object IN objects %]
+  <tr class="[% object.status == const.OBJECT_ACTIVE ? "active" : "inactive" %]">
+    <td class="text"><a href="[% c.stf_uri( bucket, object ) %]">/[% bucket.name %][% IF (! object.name.match('^/')) %]/[% END %][% object.name %]</a></td>
+    <td><a href="/object/[% bucket.name %][% IF (! object.name.match('^/')) %]/[% END %][% object.name %]">admin</a></td>
+    <td class="digit">[% object.size | human_readable %]</td>
+    <td>[% object.updated_at %]</td>
+    <td class="digit"><a href="[% c.uri_for('/object', object.id) %]">[% object.entity_count %]/[% object.num_replica %]</a></td>
+  </tr>
+  [% END %]
+</table>
+
+[% paginate( c.uri_for('/bucket', bucket.id), pager) %]
+
+[% END %]
+
