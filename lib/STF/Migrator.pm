@@ -80,6 +80,9 @@ EOSQL
 sub _build_conn {
     my $self = shift;
     my $connect_info = $self->connect_info;
+    if (! exists $connect_info->[3]->{RaiseError}) {
+        $connect_info->[3]->{RaiseError} = 1;
+    }
     my $conn = DBIx::Connector->new(@$connect_info);
     $conn->mode('fixup');
     return $conn;

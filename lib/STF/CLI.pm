@@ -11,6 +11,7 @@ sub new {
             check     => 'STF::CLI::Check',
             crash     => 'STF::CLI::Crash',
             object    => 'STF::CLI::Object',
+            migrate   => 'STF::CLI::Migrate',
             redistribute => 'STF::CLI::Redistribute',
             repair    => 'STF::CLI::Repair',
             replicate => 'STF::CLI::Replicate',
@@ -39,9 +40,10 @@ sub run {
         exit 1;
     }
 
-    Class::Load::load_class( $class )
-        if ! Class::Load::is_class_loaded($class);
-
+    if (! Class::Load::try_load_class($class) ) {
+        print STDERR "Could not $class\n";
+        exit 1;
+    }
     my $opts = $self->get_options( $class->opt_specs );
     my %options = (
         %{$base_opts},
