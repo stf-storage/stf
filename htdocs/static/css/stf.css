@@ -1,0 +1,168 @@
+body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,form,fieldset,input,textarea,p,blockquote,th,td{margin:0;padding:0;}
+table{border-collapse:collapse;border-spacing:0;}
+fieldset,img{border:0;}
+address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal;}
+ol,ul {list-style:none;}
+caption,th {text-align:left;}
+h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal;}
+q:before,q:after{content:'';}
+abbr,acronym {border:0;}
+
+body {
+    color: #333;
+    font-family: Arial, Verdana, sans-serif;
+}
+
+h1 { 
+     margin-left: 10px;
+     font-size: 1.5em;
+     font-weight: bold;
+     border-bottom: 1px dotted #333;
+}
+
+#container, #footer { 
+          margin: 0 auto;
+          width: 950px;
+}
+
+#header { 
+          margin: 0 auto;
+          width: 950px;
+          background: #333;
+          color: #efefef;
+}
+
+#navi { 
+        width: 120px;
+        float: left;
+        padding: 8px;
+        text-align: right;
+}
+
+#content { 
+           width: 780px;
+           float: right;
+           padding: 8px;
+           border-left: 1px dotted #666;
+}
+
+#content { 
+           padding: 8px;
+}
+
+#header { 
+          border-bottom: 1px #666 dotted;
+}
+
+#footer { 
+          border-top: 1px #666 solid;
+          font-size: 0.9em;
+          text-align: center;
+           clear:both;
+}
+
+div.op { 
+           text-align: right;
+           width: 90%;
+          margin: 0 auto;
+}
+
+table.list { 
+              margin: 10px auto;
+              width: 700px;
+              border: 1px solid #666;
+}
+
+table.list th { 
+                 background: #ccc;
+                 font-weight: bold;
+                 border: 1px solid #666;
+                 text-align: center;
+}
+
+table.list td { 
+                padding: 2px;
+                border: 1px solid #666;
+                text-align: center;
+                font-size: 10pt;
+}
+
+table.list tr.inactive td {
+    background-color: #f00;
+}
+
+table.list td.digit { 
+                      text-align: center;
+                      width: 100px;
+}
+
+table.list td.text { 
+                      text-align: left;
+                      width: 300px;
+}
+
+
+table.info { 
+              margin: 10px auto;
+              width: 500px;
+              border: 1px solid #666;
+}
+
+table.info th { 
+                background: #ccc;
+                font-weight: bold;
+                border: 1px solid #666;
+                text-align: right;
+                padding: 4px;
+}
+
+table.info th.label { 
+                      width: 120px;
+                      padding: 4px;
+
+}
+
+table.info td { 
+                border: 1px solid #666;
+                padding: 4px;
+
+}
+
+table.form { 
+             margin: 20px auto 0 auto;
+             width: 500px;
+}
+
+table.form th { 
+                background: #ccc;
+                border-left: 4px solid #000;
+                text-align: right;
+                padding: 2px;
+                margin: 1px;
+                width: 100px;
+}
+
+table.form td { 
+                width: 400px;
+                padding : 2px;
+}
+
+table.form tr { 
+                margin: 1px;
+
+ }
+
+table.form td input.text-min { 
+                           width: 120px;
+}
+table.form td input.text { 
+                           width: 320px;
+}
+
+div.submit { 
+             text-align: center;
+}
+
+div.pagination { 
+             text-align: center;
+}
