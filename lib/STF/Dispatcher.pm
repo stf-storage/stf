@@ -50,6 +50,10 @@ sub new {
         %args
     }, $class;
 
+    if (! $self->{host_id} ) {
+        Carp::croak("No host_id specified!");
+    }
+
     my $semkey = IPC::SysV::ftok( $self->{sem_name}->filename );
     my $mutex  = IPC::Semaphore->new( $semkey, 1, S_IRUSR | S_IWUSR | IPC_CREAT );
     my $shmkey = IPC::SysV::ftok( $self->{shm_name}->filename );

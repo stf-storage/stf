@@ -7,7 +7,7 @@ use Carp ();
         # It is very important to use a UNIQUE value for EACH DISPATCHER
         # INSTANCE. DO NOT USE THE SAME ID! 
         # You've been warned.
-        host_id => $ENV{STF_HOST_ID} || Carp::croak("STF_HOST_ID is not set")
+        host_id => $ENV{STF_HOST_ID},
     },
 
     # Used for Admin interface. Change the stf_base URL as appropriate
