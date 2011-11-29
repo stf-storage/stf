@@ -35,13 +35,13 @@ L<STF::Dispatcher>
 
 L<Net::STF::Client>
 
-=head1 AUTHOR EMERITUS
-
-Ikebe Tomohiro
-
 =head1 AUTHOR
 
 Daisuke Maki C<< <daisuke@endeworks.jp> >>
+
+=head1 AUTHOR EMERITUS
+
+Ikebe Tomohiro
 
 =head1 COPYRIGHT AND LICENSE
 
