@@ -403,12 +403,11 @@ sub get_object {
         STF::Exception::HTTP->throw([  200, [ 'X-Reproxy-URL' => $uri ], [] ]);
     }
 
-
     if ( STF_DEBUG ) {
         print STDERR "[Dispatcher] get_object() could not find suitable entity for $object_name\n";
     }
 
-    return $req->new_response( 404 );
+    return ();
 }
 
 sub delete_object {

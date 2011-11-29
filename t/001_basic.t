@@ -137,7 +137,7 @@ EOSQL
         $res = $cb->(
             HEAD "http://127.0.0.1/$bucket_name/$object_name-nonexistent",
         );
-        if (! ok ! $res->is_success, "HEAD should fail") {
+        if (! is $res->code, 404, "HEAD should fail with 404") {
             diag $res->as_string;
         }
 
@@ -145,7 +145,7 @@ EOSQL
         $res = $cb->(
             GET "http://127.0.0.1/$bucket_name/$object_name-nonexistent",
         );
-        if (! ok ! $res->is_success, "GET should fail") {
+        if (! is $res->code, 404, "GET should fail with 404") {
             diag $res->as_string;
         }
     }
