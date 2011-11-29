@@ -18,7 +18,7 @@ requires 'Guard';
 requires 'HTML::FillInForm';
 requires 'HTTP::Parser::XS';
 requires 'IPC::SysV';
-requires 'Plack';
+requires 'Plack' => '0.9981';
 requires 'Plack::Middleware::ReverseProxy';
 requires 'Plack::Middleware::ServerStatus::Lite';
 requires 'Parallel::Prefork';
