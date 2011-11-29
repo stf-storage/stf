@@ -309,8 +309,6 @@ EOSQL
         $headers = [ 'If-Modified-Since' => $if_modified_since ];
     }
 
-
-
     foreach my $entity ( @$entities ) {
         my (undef, $code) = $furl->head( $entity, $headers );
         if ( HTTP::Status::is_success( $code ) ) {

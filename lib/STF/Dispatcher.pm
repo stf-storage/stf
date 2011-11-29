@@ -101,13 +101,7 @@ sub handle_exception {
 sub get_bucket {
     my ($self, $args) = @_;
 
-    state $txn = sub {
-        my ($self, $bucket_name) = @_;
-        my $bucket_api = $self->get('API::Bucket');
-        return $bucket_api->lookup_by_name( $bucket_name );
-    };
-
-    my ($bucket) = $self->txn_block( 'DB::Slave' => $txn, $args->{bucket_name} );
+    my ($bucket) = $self->get('API::Bucket')->lookup_by_name( $args->{bucket_name} );
     if ( STF_DEBUG ) {
         if ( $bucket ) {
             print STDERR "[Dispatcher] Found bucket $args->{bucket_name}:\n";
@@ -248,15 +242,11 @@ sub is_valid_object {
     my ($self, $args) = @_;
     my ($bucket, $object_name ) = @$args{ qw( bucket object_name ) };
 
-    state $txn = sub {
-        my ($self, $bucket_id, $object_name) = @_;
-        my $object_api = $self->get( 'API::Object' );
-        return $object_api->find_active_object_id( {
-            bucket_id => $bucket_id,
-            object_name => $object_name
-        } );
-    };
-    return $self->txn_block( 'DB::Slave' => $txn, $bucket->{id}, $object_name );
+    my $object_api = $self->get( 'API::Object' );
+    return $object_api->find_active_object_id( {
+        bucket_id => $bucket->{id},
+        object_name => $object_name
+    } );
 }
 
 sub create_object {
@@ -402,42 +392,23 @@ sub get_object {
     my ($bucket, $object_name, $force_master, $req) =
         @$args{ qw(bucket object_name force_master request) };
 
-    my $is_head = $req->method eq 'HEAD';
     my $if_modified_since = $req->header('If-Modified-Since');
-
-    state $txn = sub {
-        my ($self, $bucket_id, $object_name, $is_head, $if_modified_since) = @_;
-        my $object_api = $self->get('API::Object');
-        my $uri = $object_api->get_any_valid_entity_url({
-            bucket_id => $bucket_id,
-            object_name => $object_name,
-            if_modified_since => $if_modified_since,
-        });
-        if ($uri) {
-            STF::Exception::HTTP->throw([  200, [ 'X-Reproxy-URL' => $uri ], [] ]);
-        }
-    
-        return ();
-    };
-
-    my $dbname = $force_master ? 'DB::Master' : 'DB::Slave';
-
-    my $res = $self->txn_block(
-        $dbname=> $txn, $bucket->{id}, $object_name, $is_head, $if_modified_since);
-    if (my $e = $@) {
-        $self->handle_exception($e);
-        print STDERR "Error while fetching object: $e\n";
-        # no return, as we want the debug statement later to
-        # show up in the logs
+    my $object_api = $self->get('API::Object');
+    my $uri = $object_api->get_any_valid_entity_url({
+        bucket_id => $bucket->{id},
+        object_name => $object_name,
+        if_modified_since => $if_modified_since,
+    });
+    if ($uri) {
+        STF::Exception::HTTP->throw([  200, [ 'X-Reproxy-URL' => $uri ], [] ]);
     }
 
-    if (! $res) {
-        if ( STF_DEBUG ) {
-            print STDERR "[Dispatcher] get_object() could not find suitable entity for $object_name\n";
-        }
+
+    if ( STF_DEBUG ) {
+        print STDERR "[Dispatcher] get_object() could not find suitable entity for $object_name\n";
     }
 
-    return $res || ();
+    return $req->new_response( 404 );
 }
 
 sub delete_object {
@@ -570,11 +541,7 @@ STF::Dispatcher - Dispatcher For STF
 
     my $impl = STF::Dispatcher->new(
         host_id => 100, # number
-        connect_info => {
-            master => [ 'dbi:mysql:dbname=xxxx', ... ],
-            slave  => [ 'dbi:mysql:dbname=yyyy', ... ],
-            quueue => [ 'dbi:mysql:dbname=zzzz', ... ],
-        }
+        ...
     );
 
     STF::Dispatcher::PSGI->new(impl => $impl)->to_app;
