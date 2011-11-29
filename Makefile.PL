@@ -43,7 +43,7 @@ test_requires 'Plack::Middleware::Reproxy' => '0.00002';
 clean_files 't/*.log', 't/store*';
 
 # The additional \n helps to fool Module::Install
-sub MY::test_via_harness { "\tprove -Mlib=extlib/lib/perl5 --rc=t/proverc t\n" }
+sub MY::test_via_harness { "\tprove --lib --rc=t/proverc t\n" }
 
 my $mysql = `which mysql`;
 chomp $mysql;
