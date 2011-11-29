@@ -11,7 +11,7 @@ use IPC::Semaphore;
 use POSIX();
 use STF::Constants qw(:entity :server STF_DEBUG STF_TIMER);
 use STF::Context;
-use STF::Exception::HTTP;
+use STF::Dispatcher::PSGI::HTTPException;
 use Time::HiRes ();
 use Class::Accessor::Lite
     rw => [ qw(
@@ -94,7 +94,7 @@ sub handle_exception {
     my ($self, $e) = @_;
 
     if (ref $e eq 'ARRAY') {
-        STF::Exception::HTTP->throw($e);
+        STF::Dispatcher::PSGI::HTTPException->throw(@$e);
     }
 }
 
@@ -210,7 +210,7 @@ sub delete_bucket {
         # Puts the bucket into deleted_bucket
         my $rv = $bucket_api->mark_for_delete( { id => $id } );
         if ($rv == 0) {
-            STF::Exception::HTTP->throw( [ 403, [], [] ] );
+            STF::Dispatcher::PSGI::HTTPException->throw( 403, [], [] );
         }
 
         return 1;
@@ -400,7 +400,7 @@ sub get_object {
         if_modified_since => $if_modified_since,
     });
     if ($uri) {
-        STF::Exception::HTTP->throw([  200, [ 'X-Reproxy-URL' => $uri ], [] ]);
+        STF::Dispatcher::PSGI::HTTPException->throw( 200, [ 'X-Reproxy-URL' => $uri ], [] );
     }
 
     if ( STF_DEBUG ) {
@@ -434,7 +434,7 @@ sub delete_object {
         }
 
         if (! $object_api->mark_for_delete( $object_id ) ) {
-            STF::Exception::HTTP->throw( [ 500, [], [] ] );
+            STF::Dispatcher::PSGI::HTTPException->throw( 500, [], [] );
         }
 
         return (1, $object_id);

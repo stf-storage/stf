@@ -32,7 +32,7 @@ requires 'Starlet';
 requires 'String::Urandom';
 requires 'Text::Xslate';
 requires 'YAML';
-requires 'STF::Dispatcher::PSGI';
+requires 'STF::Dispatcher::PSGI' => '1.01';
 
 test_requires 'App::Prove';
 test_requires 'Proc::Guard';

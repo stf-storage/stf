@@ -4,7 +4,7 @@ use parent qw(STF::API::WithDBI);
 use Digest::MurmurHash ();
 use HTTP::Status ();
 use STF::Constants qw(STF_DEBUG :object STORAGE_MODE_REMOVED);
-use STF::Exception::HTTP;
+use STF::Dispatcher::PSGI::HTTPException;
 use Class::Accessor::Lite
     new => 1,
     rw => [ qw(furl urandom) ]
@@ -324,7 +324,7 @@ EOSQL
                     $object_id
                 ;
             }
-            STF::Exception::HTTP->throw( [ 304, [], [] ] );
+            STF::Dispatcher::PSGI::HTTPException->throw( 304, [], [] );
         } else {
             if ( STF_DEBUG ) {
                 print STDERR "[Get Entity] + HEAD $entity failed: $code\n";
