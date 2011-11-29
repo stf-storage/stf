@@ -21,7 +21,6 @@ requires 'IPC::SysV';
 requires 'Plack' => '0.9981';
 requires 'Plack::Middleware::ReverseProxy';
 requires 'Plack::Middleware::Static';
-requires 'Plack::Middleware::ServerStatus::Lite';
 requires 'Parallel::Prefork';
 requires 'Parallel::ForkManager';
 requires 'Parallel::Scoreboard';
