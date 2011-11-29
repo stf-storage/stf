@@ -12,13 +12,29 @@ use Class::Accessor::Lite
         router
         stf_base
         default_view_class
+        use_reverse_proxy
+        htdocs
     ) ]
 ;
 
 sub bootstrap {
     my $class = shift;
     my $context = STF::Context->bootstrap(@_);
+
+    # These are the default values
+    my $use_reverse_proxy = 
+        # if USE_REVERSE_PROXY exists, use that value
+        exists $ENV{USE_REVERSE_PROXY} ?  $ENV{USE_REVERSE_PROXY} :
+        # if PLACK_ENV is production, then use reverse proxy
+        $ENV{PLACK_ENV} eq 'production' ? 1 :
+        # otherwise no
+        0
+    ;
+    my $htdocs = File::Spec->catfile( $ENV{DEPLOY_HOME} || Cwd::cwd(), "htdocs" );
+
     my $app = STF::AdminWeb->new(
+        use_reverse_proxy => $use_reverse_proxy,
+        htdocs => $htdocs,
         %{ $context->get('config')->{'AdminWeb'} || {} },
         context => $context,
         router  => $context->get('AdminWeb::Router'),
@@ -29,9 +45,20 @@ sub bootstrap {
 
 sub to_app {
     my $self = shift;
-    return sub {
+
+    my $app = sub {
         my $env = shift;
         $self->handle_psgi($env);
+    };
+    if ($self->use_reverse_proxy) {
+        require Plack::Middleware::ReverseProxy;
+        return Plack::Middleware::ReverseProxy->wrap( $app );
+    } else {
+        require Plack::Middleware::Static;
+        return Plack::Middleware::Static->wrap( $app, (
+            path => qr{^/static},
+            root => $self->htdocs,
+        ) );
     }
 }
 

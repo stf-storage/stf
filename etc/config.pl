@@ -14,6 +14,16 @@ use Carp ();
     'AdminWeb' => {
         stf_base => "http://stf.mycompany.com",
         default_view_class => 'Xslate',
+        # Set to true if you want to enable reverse proxy middleware
+        # Or, 
+        #   1) you can set USE_REVERSE_PROXY environment variable
+        #   2) if USE_REVERSE_PROXY isn't set and PLACK_ENV is production, 
+        #      then we assume use_reverse_proxy = 1
+        #
+        # use_reverse_proxy => 1,
+
+        # Path to static files
+        # htdocs => path_to( "htdocs" ),
     },
     # Used for Admin interface. You should not nee to change this
     'AdminWeb::Router' => {
