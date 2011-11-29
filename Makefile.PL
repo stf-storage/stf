@@ -25,7 +25,6 @@ requires 'Parallel::Prefork';
 requires 'Parallel::ForkManager';
 requires 'Parallel::Scoreboard';
 requires 'Router::Simple';
-requires 'Server::Starter';
 requires 'SQL::Maker';
 requires 'Starlet';
 requires 'String::Urandom';
