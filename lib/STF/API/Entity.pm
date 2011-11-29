@@ -56,7 +56,6 @@ sub delete_for_object_id {
 
     my $furl = $self->get('Furl');
     my $storage_api = $self->get('API::Storage');
-    my @coros;
     foreach my $entity ( $self->search( { object_id => $object_id } ) ) {
         my $storage_id = $entity->{storage_id};
         my $storage = $storage_api->lookup( $storage_id );
@@ -251,7 +250,6 @@ EOSQL
         'X-STF-Object-Timestamp' => $object->{created_at},
 #        'Content-Type'   => $req->content_type || 'text/plain',
     );
-    my @coros;
 
     if (STF_DEBUG) {
         printf STDERR "[ Replicate] Creating entities in the backend storages\n";

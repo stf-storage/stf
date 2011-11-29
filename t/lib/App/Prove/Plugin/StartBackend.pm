@@ -7,6 +7,34 @@ use File::Path qw(make_path remove_tree);
 
 our @STF_BACKENDS;
 
+# Copied from AnyEvent::Util
+sub close_all_fds_except {
+   my %except; @except{@_} = ();
+
+   require POSIX;
+
+   # some OSes have a usable /dev/fd, sadly, very few
+   if ($^O =~ /(freebsd|cygwin|linux)/) {
+      # netbsd, openbsd, solaris have a broken /dev/fd
+      my $dir;
+      if (opendir $dir, "/dev/fd" or opendir $dir, "/proc/self/fd") {
+         my @fds = sort { $a <=> $b } grep /^\d+$/, readdir $dir;
+         # broken OS's have device nodes for 0..63 usually, solaris 0..255
+         if (@fds < 20 or "@fds" ne join " ", 0..$#fds) {
+            # assume the fds array is valid now
+            exists $except{$_} or POSIX::close ($_)
+               for @fds;
+            return;
+         }
+      }
+   }
+
+   my $fd_max = eval { POSIX::sysconf (POSIX::_SC_OPEN_MAX ()) - 1 } || 1023;
+
+   exists $except{$_} or POSIX::close ($_)
+      for 0..$fd_max;
+}
+
 sub load {
     diag "Checking for explicit STF_BACKEND_URLS";
     # do we have an explicit memcached somewhere?
@@ -47,10 +75,9 @@ sub load {
 sub start_backend {
     my ($id, $port, $dir) = @_;
 
-    require AnyEvent::Util;
     require Plack::Runner;
 
-    AnyEvent::Util::close_all_fds_except(1, 2);
+    close_all_fds_except(1, 2);
 
     open my $logfh, '>', sprintf("t/backend%03d-err.log", $id);
     open STDOUT, '>&', $logfh

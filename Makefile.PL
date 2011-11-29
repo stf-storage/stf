@@ -3,8 +3,10 @@ use inc::Module::Install;
 name 'STF';
 all_from 'lib/STF.pm';
 
-requires 'AnyEvent';
-requires 'AnyEvent::HTTP';
+# Only Migrator requires these
+requires 'Coro';
+requires 'FurlX::Foro';
+
 requires 'Cache::Memcached::Fast';
 requires 'Class::Accessor::Lite';
 requires 'Class::Load';
