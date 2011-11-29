@@ -19,6 +19,14 @@ STF is a distributed object storage, built with Perl, MySQL, Q4M, and Memcached.
 
 STF uses HTTP as its protocol, so it's very easy for your applications to talk to it.
 
+=head1 CARTON (EXPERIMENTAL)
+
+STF comes with experimental carton support.
+
+    git clone stf ...
+    carton install
+    carton exec STF_HOST_ID=... plackup -Ilib etc/dispatcher.psgi
+
 =head1 SEE ALSO
 
 http://stf-storage.github.com - project page.
