@@ -241,8 +241,16 @@ EOSQL
             WHERE s.mode = 1 AND s.id NOT IN (SELECT storage_id FROM entity WHERE object_id = ?)
         ORDER BY rand() LIMIT $replicas
 EOSQL
-    if (@$storages < 1) {
-        Carp::croak("No storage found");
+    if (@$storages < $replicas) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[ Replicate] Wanted %d storages, but found %d\n", $replicas, scalar @$storages;
+        }
+
+        # short-circuit for worst case
+        if ( @$storages < 1 ) {
+            printf STDERR "[ Replicate] In fact, no storages were avilable. Bailing out of replicate()\n";
+            return 0;
+        }
     }
 
     my @hdrs = (

@@ -232,14 +232,21 @@ sub repair {
             print STDERR "[    Repair] Using content from $ref_url\n";
         }
         my (undef, undef, undef, undef, $content) = $furl->get( $ref_url );
-        $entity_api->replicate( {
+        my $replicated = $entity_api->replicate( {
             object_id => $object_id,
             content   => $content,
             replicas  => $n,
         } );
-        return $n + scalar @broken;
-    }
 
+        if ( STF_DEBUG ) {
+            printf STDERR "[    Repair] Wanted %d, replicated %d times\n",
+                $n,
+                $replicated,
+            ;
+        }
+                
+        return $replicated + scalar @broken;
+    }
 }
 
 sub get_any_valid_entity_url {
