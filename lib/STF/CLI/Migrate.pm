@@ -20,15 +20,12 @@ sub run {
     my $self = shift;
 
     my $options = $self->{options};
-use Data::Dumper::Concise;
-warn Dumper($options);
     if ( $options->{help} ) {
         $self->show_help();
         exit 0;
     }
 
     my $migrator = STF::Migrator->new($options);
-warn "hoge";
     $migrator->run;
 }
 
