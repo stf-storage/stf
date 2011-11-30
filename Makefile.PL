@@ -6,6 +6,7 @@ all_from 'lib/STF.pm';
 # Only Migrator requires these
 requires 'Coro';
 requires 'FurlX::Coro';
+requires 'DBIx::Connector';
 
 requires 'Cache::Memcached::Fast';
 requires 'Class::Accessor::Lite';
