@@ -119,7 +119,7 @@ sub clear_queue {
     my $sth = $dbh->prepare( "SHOW TABLES" );
     $sth->execute();
     while ( my ($table) = $sth->fetchrow_array ) {
-        next unless $table =~ /^queue_/;
+        next unless $table =~ /^queue_|^job$/;
         $dbh->do( "TRUNCATE $table" );
     }
 }
