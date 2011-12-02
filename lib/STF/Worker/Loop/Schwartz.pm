@@ -5,6 +5,7 @@ use parent qw(
     STF::Trait::WithContainer
 );
 use Scalar::Util ();
+use STF::Constants qw(STF_DEBUG);
 use TheSchwartz;
 use Time::HiRes ();
 use Class::Accessor::Lite
@@ -28,8 +29,17 @@ sub create_client {
         @{ "${ability}::ISA" } = qw(TheSchwartz::Worker);
         *{ "${ability}::work" } = sub {
             my ($class, $job) = @_;
+
+            my $extra_guard;
+            if ( STF_DEBUG ) {
+                printf STDERR "[ Schwartz] ---- START %s:%s ----\n", $ability, $job->arg;
+                $extra_guard = Guard::guard(sub {
+                    printf STDERR "[ Schwartz] ---- END %s:%s ----\n", $ability, $job->arg;
+                } );
+            }
+
             eval {
-                $impl->work( $job->arg );
+                $impl->work_once( $job->arg );
             };
             # XXX Retry? Naahhhh
             if ($@) {
@@ -49,6 +59,8 @@ sub work {
     my $client = $self->create_client($impl);
     while ( $self->should_loop ) {
         if ( $client->work_once ) {
+            $self->incr_processed;
+        } else {
             if ( (my $interval = $self->interval) > 0 ) {
                 Time::HiRes::usleep( $interval );
             }
