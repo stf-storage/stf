@@ -12,8 +12,19 @@ clear_queue;
 
 my $code = sub {
     my $cb = shift;
+
+    my $IS_SCHWARTZ;
     my $context = STF::Context->bootstrap( config => "t/config.pl" );
     my $container = $context->container;
+    {
+        my $queue_dbh = $container->get( 'DB::Queue' );
+        # crude way to figure out which check to perform
+        my $list = $queue_dbh->selectall_arrayref( <<EOSQL, undef );
+            SHOW TABLES
+EOSQL
+        $IS_SCHWARTZ = grep { $_->[0] eq 'job' } @$list;
+    }
+    note "Are we using Schwartz? => " . ($IS_SCHWARTZ ? "YES" : "NO");
 
     my $bucket = "repair";
     my $content = join ".", $$, time(), {}, rand();
@@ -81,9 +92,18 @@ EOSQL
     my $found_repair = 0;
     for (1..100) {
         $cb->( GET "http://127.0.0.1/$bucket/test" );
-        my $object = $queue_dbh->selectrow_array( <<EOSQL, undef, $target->{id});
-            SELECT * FROM queue_repair_object WHERE args = ?
+
+        my $object;
+        if ( $IS_SCHWARTZ ) {
+            $object = $queue_dbh->selectrow_array( <<EOSQL, undef, $target->{id}, "STF::Worker::RepairObject::Proxy" );
+                SELECT job.* FROM job JOIN funcmap ON job.funcid = funcmap.funcid WHERE job.arg = ? AND funcmap.funcname = ?
 EOSQL
+        } else {
+            $object = $queue_dbh->selectrow_array( <<EOSQL, undef, $target->{id});
+                SELECT * FROM queue_repair_object WHERE args = ?
+EOSQL
+        }
+
         if ($object) {
             $found_repair = 1;
             last;
@@ -110,9 +130,16 @@ EOSQL
         is scalar @files, 2, "Should be 2 files";
     }
 
-    my ($repair_queue_size) = $queue_dbh->selectrow_array( <<EOSQL );
-        SELECT count(*) FROM queue_repair_object
+    my $repair_queue_size;
+    if ( $IS_SCHWARTZ ) {
+        ($repair_queue_size) = $queue_dbh->selectrow_array( <<EOSQL, undef, "STF::Worker::RepairObject::Proxy" );
+            SELECT count(*) FROM job JOIN funcmap ON job.funcid = funcmap.funcid WHERE funcmap.funcname = ?
 EOSQL
+    } else {
+        ($repair_queue_size) = $queue_dbh->selectrow_array( <<EOSQL );
+            SELECT count(*) FROM queue_repair_object
+EOSQL
+    }
 
     # run the repair worker a bit longer
     {
@@ -124,15 +151,23 @@ EOSQL
         );
         $worker->work;
     }
-    my ($repair_queue_size_after) = $queue_dbh->selectrow_array( <<EOSQL );
-        SELECT count(*) FROM queue_repair_object
+
+    my $repair_queue_size_after;
+    if ( $IS_SCHWARTZ ) {
+        ($repair_queue_size_after) = $queue_dbh->selectrow_array( <<EOSQL, undef, "STF::Worker::RepairObject::Proxy" );
+            SELECT count(*) FROM job JOIN funcmap ON job.funcid = funcmap.funcid WHERE funcmap.funcname = ?
 EOSQL
+    } else {
+        ($repair_queue_size_after) = $queue_dbh->selectrow_array( <<EOSQL );
+            SELECT count(*) FROM queue_repair_object
+EOSQL
+    }
 
-    ok $repair_queue_size_after < $repair_queue_size, "queue size has not increased";
+    ok $repair_queue_size_after < $repair_queue_size, "queue size has not increased (before=$repair_queue_size, after=$repair_queue_size_after)";
 };
-
+my $app = require "t/dispatcher.psgi";
 test_psgi 
-    app => do "t/dispatcher.psgi",
+    app => $app,
     client => $code
 ;
 

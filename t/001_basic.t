@@ -69,11 +69,12 @@ my $code = sub {
                 JOIN bucket b ON o.bucket_id = b.id
                 WHERE b.name = ? AND o.name = ?
 EOSQL
-        ok $object;
+        ok $object, "found object matchin $bucket_name + $object_name";
     }
 
     {
         my $guard = $context->container->new_scope();
+        my $dbh = $context->container->get('DB::Queue');
         my $worker = STF::Worker::Replicate->new(
             container => $context->container,
             max_works_per_child => 1,

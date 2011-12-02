@@ -1,6 +1,7 @@
 package STF::API::Queue::Schwartz;
 use strict;
 use parent qw(STF::Trait::WithDBI);
+use STF::Constants qw(STF_DEBUG);
 use TheSchwartz;
 use Class::Accessor::Lite new => 1;
 
@@ -47,6 +48,9 @@ sub enqueue {
 
     my $client = $self->get_client();
 
+    if ( STF_DEBUG ) {
+        print STDERR "[     Queue] Engqueued $ability ($object_id)\n";
+    }
     $client->insert( $ability, $object_id );
 }
 

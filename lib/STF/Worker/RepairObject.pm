@@ -8,6 +8,11 @@ use Class::Accessor::Lite
     ) ]
 ;
 
+sub new {
+    my $class = shift;
+    $class->SUPER::new(loop_class => $ENV{ STF_QUEUE_TYPE } || 'Q4M', @_);
+}
+
 sub work_once {
     my ($self, $object_id) = @_;
 

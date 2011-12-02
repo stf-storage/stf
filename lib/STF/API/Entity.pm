@@ -3,7 +3,7 @@ use strict;
 use Carp ();
 use Furl::HTTP;
 use Scalar::Util ();
-use STF::Constants qw(:entity :storage STF_DEBUG STF_TIMER OBJECT_INACTIVE);
+use STF::Constants qw(:entity :storage STF_DEBUG STF_TIMER STORAGE_MODE_READ_WRITE OBJECT_INACTIVE);
 use STF::Utils ();
 use parent qw( STF::API::WithDBI );
 use Class::Accessor::Lite
@@ -166,19 +166,19 @@ EOSQL
         # coro will reopen it so it can pass a file handle
         my $tempinput = File::Temp->new( CLEANUP => 1 );
         my ($buf, $ret);
-        READCONTENT: while ( 1 ) {
-            $ret = read( $input, $buf, 10 * 1024 );
+        my $size = $object->{size};
+        my $sofar = 0;
+        $content = '';
+        READCONTENT: while ( $sofar < $size ) {
+            $ret = read( $input, $buf, $size );
             if ( not defined $ret ) {
                 Carp::croak("Failed to read from input: $!");
             } elsif ( $ret == 0 ) { # EOF
                 last READCONTENT;
             }
-            # use syswrite?
-            print $tempinput $buf;
+            $content .= $buf;
+            $sofar += $ret;
         }
-        $tempinput->flush;
-        $tempinput->seek(0, 0);
-        $content = $tempinput;
     }
 
     if (! $content && $object ) {
@@ -187,18 +187,13 @@ EOSQL
         }
 
         # Get at least 1 entry
-        my $storages = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id );
+        my $storages = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, STORAGE_MODE_READ_ONLY, STORAGE_MODE_READ_WRITE, $object_id );
             SELECT s.id, s.uri 
                 FROM storage s JOIN entity e ON s.id = e.storage_id
-                WHERE s.mode = 1 AND e.object_id = ?
+                WHERE s.mode IN (?, ?) AND e.object_id = ?
 EOSQL
 
-        my $count = scalar @$storages;
-        if ( STF_DEBUG ) {
-            printf STDERR "[ Replicate] Found %d storages\n", $count;
-        }
-
-        if ($count == 0) {
+        if ( scalar( @$storages ) == 0) {
             if ( STF_DEBUG ) {
                 printf STDERR "[ Replicate] No storage matching object found, disableing object '%s'\n", $object_id;
             }
@@ -206,12 +201,11 @@ EOSQL
             return;
         }
 
-
         my $furl = $self->get('Furl');
         foreach my $storage ( @$storages ) {
             my $uri = join "/", $storage->{uri}, $object->{internal_name};
             if ( STF_DEBUG ) {
-                printf STDERR "[ Replicate] Fetching %s\n", $uri;
+                printf STDERR "[ Replicate] Fetching %s as replica source\n", $uri;
             }
             my (undef, $code, undef, $hdrs, $x_content) = $furl->get( $uri );
             if ( $code ne '200' ) {
@@ -236,9 +230,9 @@ EOSQL
         }
     }
 
-    my $storages = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, $object_id);
+    my $storages = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, STORAGE_MODE_READ_WRITE, $object_id);
         SELECT s.id, s.uri FROM storage s
-            WHERE s.mode = 1 AND s.id NOT IN (SELECT storage_id FROM entity WHERE object_id = ?)
+            WHERE s.mode = ? AND s.id NOT IN (SELECT storage_id FROM entity WHERE object_id = ?)
         ORDER BY rand() LIMIT $replicas
 EOSQL
     if (@$storages < $replicas) {
@@ -323,6 +317,10 @@ EOSQL
 
     if ($ok_count <= 0) { 
         Carp::croak("*** ALL REQUESTS TO REPLICATE FAILED (wanted $replicas) ***");
+    }
+
+    if (STF_DEBUG) {
+        print STDERR "[ Replicate] Replicated $ok_count times\n";
     }
 
     return $ok_count;

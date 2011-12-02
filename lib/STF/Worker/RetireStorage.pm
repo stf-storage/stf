@@ -1,6 +1,11 @@
 package STF::Worker::RetireStorage;
 use strict;
-use parent qw(STF::Worker::Loop::Periodic STF::Trait::WithDBI);
+use parent qw(STF::Worker::Base STF::Trait::WithContainer);
+
+sub new {
+    my $class = shift;
+    $class->SUPER::new(@_, loop_class => "Periodic");
+}
 
 sub work_once {
     my $self = shift;

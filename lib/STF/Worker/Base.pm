@@ -41,12 +41,12 @@ sub create_loop {
 sub work {
     my $self = shift;
     if ( STF_DEBUG ) {
-        print STDERR "[Worker] Starting $self worker...\n";
+        print STDERR "[   Worker] Starting $self worker...\n";
     }
 
     my $loop = $self->create_loop;
     if ( STF_DEBUG ) {
-        print STDERR "[Worker] Instantiated loop: $loop\n";
+        print STDERR "[   Worker] Instantiated loop: $loop\n";
     }
 
     $loop->work( $self );

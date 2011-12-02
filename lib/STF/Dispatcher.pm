@@ -32,6 +32,7 @@ sub bootstrap {
     my $class = shift;
     my $context = STF::Context->bootstrap;
     my $config = $context->config;
+
     $class->new(
         cache_expires => 300,
         %{$config->{'Dispatcher'}},

@@ -1,6 +1,6 @@
 package STF::Worker::Loop::Periodic;
 use strict;
-use parent qw( STF::Worker::Loop );
+use parent qw( STF::Worker::Loop STF::Trait::WithContainer );
 
 sub new {
     my ($class, %args) = @_;
@@ -12,15 +12,15 @@ sub new {
 }
 
 sub work {
-    my $self = shift;
+    my ($self, $impl) = @_;
 
     die "Interval is not specified" unless $self->interval;
 
     my $guard = $self->container->new_scope();
     while ( $self->should_loop ) {
         $self->incr_processed();
-        my $perloop_scope = $self->container->new_scope();
-        $self->work_once();
+        my $perloop_scope = $impl->container->new_scope();
+        $impl->work_once();
 
         if ( $self->should_loop ) {
             sleep $self->interval;
