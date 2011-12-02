@@ -8,13 +8,23 @@ use File::Spec ();
 use STF::Constants qw(STF_DEBUG STF_TIMER);
 use STF::Utils ();
 use Class::Accessor::Lite
-    ro => [ qw(root fileapp) ]
+    rw => [ qw(root fileapp) ]
 ;
 
 sub new {
     my ($class, %args) = @_;
     my $self = bless { root => Cwd::cwd(), %args }, $class;
+    if (! $self->fileapp) {
+        require Plack::App::File;
+        $self->fileapp( Plack::App::File->new( root => $self->root ) );
+    }
+
     $self;
+}
+
+sub to_app {
+    my $self = shift;
+    return sub { $self->process(@_) };
 }
 
 sub process {
