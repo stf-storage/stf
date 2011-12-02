@@ -58,7 +58,7 @@ router {
         action     => 'objects',
     };
 
-    connect qr{^/object/([^/]+)(/[\w\/%+._-]+)$} => {
+    connect qr{^/object/([^/]+)/([\w\/%+._-]+)$} => {
         controller => 'Object',
         action => 'view_public_name',
     };
