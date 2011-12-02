@@ -102,5 +102,18 @@ use Carp ();
         pid_file       => '/tmp/worker-drone.pid',
         spawn_interval => 1,
     },
+    'Worker::Replicate' => {
+        loop_class     => $ENV{ STF_QUEUE_TYPE } || "Q4M",
+    },
+    'Worker::DeleteObject' => {
+        loop_class     => $ENV{ STF_QUEUE_TYPE } || "Q4M",
+    },
+    'Worker::DeleteBucket' => {
+        loop_class     => $ENV{ STF_QUEUE_TYPE } || "Q4M",
+    },
+    'Worker::RepairObject' => {
+        loop_class     => $ENV{ STF_QUEUE_TYPE } || "Q4M",
+    },
+        
 }
     

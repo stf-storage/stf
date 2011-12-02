@@ -3,8 +3,6 @@ use strict;
 use warnings;
 use Test::More;
 
-our @DATABASES = qw( stf stf_queue );
-
 sub run { system(@_)==0 or die "Cannot run: @_\n-- $!\n"; }
 
 sub get_branch {
@@ -47,8 +45,18 @@ sub has_database {
 sub create_master {
     my ($target) = @_;
     create_database( $target );
-    diag("Running misc/$target.sql");
-    run("mysql $ENV{TEST_MYSQL_OPTIONS} $target < misc/$target.sql");
+
+    # XXX hack for queue database, which needs to switch between
+    # the database schema
+    my $file;
+    if ( $target eq 'stf_queue' ) {
+        $file = sprintf "misc/stf_%s.sql", lc( $ENV{ STF_QUEUE_TYPE } || "Q4M" );
+    } else {
+        $file = "misc/$target.sql";
+    }
+
+    diag("Running $file");
+    run("mysql $ENV{TEST_MYSQL_OPTIONS} $target < $file");
 
     my $fixture = "misc/${target}_master.sql";
     if ( -f $fixture ) {
@@ -79,7 +87,8 @@ sub load {
     diag "Setting up database for branch $branch";
 
     my @test_dsn;
-    for my $master ( @DATABASES ) {
+    my @databases = qw( stf stf_queue );
+    for my $master ( @databases ) {
         if (! has_database( $master ) ) {
             create_master( $master );
         }

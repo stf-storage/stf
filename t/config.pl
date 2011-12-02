@@ -2,6 +2,13 @@
 $ENV{STF_HOST_ID} = int(rand(10000));
 my $config = require 'etc/config.pl';
 
+my $worker = %{ $config->{'Worker::Drone'} || {} };
+if ( $ENV{ STF_LOOP_TYPE } ) {
+    $worker->{loop_class} = $ENV{ STF_LOOP_TYPE };
+} elsif ( $ENV{ STF_LOOP_CLASS } ) {
+    $worker->{loop_class} = $ENV{ STF_LOOP_CLASS };
+}
+
 my %dbopts = ( RaiseError => 1, AutoCommit => 1, mysql_enable_utf8 => 1, AutoInactiveDestroy => 1 );
 +{
     %$config,
@@ -28,7 +35,7 @@ my %dbopts = ( RaiseError => 1, AutoCommit => 1, mysql_enable_utf8 => 1, AutoIna
     ],
 
     'Worker::Drone' => {
-        %{ $config->{'Worker::Drone'} || {} },
+        %$worker,
         spawn_interval => 0,
     },
 };

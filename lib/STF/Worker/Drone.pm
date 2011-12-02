@@ -45,11 +45,11 @@ sub new {
         spawn_interval => 1,
         workers => {
             Replicate     => 8,
-            DeleteBucket  => 4,
-            DeleteObject  => 4,
-            RepairObject  => 1,
-            RecoverCrash  => 1,
-            RetireStorage => 1,
+#            DeleteBucket  => 4,
+#            DeleteObject  => 4,
+#            RepairObject  => 1,
+#            RecoverCrash  => 1,
+#            RetireStorage => 1,
         },
         %args,
     }, $class;
@@ -168,6 +168,7 @@ sub start_worker {
     my ($config_key) = ($klass =~ /(Worker::[\w:]+)$/);
     my $container = $self->context->container;
     my $config    = $self->context->config->{ $config_key };
+
     my $worker = $klass->new(
         %$config,
         cache_expires => 30,

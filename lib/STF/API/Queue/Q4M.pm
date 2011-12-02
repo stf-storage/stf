@@ -1,4 +1,4 @@
-package STF::API::Queue;
+package STF::API::Queue::Q4M;
 use strict;
 use parent qw(STF::Trait::WithDBI);
 use STF::Constants qw(:func STF_DEBUG);

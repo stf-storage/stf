@@ -1,7 +1,7 @@
 package STF::Worker::DeleteBucket;
 use strict;
 use feature 'state';
-use parent qw(STF::Worker::Loop::Q4M STF::Trait::WithDBI);
+use parent qw(STF::Worker::Base STF::Trait::WithDBI);
 use STF::Constants qw( STF_DEBUG );
 
 sub work_once {

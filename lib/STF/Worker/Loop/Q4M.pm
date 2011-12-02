@@ -14,18 +14,23 @@ use Class::Accessor::Lite
 ;
 
 sub queue_table {
-    my $self = shift;
-    my $table = (split /::/, Scalar::Util::blessed $self)[-1];
+    my ($self, $impl) = @_;
+
+    if ( my $code = $impl->can('queue_table') ) {
+        return $code->($impl);
+    }
+
+    my $table = (split /::/, Scalar::Util::blessed $impl)[-1];
     $table =~ s/([a-z0-9])([A-Z])/$1_$2/g;
     return sprintf 'queue_%s', lc $table;
 }
 
 sub work {
-    my $self = shift;
+    my ($self, $impl) = @_;
 
     my $guard = $self->container->new_scope();
 
-    my $table = $self->queue_table;
+    my $table = $self->queue_table( $impl );
     my $dbh = $self->get('DB::Queue') or
         Carp::confess( "Could not fetch DB::Queue" );
 
@@ -83,8 +88,8 @@ EOSQL
             POSIX::sigaction( SIGQUIT, $default );
             POSIX::sigaction( SIGTERM, $default );
 
-            my $perloop_scope = $self->container->new_scope(1);
-            $self->work_once( $object_id );
+            my $guard = $impl->container->new_scope;
+            $impl->work_once( $object_id );
             if ( (my $interval = $self->interval) > 0 ) {
                 Time::HiRes::usleep( $interval );
             }

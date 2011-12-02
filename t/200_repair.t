@@ -75,7 +75,7 @@ EOSQL
         is scalar @files, 1, "Should be 1 files";
     }
 
- # Keep requesting until the queue contains at least one repair_object
+    # Keep requesting until the queue contains at least one repair_object
     # job in it
     my $queue_dbh = $container->get( 'DB::Queue' );
     my $found_repair = 0;

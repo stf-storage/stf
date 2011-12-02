@@ -1,6 +1,6 @@
 package STF::Worker::RepairObject;
 use strict;
-use parent qw(STF::Worker::Loop::Q4M STF::Trait::WithDBI);
+use parent qw(STF::Worker::Base STF::Trait::WithDBI);
 use STF::Constants qw(STF_DEBUG);
 use Class::Accessor::Lite
     rw => [ qw(

@@ -1,9 +1,6 @@
 package STF::Worker::Loop::Periodic;
 use strict;
 use parent qw( STF::Worker::Loop );
-use Class::Accessor::Lite
-    rw => [ qw(interval) ]
-;
 
 sub new {
     my ($class, %args) = @_;

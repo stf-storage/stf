@@ -2,11 +2,11 @@ use strict;
 use Furl::HTTP;
 use String::Urandom;
 use Cache::Memcached::Fast;
+use Class::Load ();
 use STF::API::Bucket;
 use STF::API::DeletedObject;
 use STF::API::Entity;
 use STF::API::Object;
-use STF::API::Queue;
 use STF::API::Storage;
 use STF::Constants qw(STF_DEBUG);
 
@@ -35,7 +35,7 @@ register 'API::Object' => sub {
     );
 };
 
-foreach my $name (qw(API::Bucket API::Queue API::Entity API::DeletedObject API::Storage)) {
+foreach my $name (qw(API::Bucket API::Entity API::DeletedObject API::Storage)) {
     my $klass = "STF::$name";
     register $name => sub {
         my $c = shift;
@@ -46,6 +46,21 @@ foreach my $name (qw(API::Bucket API::Queue API::Entity API::DeletedObject API::
        );
    };
 }
+
+# Our queue may be switched
+register "API::Queue" => sub {
+    my $c = shift;
+    my $type = $ENV{ STF_QUEUE_TYPE } || 'Q4M';
+    my $klass = "STF::API::Queue::$type";
+    Class::Load::load_class($klass)
+        if ! Class::Load::is_class_loaded($klass);
+
+    $klass->new(
+        cache_expires => 86400,
+        %{ $c->get('config')->{ "API::Queue::$type" } || {} },
+        container => $c,
+    );
+};
 
 register 'AdminWeb::Validator' => sub {
     require STF::DFV;
