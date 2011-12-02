@@ -149,19 +149,22 @@ sub repair {
         my $storage = $storage_api->lookup( $entity->{storage_id} );
         if (! $storage) {
             if (STF_DEBUG) {
-                print STDERR "[    Repair] storage $entity->{storage_id} does not exist\n";
+                print STDERR "[    Repair] storage $entity->{storage_id} does not exist. Adding to broken list\n";
             }
             push @broken, $entity->{storage_id};
             next;
         }
 
-        # If the mode is REMOVED then we've purposely taken it out of the
-        # system, and needs to be repaired. Also, if this were the case,
-        # we DO NOT issue an DELETE on the backend, as it most likely will
-        # not properly respond.
-        if ($storage->{mode} == STORAGE_MODE_REMOVED) {
-            print STDERR "[    Repair] Storage $storage->{id} has been removed. Adding to broken list.\n";
+        # If the mode is not in a readable state, then we've purposely 
+        # taken it out of the system, and needs to be repaired. Also, 
+        # if this were the case, we DO NOT issue an DELETE on the backend, 
+        # as it most likely will not properly respond.
+        if ($storage->{mode} < 0) {
+            print STDERR "[    Repair] Storage $storage->{id} has been removed. Adding to invalid list.\n";
             push @broken, $storage->{id};
+
+            # This "next" by-passes the HEAD request that we'd normally
+            # send to the storage.
             next;
         }
 
@@ -221,7 +224,8 @@ sub repair {
             ;
         }
 
-        return scalar @broken;
+        # Return the number of object fixed... which is nothing
+        return 0;
     } else {
         my $n = $need - $have;
         if (STF_DEBUG) {
@@ -245,7 +249,8 @@ sub repair {
             ;
         }
                 
-        return $replicated + scalar @broken;
+        # Return the number of object fixed... which is $replicated
+        return $replicated;
     }
 }
 
