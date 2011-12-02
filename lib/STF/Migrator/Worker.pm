@@ -5,6 +5,7 @@ use Fcntl qw(SEEK_END LOCK_UN LOCK_EX LOCK_NB);
 use FurlX::Coro;
 use Guard;
 use HTTP::Status;
+use STF::Constants qw( STORAGE_MODE_TEMPORARILY_DOWN STORAGE_MODE_READ_WRITE STORAGE_MODE_READ_ONLY );
 
 has concurrency => (
     is => 'ro',
@@ -140,10 +141,10 @@ EOSQL
 sub get_current_replica_count {
     my ($self, $object_id) = @_;
     my $count = $self->conn->run(sub {
-        $_->selectrow_array( <<EOSQL, undef, $object_id );
+        $_->selectrow_array( <<EOSQL, undef, $object_id, STORAGE_MODE_READ_ONLY, STORAGE_MODE_READ_WRITE, STORAGE_MODE_TEMPORARILY_DOWN );
             SELECT COUNT(*)
                 FROM entity e JOIN storage s ON e.storage_id = s.id
-                    WHERE e.object_id = ? AND s.mode = 1
+                    WHERE e.object_id = ? AND s.mode IN ( ?, ?, ? )
 EOSQL
     } );
 
@@ -218,12 +219,12 @@ EOSQL
     }
 
     my $storages = $conn->run(sub{
-        $_->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id );
+        $_->selectall_arrayref( <<EOSQL, { Slice => {} }, STORAGE_MODE_READ_WRITE, $object_id, STORAGE_MODE_READ_WRITE );
             SELECT s1.* FROM storage s1
-                WHERE s1.mode = 1 AND s1.id NOT IN (
+                WHERE s1.mode = ? AND s1.id NOT IN (
                     SELECT s.id FROM storage s
                         JOIN entity e ON s.id = e.storage_id
-                        WHERE e.object_id = ? AND s.mode = 1
+                        WHERE e.object_id = ? AND s.mode = ?
                 )
                 ORDER BY rand()
 EOSQL

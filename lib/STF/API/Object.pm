@@ -288,10 +288,10 @@ sub get_any_valid_entity_url {
                 o.name = ? AND 
                 o.status = 1 AND 
                 e.status = 1 AND
-                s.mode >= 0
+                s.mode IN ( ?, ? )
 EOSQL
 
-        my $rv = $sth->execute($bucket_id, $object_name);
+        my $rv = $sth->execute($bucket_id, $object_name, STORAGE_MODE_READ_ONLY, STORAGE_MODE_READ_WRITE);
 
         my ($uri, $internal_name);
         $sth->bind_columns(\($uri, $internal_name));
