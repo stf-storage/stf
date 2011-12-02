@@ -9,7 +9,14 @@ use IPC::SysV qw(S_IRWXU S_IRUSR S_IWUSR IPC_CREAT IPC_NOWAIT SEM_UNDO);
 use IPC::SharedMem;
 use IPC::Semaphore;
 use POSIX();
-use STF::Constants qw(:entity :server STF_DEBUG STF_TIMER);
+use STF::Constants qw(
+    :entity
+    :server
+    STF_DEBUG
+    STF_TIMER
+    STF_NGINX_STYLE_REPROXY
+    STF_NGINX_STYLE_REPROXY_ACCEL_REDIRECT_URL
+);
 use STF::Context;
 use STF::Dispatcher::PSGI::HTTPException;
 use Time::HiRes ();
@@ -401,6 +408,29 @@ sub get_object {
         if_modified_since => $if_modified_since,
     });
     if ($uri) {
+        if ( STF_NGINX_STYLE_REPROXY ) {
+            # nginx emulation of X-Reproxy-URL
+            # location /reproxy {
+            #     internal;
+            #     set $reproxy $upstream_http_x_reproxy_url;
+            #     proxy_pass $reproxy;
+            #     proxy_hide_header Content-Type;
+            # }
+            STF::Dispatcher::PSGI::HTTPException->throw(
+                200,
+                [
+                    'X-Accel-Redirect' => STF_NGINX_STYLE_REPROXY_ACCEL_REDIRECT_URL,
+                    'X-Reproxy-URL' => $uri,
+                ],
+            );
+        } else {
+            STF::Dispatcher::PSGI::HTTPException->throw(
+                200,
+                [
+                    'X-Reproxy-URL' => $uri,
+                ],
+            );
+        }
         STF::Dispatcher::PSGI::HTTPException->throw( 200, [ 'X-Reproxy-URL' => $uri ], [] );
     }
 
