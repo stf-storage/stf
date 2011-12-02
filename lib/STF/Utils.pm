@@ -48,6 +48,7 @@ sub as_bytes {
 
 sub timer_guard {
     my $sub = $_[0] || (caller(1))[0,3];
+    require Time::HiRes;
     my $t0 = [ Time::HiRes::gettimeofday() ];
     return Guard::guard {
         my $elapsed = Time::HiRes::tv_interval($t0);
