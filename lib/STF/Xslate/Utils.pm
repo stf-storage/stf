@@ -66,7 +66,7 @@ my %mode_str = (
     STF::Constants::STORAGE_MODE_MIGRATED() => 'migrated',
     STF::Constants::STORAGE_MODE_READ_WRITE() => 'rw',
     STF::Constants::STORAGE_MODE_READ_ONLY() => 'ro',
-    STF::Constants::STORAGE_MODE_DOWN() => 'down',
+    STF::Constants::STORAGE_MODE_TEMPORARILY_DOWN() => 'down',
 );
 
 sub mode_str {

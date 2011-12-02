@@ -22,16 +22,44 @@ BEGIN {
         Q4M_FUNC_DELETE_BUCKET => 3,
         Q4M_FUNC_REPAIR_OBJECT => 4,
 
-        STORAGE_MODE_REMOVED => -99,
         STORAGE_MODE_CRASH_RECOVERED => -4,
         STORAGE_MODE_CRASH_RECOVER_NOW => -3,
         STORAGE_MODE_CRASH => -2,
-        STORAGE_MODE_DOWN => -1,
+        # These are currently in need of reconsideration.
+
+        STORAGE_MODE_TEMPORARILY_DOWN => -1,
+        # Denotes that the storage is temporarily down. Use it to stop
+        # the dispatcher from accessing a storage for a short period
+        # of time while you do minor maintenance work. No GET/PUT/DELETE
+        # will be issued against this node while in this mode.
+        #
+        # Upon repair worker hitting this node, the entity is deemed
+        # alive, and no new entities are created to replace it.
+        # This is why you should only use this mode TEMPORARILY.
+
         STORAGE_MODE_READ_ONLY => 0,
+        # Denotes that the storage is for read-only. No PUT/DELETE operations
+        # will be issued against this node while in this mode.
+        #
+        # An entity residing on this node is deemed alive.
+
         STORAGE_MODE_READ_WRITE => 1,
+        # Denotes that the storage is for read-write. 
+        # This is the default, and the most "normal" mode for a storage.
+
         STORAGE_MODE_RETIRE => 2,
+        # Denotes that the storage has been retired. Marking a storage as
+        # retired means that the storage is not to be put back again.
+        #
+        # Entities residing on this node are deemed dead. Upon repair,
+        # the worker(s) will try to replace the missing entity with
+        # a new copy from some other node.
+
         STORAGE_MODE_MIGRATE_NOW => 3,
         STORAGE_MODE_MIGRATED => 4,
+        # These are only used to denote that an automatic migration
+        # is happening
+        
     );
     $constants{ SERIAL_BITS  } = (64 - $constants{HOST_ID_BITS} - $constants{TIME_BITS});
     $constants{ TIME_SHIFT   } = $constants{HOST_ID_BITS} + $constants{SERIAL_BITS};
@@ -48,7 +76,7 @@ my @storage = qw(
     STORAGE_MODE_CRASH_RECOVERED
     STORAGE_MODE_CRASH_RECOVER_NOW
     STORAGE_MODE_CRASH                    
-    STORAGE_MODE_DOWN
+    STORAGE_MODE_TEMPORARILY_DOWN
     STORAGE_MODE_READ_ONLY
     STORAGE_MODE_READ_WRITE
     STORAGE_MODE_RETIRE

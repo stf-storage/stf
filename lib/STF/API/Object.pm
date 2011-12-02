@@ -3,7 +3,7 @@ use strict;
 use parent qw(STF::API::WithDBI);
 use Digest::MurmurHash ();
 use HTTP::Status ();
-use STF::Constants qw(STF_DEBUG :object STORAGE_MODE_REMOVED);
+use STF::Constants qw(STF_DEBUG :object STORAGE_MODE_TEMPORARILY_DOWN STORAGE_MODE_READ_ONLY STORAGE_MODE_READ_WRITE);
 use STF::Dispatcher::PSGI::HTTPException;
 use Class::Accessor::Lite
     new => 1,
@@ -155,12 +155,18 @@ sub repair {
             next;
         }
 
+        # an entity in TEMPORARILY_DOWN node needs to be treated as alive
+        if ($storage->{mode} == STORAGE_MODE_TEMPORARILY_DOWN) {
+            push @intact, $storage->{id};
+            next;
+        }
+
         # If the mode is not in a readable state, then we've purposely 
         # taken it out of the system, and needs to be repaired. Also, 
         # if this were the case, we DO NOT issue an DELETE on the backend, 
         # as it most likely will not properly respond.
-        if ($storage->{mode} < 0) {
-            print STDERR "[    Repair] Storage $storage->{id} has been removed. Adding to invalid list.\n";
+        if ($storage->{mode} != STORAGE_MODE_READ_ONLY && $storage->{mode} != STORAGE_MODE_READ_WRITE) {
+            print STDERR "[    Repair] Storage $storage->{id} is not readable. Adding to invalid list.\n";
             push @broken, $storage->{id};
 
             # This "next" by-passes the HEAD request that we'd normally
