@@ -1,6 +1,7 @@
 package STF::Storage;
 use strict;
 use Cwd ();
+use Plack::Middleware::ConditionalGET;
 use Plack::Request;
 use File::Basename ();
 use File::Copy ();
@@ -24,7 +25,7 @@ sub new {
 
 sub to_app {
     my $self = shift;
-    return sub { $self->process(@_) };
+    return Plack::Middleware::ConditionalGET->wrap(sub { $self->process(@_) });
 }
 
 sub process {

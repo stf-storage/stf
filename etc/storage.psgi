@@ -1,4 +1,4 @@
 use strict;
 use STF::Storage;
 
-STF::Storage->new( root => $ENV{STF_BACKEND_ROOT} )->to_app;
+STF::Storage->new( root => $ENV{STF_STORAGE_ROOT} )->to_app;

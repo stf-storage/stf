@@ -161,7 +161,7 @@ EOSQL
     }
 
     {
-        my $backends = $ENV{ STF_BACKEND_SIZE } ||= 3;
+        my $backends = $ENV{ STF_STORAGE_SIZE } ||= 3;
         my $guard = $context->container->new_scope();
         my $worker = STF::Worker::Replicate->new(
             container => $context->container,

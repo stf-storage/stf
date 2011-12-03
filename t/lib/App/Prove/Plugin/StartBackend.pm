@@ -5,7 +5,7 @@ use Test::TCP;
 use DBI;
 use File::Path qw(make_path remove_tree);
 
-our @STF_BACKENDS;
+our @STF_STORAGES;
 
 # Copied from AnyEvent::Util
 sub close_all_fds_except {
@@ -36,15 +36,15 @@ sub close_all_fds_except {
 }
 
 sub load {
-    diag "Checking for explicit STF_BACKEND_URLS";
+    diag "Checking for explicit STF_STORAGE_URLS";
     # do we have an explicit memcached somewhere?
-    if ($ENV{STF_BACKEND_URLS}) {
+    if ($ENV{STF_STORAGE_URLS}) {
         return;
     }
 
-    my $max = $ENV{STF_BACKEND_COUNT} || 3;
+    my $max = $ENV{STF_STORAGE_COUNT} || 3;
     for my $i (1..3) {
-        push @STF_BACKENDS, Test::TCP->new( code => sub {
+        push @STF_STORAGES, Test::TCP->new( code => sub {
             my $port = shift;
 
             my $dir = File::Spec->catfile( "t", sprintf "store%03d", $i );
@@ -52,34 +52,34 @@ sub load {
             remove_tree($dir);
             make_path($dir);
 
-            diag "Setting up backend $i at 127.0.0.1:$port, dir = $dir";
-            start_backend($i, $port, $dir);
+            diag "Setting up storage $i at 127.0.0.1:$port, dir = $dir";
+            start_storage($i, $port, $dir);
         });
     }
 
     # install information in ENV, so it can be reused
-    $ENV{STF_BACKEND_URLS} =
+    $ENV{STF_STORAGE_URLS} =
         join ",",
-        map { sprintf "http://127.0.0.1:%s", $_->port } @STF_BACKENDS
+        map { sprintf "http://127.0.0.1:%s", $_->port } @STF_STORAGES
     ;
 
-    # install these backends
+    # install these storages
     my $dbh = DBI->connect( $ENV{TEST_STF_DSN}, undef,  undef, { RaiseError => 1 } );
     $dbh->do( "DELETE FROM storage" );
     my $id = 1;
-    foreach my $backend (split /,/, $ENV{STF_BACKEND_URLS}) {
-        $dbh->do( "INSERT INTO storage (id, uri, mode, used, capacity, created_at) VALUES ( ?, ?, 1, 0, 10000, UNIX_TIMESTAMP(NOW()))", undef, $id++, $backend );
+    foreach my $storage (split /,/, $ENV{STF_STORAGE_URLS}) {
+        $dbh->do( "INSERT INTO storage (id, uri, mode, used, capacity, created_at) VALUES ( ?, ?, 1, 0, 10000, UNIX_TIMESTAMP(NOW()))", undef, $id++, $storage );
     }
 }
 
-sub start_backend {
+sub start_storage {
     my ($id, $port, $dir) = @_;
 
     require Plack::Runner;
 
     close_all_fds_except(1, 2);
 
-    open my $logfh, '>', sprintf("t/backend%03d-err.log", $id);
+    open my $logfh, '>', sprintf("t/storage%03d-err.log", $id);
     open STDOUT, '>&', $logfh
         or die "dup(2) failed: $!";
     open STDERR, '>&', $logfh
@@ -87,14 +87,15 @@ sub start_backend {
     open STDIN, '<', '/dev/null' or die "closing STDIN failed: $!";
     POSIX::setsid();
 
-    local $ENV{ STF_BACKEND_DIR } = $dir;
+    unshift @INC, "lib";
+    local $ENV{ STF_STORAGE_ROOT } = $dir;
     my $runner = Plack::Runner->new();
     $runner->parse_options(
         "--port"       => $port,
         "--server"     => "Standalone",
-        "--access-log" => sprintf("t/backend%03d-access.log", $id),
+        "--access-log" => sprintf("t/storage%03d-access.log", $id),
     );
-    $runner->run( "t/backend.psgi" );
+    $runner->run( "etc/storage.psgi" );
 }
 
 1;

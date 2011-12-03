@@ -15,10 +15,10 @@ sub http_ok ($) {
     return $ok;
 }
 
-my $dir = $ENV{ STF_BACKEND_DIR } = tempdir(CLEANUP => 1);
+my $dir = $ENV{ STF_STORAGE_ROOT } = tempdir(CLEANUP => 1);
 
 test_psgi
-    app => do "t/backend.psgi",
+    app => do "etc/storage.psgi",
     client => sub {
         my $cb = shift;
         my $file   = String::Urandom->new()->rand_string();
