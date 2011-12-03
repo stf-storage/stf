@@ -30,7 +30,7 @@ sub bootstrap {
         # otherwise no
         0
     ;
-    my $htdocs = File::Spec->catfile( $ENV{DEPLOY_HOME} || Cwd::cwd(), "htdocs" );
+    my $htdocs = File::Spec->catfile( $ENV{STF_HOME} || $ENV{DEPLOY_HOME} || Cwd::cwd(), "htdocs" );
 
     my $app = STF::AdminWeb->new(
         use_reverse_proxy => $use_reverse_proxy,
