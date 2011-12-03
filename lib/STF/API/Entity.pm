@@ -37,7 +37,7 @@ sub search_with_url {
     $s->offset( $opts->{offset} ) if defined $opts->{offset};
     $s->add_order_by( ref $opts->{order_by} eq 'HASH' ? %{ $opts->{order_by} } : $opts->{order_by} ) if defined $opts->{order_by};
 
-    my $dbh = $self->dbh('DB::Slave');
+    my $dbh = $self->dbh('DB::Master');
     my $result = $dbh->selectall_arrayref( $s->as_sql, { Slice => {} }, $s->bind );
     return wantarray ? @$result : $result;
 }

@@ -14,12 +14,6 @@ my %dbopts = ( RaiseError => 1, AutoCommit => 1, mysql_enable_utf8 => 1, AutoIna
         undef,
         \%dbopts,
     ],
-    'DB::Slave' => [
-        $ENV{STF_SLAVE_DSN} || $ENV{TEST_STF_DSN},
-        undef,
-        undef,
-        \%dbopts,
-    ],
     'DB::Queue' => [
         $ENV{STF_QUEUE_DSN} || $ENV{TEST_STF_QUEUE_DSN},
         undef,

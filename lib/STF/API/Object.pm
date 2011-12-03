@@ -40,7 +40,7 @@ sub search_with_entity_info {
 
 sub load_objects_since {
     my ($self, $object_id, $limit) = @_;
-    my $dbh = $self->dbh('DB::Slave');
+    my $dbh = $self->dbh('DB::Master');
     my $results = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id, $limit );
         SELECT * FROM object WHERE id > ? LIMIT ?
 EOSQL
@@ -278,7 +278,7 @@ sub get_any_valid_entity_url {
 
     my $entities = $self->cache_get( 'entities_for', $object_id );
     if (! $entities) {
-        my $dbh = $self->dbh('DB::Slave');
+        my $dbh = $self->dbh('DB::Master');
         my $sth = $dbh->prepare(<<EOSQL);
             SELECT s.uri, o.internal_name
             FROM object o JOIN entity e ON o.id = e.object_id

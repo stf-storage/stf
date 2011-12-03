@@ -17,7 +17,7 @@ register Memcached => sub {
     Cache::Memcached::Fast->new( $config->{'Memcached'} );
 };
 
-foreach my $dbkey (qw(DB::Master DB::Slave DB::Queue)) {
+foreach my $dbkey (qw(DB::Master DB::Queue)) {
     register $dbkey => sub {
         my $c = shift;
         my $config = $c->get('config');

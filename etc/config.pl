@@ -67,22 +67,6 @@ use Carp ();
             mysql_enable_utf8 => 1,
         }
     ],
-    # The slave (readonly) DB - but see XXX below
-    'DB::Slave' => [
-        # XXX Currently the plan is to REMOVE this slave connection.
-        # For all practical purposes, you should be using the SAME
-        # DSN as the master MySQL here.
-        "dbi:mysql:dbname=stf",
-        "root",
-        undef,
-        {
-            AutoCommit => 1,
-            AutoInactiveDestroy => 1,
-            RaiseError => 1,
-            mysql_enable_utf8 => 1,
-        }
-    ],
-
     # The Q4M DB.
     'DB::Queue' => [
         "dbi:mysql:dbname=stf_queue",
