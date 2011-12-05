@@ -4,7 +4,11 @@ use parent qw(STF::Worker::Base STF::Trait::WithContainer);
 
 sub new {
     my $class = shift;
-    $class->SUPER::new(@_, loop_class => "Periodic");
+    $class->SUPER::new(
+        interval => 5 * 60,
+        @_,
+        loop_class => "Periodic"
+    );
 }
 
 sub work_once {
