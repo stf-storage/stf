@@ -1,48 +1,5 @@
-use inc::Module::Install;
-
-name 'STF';
-all_from 'lib/STF.pm';
-
-# Only Migrator requires these
-requires 'Coro';
-requires 'FurlX::Coro';
-requires 'DBIx::Connector';
-
-requires 'Cache::Memcached::Fast';
-requires 'Class::Accessor::Lite';
-requires 'Class::Load';
-requires 'Data::Page';
-requires 'Data::FormValidator';
-requires 'Digest::MurmurHash';
-requires 'DBI';
-requires 'DBD::mysql';
-requires 'Furl' => '0.38';
-requires 'Guard';
-requires 'HTML::FillInForm';
-requires 'HTTP::Parser::XS';
-requires 'IPC::SysV';
-requires 'Plack' => '0.9981';
-requires 'Plack::Middleware::ReverseProxy';
-requires 'Plack::Middleware::Static';
-requires 'Parallel::Prefork';
-requires 'Parallel::ForkManager';
-requires 'Parallel::Scoreboard';
-requires 'Router::Simple';
-requires 'SQL::Maker';
-requires 'Starlet';
-requires 'String::Urandom';
-requires 'Text::Xslate';
-requires 'YAML';
-requires 'STF::Dispatcher::PSGI' => '1.01';
-
-test_requires 'App::Prove';
-test_requires 'Proc::Guard';
-test_requires 'Test::TCP';
-test_requires 'Test::mysqld';
-test_requires 'Test::MockTime';
-test_requires 'Plack::Middleware::Reproxy' => '0.00002';
-
-clean_files 't/*.log', 't/store*';
+use strict;
+use ExtUtils::MakeMaker;
 
 # The additional \n helps to fool Module::Install
 sub MY::test_via_harness { "\tprove --lib --rc=t/proverc t\n" }
@@ -71,8 +28,54 @@ Please make sure to put them in to build/test this application.
     make test
 
 EOM
-    exit 1;
 }
 
-WriteAll;
+WriteMakefile(
+    NAME => "STF",
+    VERSION_FROM => 'lib/STF.pm',
+    PREREQ_PM => {
+        # Only Migrator requires these
+        'Coro' => 0,
+        'FurlX::Coro' => 0,
+        'DBIx::Connector' => 0,
+
+        'Cache::Memcached::Fast' => 0,
+        'Class::Accessor::Lite' => 0,
+        'Class::Load' => 0,
+        'Data::Page' => 0,
+        'Data::FormValidator' => 0,
+        'Digest::MurmurHash' => 0,
+        'DBI' => 0,
+        'DBD::mysql' => 0,
+        'Furl' => '0.38',
+        'Guard' => 0,
+        'HTML::FillInForm' => 0,
+        'HTTP::Parser::XS' => 0,
+        'IPC::SysV' => 0,
+        'Plack' => '0.9981',
+        'Plack::Middleware::ReverseProxy' => 0,
+        'Plack::Middleware::Static' => 0,
+        'Parallel::Prefork' => 0,
+        'Parallel::ForkManager' => 0,
+        'Parallel::Scoreboard' => 0,
+        'Router::Simple' => 0,
+        'SQL::Maker' => 0,
+        'Starlet' => 0,
+        'String::Urandom' => 0,
+        'Text::Xslate' => 0,
+        'YAML' => 0,
+        'STF::Dispatcher::PSGI' => '1.01',
+
+        # For tests
+        'App::Prove' => 0,
+        'Proc::Guard' => 0,
+        'Test::TCP' => 0,
+        'Test::mysqld' => 0,
+        'Test::MockTime' => 0,
+        'Plack::Middleware::Reproxy' => '0.00002',
+    },
+    clean => {
+        FILES => 't/*.log t/store*',
+    }
+);
 
