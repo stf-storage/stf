@@ -1,4 +1,5 @@
 use strict;
+use lib "lib";
 use STF::Environment;
 use STF::Storage;
 
