@@ -1,15 +1,11 @@
 package STF::Environment;
 use strict;
 
-BEGIN {
-    if ($ENV{ DOTCLOUD_ENVIRONMENT }) {
-        load_dotcloud_env();
-    }
-}
-
 sub load_dotcloud_env {
+    my $file = shift;
+
     require YAML;
-    my $env = YAML::LoadFile( $ENV{ DOTCLOUD_ENVIRONMENT_YML } || "/home/dotcloud/environment.yml" );
+    my $env = YAML::LoadFile( $file );
 
     # $env comes first, because runtime parameters (%ENV) has
     # higher precedence
@@ -33,6 +29,13 @@ sub load_dotcloud_env {
     );
     $ENV{ STF_QUEUE_USERNAME } ||= $ENV{ "DOTCLOUD_${dbname}_MYSQL_LOGIN" };
     $ENV{ STF_QUEUE_PASSWORD } ||= $ENV{ "DOTCLOUD_${dbname}_MYSQL_PASSWORD" };
+}
+
+BEGIN {
+    my $dotcloud_envfile = $ENV{ DOTCLOUD_ENVIRONMENT } || '/home/dotcloud/environment.yml';
+    if (-f $dotcloud_envfile) {
+        load_dotcloud_env($dotcloud_envfile);
+    }
 }
 
 1;
