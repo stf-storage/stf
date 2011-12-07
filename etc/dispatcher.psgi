@@ -1,5 +1,6 @@
 use strict;
 use Plack::Builder;
+use STF::Environment;
 use STF::Dispatcher;
 use STF::Dispatcher::PSGI;
 
