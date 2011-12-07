@@ -32,7 +32,7 @@ sub load_dotcloud_env {
 }
 
 BEGIN {
-    my $dotcloud_envfile = $ENV{ DOTCLOUD_ENVIRONMENT } || '/home/dotcloud/environment.yml';
+    my $dotcloud_envfile = $ENV{ DOTCLOUD_ENVIRONMENT_YML } || '/home/dotcloud/environment.yml';
     if (-f $dotcloud_envfile) {
         load_dotcloud_env($dotcloud_envfile);
     }
