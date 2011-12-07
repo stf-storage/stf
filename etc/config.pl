@@ -57,9 +57,9 @@ use Carp ();
     # Database settings.
     # The master DB.
     'DB::Master' => [
-        "dbi:mysql:dbname=stf",
-        "root",
-        undef,
+        $ENV{ STF_MYSQL_DSN } || "dbi:mysql:dbname=stf",
+        $ENV{ STF_MYSQL_USERNAME } || "root",
+        $ENV{ STF_MYSQL_PASSWORD } || undef,
         {
             AutoCommit => 1,
             AutoInactiveDestroy => 1,
@@ -69,9 +69,9 @@ use Carp ();
     ],
     # The Q4M DB.
     'DB::Queue' => [
-        "dbi:mysql:dbname=stf_queue",
-        "root",
-        undef,
+        $ENV{ STF_QUEUE_DSN } || "dbi:mysql:dbname=stf_queue",
+        $ENV{ STF_QUEUE_USERNAME } || "root",
+        $ENV{ STF_QUEUE_PASSWORD } || undef,
         {
             AutoCommit => 1,
             AutoInactiveDestroy => 1,
