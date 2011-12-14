@@ -13,7 +13,7 @@ my @modules = map {
 foreach my $module (@modules) {
     SKIP: {
         if ( $module =~ /Schwartz/ && ! $have_schwartz ) {
-            skip 1, "TheSchwartz is not available";
+            skip "TheSchwartz is not available", 1;
         }
         use_ok $module;
     }
