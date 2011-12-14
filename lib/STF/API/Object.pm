@@ -284,14 +284,13 @@ sub get_any_valid_entity_url {
             FROM object o JOIN entity e ON o.id = e.object_id
                           JOIN storage s ON s.id = e.storage_id 
             WHERE
-                o.bucket_id = ? AND
-                o.name = ? AND 
+                o.id = ? AND
                 o.status = 1 AND 
                 e.status = 1 AND
                 s.mode IN ( ?, ? )
 EOSQL
 
-        my $rv = $sth->execute($bucket_id, $object_name, STORAGE_MODE_READ_ONLY, STORAGE_MODE_READ_WRITE);
+        my $rv = $sth->execute($object_id, STORAGE_MODE_READ_ONLY, STORAGE_MODE_READ_WRITE);
 
         my ($uri, $internal_name);
         $sth->bind_columns(\($uri, $internal_name));
