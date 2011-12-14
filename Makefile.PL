@@ -65,7 +65,8 @@ WriteMakefile(
         'Text::Xslate' => 0,
         'YAML' => 0,
         'STF::Dispatcher::PSGI' => '1.01',
-
+    },
+    BUILD_REQUIRES => {
         # For tests
         'App::Prove' => 0,
         'Proc::Guard' => 0,
