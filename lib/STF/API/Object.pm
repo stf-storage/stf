@@ -323,6 +323,21 @@ sub get_any_valid_entity_url {
         return;
     }
 
+    # XXX We have to do this before we check the entities, because in real-life
+    # applications many of the requests come with an IMS header -- which 
+    # short circuits from this method, and never allows us to reach this
+    # enqueuing condition
+    if ($check) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[Get Entity] Object %s being sent to health check\n",
+                $object_id
+            ;
+        }
+        eval { $self->get('API::Queue')->enqueue( object_health => $object_id ) };
+    }
+
+
+
     my $entities = $self->cache_get( 'entities_for', $object_id );
     if (! $entities) {
         my $dbh = $self->dbh('DB::Master');
@@ -407,15 +422,6 @@ EOSQL
             $repair++;
         }
     };
-
-    if ($check) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[Get Entity] Object %s being sent to health check\n",
-                $object_id
-            ;
-        }
-        eval { $self->get('API::Queue')->enqueue( object_health => $object_id ) };
-    }
 
     if ($repair) { # Whoa!
         if ( STF_DEBUG ) {
