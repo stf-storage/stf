@@ -27,6 +27,7 @@ use Class::Accessor::Lite
         context
         connect_info
         host_id
+        health_check_probability
         min_consistency
         mutex
         shared_mem
@@ -54,8 +55,9 @@ sub new {
     my $self = bless {
         sem_name => File::Temp->new(UNLINK => 1),
         shm_name => File::Temp->new(UNLINK => 1),
+        health_check_probability => 0.001,
+        %args,
         parent   => $$,
-        %args
     }, $class;
 
     if (! $self->{host_id} ) {
@@ -199,6 +201,7 @@ sub create_bucket {
             name => $bucket_name,
         } );
     };
+
     my $res = $self->txn_block( 'DB::Master' => $txn, $self->create_id, $args->{bucket_name} );
     if (my $e = $@) {
         $self->handle_exception($e);
@@ -403,9 +406,12 @@ sub get_object {
     my $if_modified_since = $req->header('If-Modified-Since');
     my $object_api = $self->get('API::Object');
     my $uri = $object_api->get_any_valid_entity_url({
-        bucket_id => $bucket->{id},
-        object_name => $object_name,
+        bucket_id         => $bucket->{id},
+        object_name       => $object_name,
         if_modified_since => $if_modified_since,
+
+        # XXX forcefully check the health of this object randomly
+        health_check      => rand() < $self->health_check_probability,
     });
     if ($uri) {
         if ( STF_NGINX_STYLE_REPROXY ) {

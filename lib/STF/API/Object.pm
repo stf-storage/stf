@@ -310,8 +310,8 @@ sub repair {
 sub get_any_valid_entity_url {
     my ($self, $args) = @_;
 
-    my ($bucket_id, $object_name, $if_modified_since) =
-        @$args{ qw(bucket_id object_name if_modified_since) };
+    my ($bucket_id, $object_name, $if_modified_since, $check) =
+        @$args{ qw(bucket_id object_name if_modified_since health_check) };
     my $object_id = $self->find_active_object_id($args);
     if (! $object_id) {
         if (STF_DEBUG) {
@@ -407,6 +407,15 @@ EOSQL
             $repair++;
         }
     };
+
+    if ($check) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[Get Entity] Object %s being sent to health check\n",
+                $object_id
+            ;
+        }
+        eval { $self->get('API::Queue')->enqueue( object_health => $object_id ) };
+    }
 
     if ($repair) { # Whoa!
         if ( STF_DEBUG ) {
