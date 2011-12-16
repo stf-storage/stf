@@ -173,7 +173,10 @@ sub check_health {
         # if this were the case, we DO NOT issue an DELETE on the backend, 
         # as it most likely will not properly respond.
         if ($storage->{mode} != STORAGE_MODE_READ_ONLY && $storage->{mode} != STORAGE_MODE_READ_WRITE) {
-            print STDERR "[    Health] Storage $storage->{id} is not readable. Adding to invalid list.\n";
+            if (STF_DEBUG) {
+                print STDERR "[    Health] Storage $storage->{id} is not readable. Adding to invalid list.\n";
+            }
+
             push @broken, $storage;
 
             # This "next" by-passes the HEAD request that we'd normally
