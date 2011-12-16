@@ -33,6 +33,7 @@ sub work_once {
         if ( STF_DEBUG ) {
             print STDERR "[    Health] $object_id does not need repair\n";
         }
+        return;
     }
 
     my $queue_api = $self->get('API::Queue');
