@@ -10,7 +10,15 @@ use Class::Accessor::Lite
 
 sub new {
     my $class = shift;
-    $class->SUPER::new(loop_class => $ENV{ STF_QUEUE_TYPE } || 'Q4M', @_);
+    $class->SUPER::new(
+        # default for breadth: 3. i.e., if we actually repaired an object,
+        # it most likely means that other near-by neighbors are broken.
+        # so if we successfully repaired objects, find at most 6 neighbors
+        # in both increasing/decreasing order
+        breadth => 3,
+        loop_class => $ENV{ STF_QUEUE_TYPE } || 'Q4M',
+        @_
+    );
 }
 
 sub work_once {
