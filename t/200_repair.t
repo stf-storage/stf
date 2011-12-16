@@ -5,6 +5,7 @@ use HTTP::Request::Common qw(GET PUT);
 use STF::Test qw(clear_queue ts_request);
 
 use_ok "STF::Context";
+use_ok "STF::Worker::ObjectHealth";
 use_ok "STF::Worker::RepairObject";
 use_ok "STF::Worker::Replicate";
 
@@ -115,55 +116,84 @@ EOSQL
         return;
     }
 
-    {
+    eval {
+        local $SIG{ALRM} = sub { die "RepairObject timeout" };
+        alarm(5);
         my $worker = STF::Worker::RepairObject->new(
             container => $context->container,
             max_works_per_child => 1,
             breadth => 2,
-            state_file => "t/run/repair.yaml",
         );
         $worker->work;
+    };
+    if ($@) {
+        fail "Error running RepairObject worker: $@";
     }
+    alarm(0);
 
-    {
+    note "At this point, the object is fixed.";
+
+    { # check files
         my @files = glob( $pattern );
         is scalar @files, 2, "Should be 2 files";
     }
 
-    my $repair_queue_size;
+    { # check entities
+        my $dbh      = $container->get( 'DB::Master' );
+        my $entities = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $bucket, "test" );
+            SELECT o.id, s.uri, o.internal_name
+                FROM object o JOIN bucket b ON b.id = o.bucket_id
+                              JOIN entity e ON o.id = e.object_id
+                              JOIN storage s ON s.id = e.storage_id 
+                WHERE b.name = ? AND o.name = ?
+EOSQL
+        is scalar @$entities, 2, "Should be 2 entities";
+    }
+
+    note "Now we should check out if the object health worker received any inputs";
+
+    my $object_health_queue_size;
     if ( $IS_SCHWARTZ ) {
-        ($repair_queue_size) = $queue_dbh->selectrow_array( <<EOSQL, undef, "STF::Worker::RepairObject::Proxy" );
+        ($object_health_queue_size) = $queue_dbh->selectrow_array( <<EOSQL, undef, "STF::Worker::ObjectHealth::Proxy" );
             SELECT count(*) FROM job JOIN funcmap ON job.funcid = funcmap.funcid WHERE funcmap.funcname = ?
 EOSQL
     } else {
-        ($repair_queue_size) = $queue_dbh->selectrow_array( <<EOSQL );
+        ($object_health_queue_size) = $queue_dbh->selectrow_array( <<EOSQL );
+            SELECT count(*) FROM queue_object_health
+EOSQL
+    }
+
+    if ( ok $object_health_queue_size > 0, "object_health_queue_size is > 0" ) {
+        # run the repair worker a bit longer
+        eval {
+            local $SIG{ALRM} = sub {
+                die "RepairObject worker timed out";
+            };
+            alarm(5);
+            my $worker = STF::Worker::ObjectHealth->new(
+                container => $context->container,
+                max_works_per_child => 1,
+            );
+            $worker->work;
+        };
+        if ($@) {
+            fail "Error running RepairObject Worker: $@";
+        }
+        alarm(0);
+    }
+
+    my $object_health_queue_size_after;
+    if ( $IS_SCHWARTZ ) {
+        ($object_health_queue_size_after) = $queue_dbh->selectrow_array( <<EOSQL, undef, "STF::Worker::RepairObject::Proxy" );
+            SELECT count(*) FROM job JOIN funcmap ON job.funcid = funcmap.funcid WHERE funcmap.funcname = ?
+EOSQL
+    } else {
+        ($object_health_queue_size_after) = $queue_dbh->selectrow_array( <<EOSQL );
             SELECT count(*) FROM queue_repair_object
 EOSQL
     }
 
-    # run the repair worker a bit longer
-    {
-        my $worker = STF::Worker::RepairObject->new(
-            container => $context->container,
-            max_works_per_child => 1,
-            breadth => 2,
-            state_file => "t/run/repair.yaml",
-        );
-        $worker->work;
-    }
-
-    my $repair_queue_size_after;
-    if ( $IS_SCHWARTZ ) {
-        ($repair_queue_size_after) = $queue_dbh->selectrow_array( <<EOSQL, undef, "STF::Worker::RepairObject::Proxy" );
-            SELECT count(*) FROM job JOIN funcmap ON job.funcid = funcmap.funcid WHERE funcmap.funcname = ?
-EOSQL
-    } else {
-        ($repair_queue_size_after) = $queue_dbh->selectrow_array( <<EOSQL );
-            SELECT count(*) FROM queue_repair_object
-EOSQL
-    }
-
-    ok $repair_queue_size_after < $repair_queue_size, "queue size has not increased (before=$repair_queue_size, after=$repair_queue_size_after)";
+    ok $object_health_queue_size_after < $object_health_queue_size, "queue size has not increased (before=$object_health_queue_size, after=$object_health_queue_size_after)";
 };
 my $app = require "t/dispatcher.psgi";
 test_psgi 

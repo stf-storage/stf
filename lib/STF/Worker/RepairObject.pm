@@ -24,9 +24,6 @@ sub new {
 sub work_once {
     my ($self, $object_id) = @_;
 
-    if ( STF_DEBUG ) {
-        print STDERR "Worker::RepairObject $object_id\n";
-    }
     eval {
         my $object_api = $self->get('API::Object');
         my $queue_api = $self->get('API::Queue');
@@ -50,13 +47,13 @@ sub work_once {
                 next if $memd->get( $key );
 
                 if ( STF_DEBUG ) {
-                    printf STDERR "[    Repair] Enqueue repair for %s\n",
+                    printf STDERR "[    Repair] Enqueue object health check for %s\n",
                         $neighbor->{id}
                     ;
                 }
 
                 $memd->set( $key, time(), $timeout );
-                $queue_api->enqueue( repair_object => $neighbor->{id} );
+                $queue_api->enqueue( object_health => $neighbor->{id} );
             }
         }
     };

@@ -98,6 +98,8 @@ use Carp ();
     'Worker::RepairObject' => {
         loop_class     => $ENV{ STF_QUEUE_TYPE } || "Q4M",
     },
-        
+    'Worker::ObjectHealth' => {
+        loop_class     => $ENV{ STF_QUEUE_TYPE } || "Q4M",
+    },
 }
     

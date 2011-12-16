@@ -116,29 +116,36 @@ sub create {
 EOSQL
 }
 
-sub repair {
-    my ($self, $object_id)= @_;
+# Returns good/bad entities -- actually, returns the storages that contains
+# the broken entities.
+# my ($valid_listref, $invalid_listref) = $api->check_health($object_id);
+sub check_health {
+    my ($self, $object_id) = @_;
+
+    if (STF_DEBUG) {
+        print STDERR "[    Health] Checking health for object $object_id\n";
+    }
 
     my $object = $self->lookup( $object_id );
     if (! $object) {
         if (STF_DEBUG) {
-            print STDERR "[    Repair] No matching object $object_id\n";
+            print STDERR "[    Health] No matching object $object_id\n";
         }
-        return;
+        return ([], []);
     }
 
     my $entity_api = $self->get( 'API::Entity' );
     my @entities = $entity_api->search( { object_id => $object_id } );
     if (@entities) {
         if (STF_DEBUG) {
-            printf STDERR "[    Repair] Loaded %d entities\n",
+            printf STDERR "[    Health] Loaded %d entities\n",
                 scalar @entities
         }
     } else {
         if (STF_DEBUG) {
-            print STDERR "[    Repair] No matching entities for $object_id ( XXX broken ? )\n";
+            print STDERR "[    Health] No matching entities for $object_id ( XXX broken ? )\n";
         }
-        return;
+        return ([], []);
     }
 
     my $storage_api = $self->get('API::Storage');
@@ -149,7 +156,7 @@ sub repair {
         my $storage = $storage_api->lookup( $entity->{storage_id} );
         if (! $storage) {
             if (STF_DEBUG) {
-                print STDERR "[    Repair] storage $entity->{storage_id} does not exist. Adding to broken list\n";
+                print STDERR "[    Health] storage $entity->{storage_id} does not exist. Adding to broken list\n";
             }
             push @broken, $entity->{storage_id};
             next;
@@ -166,7 +173,7 @@ sub repair {
         # if this were the case, we DO NOT issue an DELETE on the backend, 
         # as it most likely will not properly respond.
         if ($storage->{mode} != STORAGE_MODE_READ_ONLY && $storage->{mode} != STORAGE_MODE_READ_WRITE) {
-            print STDERR "[    Repair] Storage $storage->{id} is not readable. Adding to invalid list.\n";
+            print STDERR "[    Health] Storage $storage->{id} is not readable. Adding to invalid list.\n";
             push @broken, $storage->{id};
 
             # This "next" by-passes the HEAD request that we'd normally
@@ -176,51 +183,82 @@ sub repair {
 
         my $url = join "/", $storage->{uri}, $object->{internal_name};
         if (STF_DEBUG) {
-            print STDERR "[    Repair] Going to check $url\n";
+            print STDERR "[    Health] Going to check $url\n";
         }
 
         my (undef, $code) = eval { $furl->head( $url ) };
         if ($@) {
-            print STDERR "[    Repair] HTTP request raised an exception: $@\n";
+            print STDERR "[    Health] HTTP request raised an exception: $@\n";
             # Make sure this becomes an error
             $code = 500;
         }
 
         my $is_success = HTTP::Status::is_success( $code );
         if (STF_DEBUG) {
-            printf STDERR "[    Repair] HEAD %s was %s (%d)\n",
+            printf STDERR "[    Health] HEAD %s was %s (%d)\n",
                 $url, ($is_success ? "OK" : "FAIL"), $code;
         }
 
         if ($is_success) {
             $ref_url ||= $url;
-            push @intact, $storage->{id};
+            push @intact, $storage;
         } else {
-            push @broken, $storage->{id};
+            push @broken, $storage;
         }
     }
 
-    if (! @intact) {
+    if ( STF_DEBUG ) {
+        foreach my $storage (@intact) {
+            printf "[    Health] + OK $storage->{uri}/$object->{internal_name}\n";
+        }
+        foreach my $storage (@broken) {
+            printf "[    Health] - NOT OK $storage->{uri}/$object->{internal_name}\n";
+        }
+    }
+
+    return (\@intact, \@broken);
+}
+
+sub repair {
+    my ($self, $object_id)= @_;
+
+    if (STF_DEBUG) {
+        print STDERR "[    Repair] Repairing object $object_id\n";
+    }
+
+    my $object = $self->lookup( $object_id );
+    if (! $object) {
+        if (STF_DEBUG) {
+            print STDERR "[    Repair] No matching object $object_id\n";
+        }
+        return;
+    }
+
+    my $entity_api = $self->get( 'API::Entity' );
+    my @entities = $entity_api->search( { object_id => $object_id } );
+    my ($intact, $broken) = $self->check_health( $object_id );
+
+    if (! @$intact) {
         printf STDERR "[    Repair] No entities available, object %s is COMPLETELY BROKEN\n", $object_id;
         $self->update( $object_id => { status => OBJECT_INACTIVE } );
         return;
     }
 
-    if ( @broken ) {
+    if ( @$broken ) {
         if (STF_DEBUG) {
-            printf STDERR "[    Repair] Removing entities for %s in %s\n",
-                $object_id,
-                join ", ", @broken
-            ;
+            printf STDERR "[    Repair] Removing entities for $object_id in\n";
+            foreach my $storage (@$broken) {
+                print STDERR "[    Repair] + $storage->{uri} (id = $storage->{id})\n";
+            }
         }
         $entity_api->delete( {
-            storage_id => [ -in => @broken ],
+            storage_id => [ -in => map { $_->{id} } @$broken ],
             object_id => $object_id
         } );
     }
 
     my $need = $object->{num_replica};
-    my $have = scalar @intact;
+    my $have = scalar @$intact;
     if ($need <= $have) {
         if (STF_DEBUG) {
             printf STDERR "[    Repair] No need to repair %s (need %d, have %d)\n",
@@ -234,6 +272,7 @@ sub repair {
         return 0;
     } else {
         my $n = $need - $have;
+        my $ref_url = join "/", $intact->[0]->{uri}, $object->{internal_name};
         if (STF_DEBUG) {
             printf STDERR "[    Repair] Going to replicated %s %d times\n",
                 $object_id,
@@ -241,7 +280,12 @@ sub repair {
             ;
             print STDERR "[    Repair] Using content from $ref_url\n";
         }
-        my (undef, undef, undef, undef, $content) = $furl->get( $ref_url );
+        my $furl = $self->get('Furl');
+        my (undef, $code, undef, undef, $content) = $furl->get( $ref_url );
+        if (! HTTP::Status::is_success( $code )) {
+            die "PANIC: failed to retrieve supposedly good url $ref_url: $code";
+        }
+
         my $replicated = $entity_api->replicate( {
             object_id => $object_id,
             content   => $content,

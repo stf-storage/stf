@@ -47,6 +47,7 @@ sub new {
             Replicate     => 8,
             DeleteBucket  => 4,
             DeleteObject  => 4,
+            ObjectHealth  => 1,
             RepairObject  => 1,
             RecoverCrash  => 1,
             RetireStorage => 1,
