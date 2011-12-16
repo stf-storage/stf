@@ -361,9 +361,20 @@ EOSQL
         $self->cache_set( [ entities_for => $object_id ], $entities, $self->cache_expires );
     }
 
-    # We need to put it in repair if entities < num_replica
     my $object = $self->lookup( $object_id );
-    my $repair = @$entities < $object->{num_replica};
+
+    # XXX repair shouldn't be triggered by entities < num_replica
+    #
+    # We used to put the object in repair if entities < num_replica, but
+    # in hindsight this was bad mistake. Suppose we mistakenly set
+    # num_replica > # of storages (say you have 3 storages, but you
+    # specified 5 replicas). In this case regardless of how many times we
+    # try to repair the object, we cannot create enough replicas to
+    # satisfy this condition.
+    #
+    # So that check is off. Let ObjectHealth worker handle it once
+    # in a while.
+    my $repair = 0;
 
     # Send successive HEAD requests
     my $fastest;
@@ -399,10 +410,11 @@ EOSQL
 
     if ($repair) { # Whoa!
         if ( STF_DEBUG ) {
-            printf STDERR "[Get Entity] Sending %s to repair\n",
+            printf STDERR "[Get Entity] Object %s needs repair\n",
                 $object_id
             ;
         }
+
         eval { $self->get('API::Queue')->enqueue( repair_object => $object_id ) };
 
         # Also, kill the cache
