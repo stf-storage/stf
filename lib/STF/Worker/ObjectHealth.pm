@@ -31,11 +31,15 @@ sub work_once {
     my ($valids, $invalids) = $object_api->check_health( $object_id );
     if (! @$invalids) {
         if ( STF_DEBUG ) {
-            print STDERR "Worker::ObjectHealth $object_id does not need repair\n";
+            print STDERR "[    Health] $object_id does not need repair\n";
         }
     }
 
     my $queue_api = $self->get('API::Queue');
+    if (STF_DEBUG) {
+        print STDERR "[    Health] Enqueuing repair for $object_id\n";
+    }
+
     $queue_api->enqueue( repair_object => $object_id );
 }
 
