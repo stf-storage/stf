@@ -158,13 +158,13 @@ sub check_health {
             if (STF_DEBUG) {
                 print STDERR "[    Health] storage $entity->{storage_id} does not exist. Adding to broken list\n";
             }
-            push @broken, $entity->{storage_id};
+            push @broken, { id => $entity->{storage_id} };
             next;
         }
 
         # an entity in TEMPORARILY_DOWN node needs to be treated as alive
         if ($storage->{mode} == STORAGE_MODE_TEMPORARILY_DOWN) {
-            push @intact, $storage->{id};
+            push @intact, $storage;
             next;
         }
 
@@ -174,7 +174,7 @@ sub check_health {
         # as it most likely will not properly respond.
         if ($storage->{mode} != STORAGE_MODE_READ_ONLY && $storage->{mode} != STORAGE_MODE_READ_WRITE) {
             print STDERR "[    Health] Storage $storage->{id} is not readable. Adding to invalid list.\n";
-            push @broken, $storage->{id};
+            push @broken, $storage;
 
             # This "next" by-passes the HEAD request that we'd normally
             # send to the storage.
@@ -248,7 +248,7 @@ sub repair {
         if (STF_DEBUG) {
             printf STDERR "[    Repair] Removing entities for $object_id in\n";
             foreach my $storage (@$broken) {
-                print STDERR "[    Repair] + $storage->{uri} (id = $storage->{id})\n";
+                print STDERR "[    Repair] + @{[ $storage->{uri} || '(null)' ]} (id = $storage->{id})\n";
             }
         }
         $entity_api->delete( {
