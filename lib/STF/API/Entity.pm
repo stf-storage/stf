@@ -72,7 +72,7 @@ sub delete_for_object_id {
         my $uri = join '/', $storage->{uri}, $deleted->{internal_name};
 
         if ( STF_DEBUG ) {
-            print STDERR " + Sending DELETE $uri\n";
+            print STDERR "[DeleteObject] + Sending DELETE $uri\n";
         }
         # Send requests to the backend.
         my (undef, $code) = $furl->delete( $uri );
