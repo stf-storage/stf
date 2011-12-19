@@ -2,6 +2,8 @@ package t::lib::App::Prove::Plugin::StartDatabase;
 use strict;
 use Test::More;
 
+my $MYSQLD;
+
 sub mysql_dsn_to_options {
     my $dsn = shift;
 
@@ -42,7 +44,7 @@ sub load {
     # Nothing found. Test::mysqld to the rescue
     diag "No database found. Going to start one via Test::mysqld";
     require Test::mysqld;
-    my $mysqld = Test::mysqld->new(
+    $MYSQLD = Test::mysqld->new(
         ($ENV{TEST_MYSQL_BASEDIR} ?
             ( basedir => $ENV{TEST_MYSQL_BASEDIR} ) : ()),
         my_cnf => {
@@ -51,13 +53,17 @@ sub load {
         }
     );
 
-    $ENV{TEST_MYSQLD_INSTANCE} = $mysqld;
     $ENV{TEST_MYSQL_DSN_OPTIONS} = do {
-        my $dsn = $mysqld->dsn;
+        my $dsn = $MYSQLD->dsn;
         $dsn =~ s/^[^;]+;//;
         $dsn;
     };
-    $ENV{TEST_MYSQL_OPTIONS} = mysql_dsn_to_options( $mysqld->dsn );
+    $ENV{TEST_MYSQL_OPTIONS} = mysql_dsn_to_options( $MYSQLD->dsn );
+}
+
+END {
+warn "FREE MYSQLD";
+    undef $MYSQLD;
 }
 
 1;
