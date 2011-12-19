@@ -1,6 +1,7 @@
 package STF::CLI::Storage;
 use strict;
 use parent qw(STF::CLI::Base);
+use JSON ();
 
 sub opt_specs {
     (
