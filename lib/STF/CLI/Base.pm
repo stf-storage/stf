@@ -41,6 +41,11 @@ sub get_object {
     return $object;
 }
 
+sub get_storage {
+    my ($self, $storage_id) = @_;
+    $self->get('API::Storage')->lookup($storage_id);
+}
+
 sub get_entities {
     my ($self, $object_id, $storage_id) = @_;
 
