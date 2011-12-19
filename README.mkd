@@ -19,6 +19,6 @@ Please read http://stf-storage.github.com/setup.html
 ## See Also
 
 * Web site - http://stf-storage.github.com
-* Deploy STF on dotCloud - https://github.com/stf-storage/stf-on-cloud
+* Deploy STF on dotCloud - https://github.com/stf-storage/stf-on-dotcloud
 * STF::Dispatcher::PSGI - https://github.com/stf-storage/stf-dispatcher-psgi
 * Net::STF::Client - https://github.com/stf-storage/net-stf-client
