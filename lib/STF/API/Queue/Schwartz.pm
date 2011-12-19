@@ -16,6 +16,7 @@ sub get_ability {
             delete_object => "STF::Worker::DeleteObject::Proxy",
             delete_bucket => "STF::Worker::DeleteBucket::Proxy",
             repair_object => "STF::Worker::RepairObject::Proxy",
+            object_health => "STF::Worker::ObjectHealth::Proxy",
         };
     }
     $map->{ $func };
