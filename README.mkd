@@ -1,10 +1,16 @@
 # STF - Scalable, Simple Distributed Object Storage
 
-STF allows you to store billions of files on commodity hardware/software stack!
+STF is a distributed object store (similar to MogileFS), which allows you to store billions of files on commodity hardware/software stack. It was developed at <a href="http://www.livedoor.com">livedoor Inc</a>, initially as sets of Apache modules, then eventually was ported to a native PSGI application.
+
+Among other things, it currently handles traffic for one of Japan's busiest blogging service, chugging 400Mbps of datas.
+
+STF is built on top of long trusted software like Apache (or nginx), Perl, Q4M (or TheSchwartz), MySQL, and Memcached, with open protocols so it's easy to maintain.
 
 ## Get STF
 
-git clone git://github.com/stf-storage/stf.git
+    git clone git://github.com/stf-storage/stf.git
+    cd stf
+    cpanm --installdeps .
 
 ## Setup
 
