@@ -3,7 +3,7 @@ use strict;
 use parent qw(STF::CLI::Base);
 use JSON ();
 
-sub optspec {
+sub opt_specs {
     (
         'storage=s',
         'limit=i',

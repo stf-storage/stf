@@ -2,7 +2,7 @@ package STF::CLI::Storage;
 use strict;
 use parent qw(STF::CLI::Base);
 
-sub optspec {
+sub opt_specs {
     (
         'list|L!',
         'limit=i',
