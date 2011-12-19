@@ -70,18 +70,22 @@ sub show_subcommands {
 
 $0 <subcommand> [options...]
 
-health [-a] <id-is>
+health [-a] <id-ish>
 health [-a] -s <storage-id> -l <limit>
 
     Displays the health status of an object. This means actual HTTP requests
     will run to check if the entities are actuall retrievable
 
-object <id-ish>
-object -s <storage-id> -l <limit>
+    -a will show details. default off.
+
+object [-a] <id-ish>
+object [-a] -s <storage-id> -l <limit>
 
     Displays the object details. <id-ish> can be an object path or object ID.
 
     -l <storage-id> will show objects in the storage
+
+    -a will show details. default is off.
 
 storage <id>
 storage -L 

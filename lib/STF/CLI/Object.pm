@@ -5,6 +5,7 @@ use JSON ();
 
 sub opt_specs {
     (
+        'all!',
         'storage=s',
         'limit=i',
     )
@@ -51,19 +52,23 @@ sub show_object {
     my ($self, $object) = @_;
 
     my $formatter = JSON->new->pretty;
-    print $formatter->encode({
+
+    my $h = {
         id            => $object->{id},
         path          => join( '/', $object->{bucket_name}, $object->{name} ),
         internal_name => $object->{internal_name},
         num_replica   => $object->{num_replica},
         size          => $object->{size},
         created_at    => $self->format_time($object->{created_at}),
-        entities      => [ map {
+    };
+    if ($self->{options}->{all}) {
+        $h->{ entities } = [ map {
             delete $_->{object_id};
             $_->{created_at} = $self->format_time($_->{created_at});
             $_
-        } $self->get_entities( $object->{id} ) ]
-    });
+        } $self->get_entities( $object->{id} ) ];
+    }
+    print $formatter->encode( $h );
     print "---\n";
 }
 
