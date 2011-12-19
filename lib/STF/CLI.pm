@@ -8,16 +8,9 @@ sub new {
     my $class = shift;
     my $self = bless {
         cmds => {
-            check     => 'STF::CLI::Check',
-            crash     => 'STF::CLI::Crash',
+            enqueue   => 'STF::CLI::Enqueue',
             object    => 'STF::CLI::Object',
-            migrate   => 'STF::CLI::Migrate',
-            redistribute => 'STF::CLI::Redistribute',
-            repair    => 'STF::CLI::Repair',
-            replicate => 'STF::CLI::Replicate',
-            retire    => 'STF::CLI::Retire',
-            status    => 'STF::CLI::Status',
-            usage     => 'STF::CLI::Usage',
+            storage   => 'STF::CLI::Storage',
         }
     }, $class;
     $self;
@@ -73,28 +66,26 @@ sub show_subcommands {
     my ($self, $message) = @_;
     print STDOUT "$message\n";
     print STDOUT <<EOM
-    crash <storage_id>
-    object --path=str
-    object --storage=int [--limit=int]
-    repair [--offset=int] [--limit=int] [--procs=int]
-    replicate <object_id>
-    retire <storage_id>
-    orphan <storage id> <storage path>
-    usage  [--update]
 
-repair [-o object_id]
-repair [-s storage_id] [-L] [-P]
-    With -o, schedules to repair one object instance specified by <object_id>.
+$0 <subcommand> [options...]
 
-    With -s, runs checks on the entities in the given storage.
-    -L specifies that it should check for *LOGICAL* repairs - that is to say,
-    it will queue objects which seem to not have enough entities.
+object <id-ish>
+object -s <storage-id> -l <limit>
 
-    -P specifies that it should check for *PHYSICAL* repairs - that is to say,
-    it will queue objects which exist in entity table, but does not actually
-    exist in the storage.
+    Displays the object details. <id-ish> can be an object path or object ID.
 
-    By default -L will be performed.
+    -l <storage-id> will show objects in the storage
+
+storage <id>
+storage -L 
+    Displays the storage status.
+
+    -l will show the entire storage list.
+
+enqueue <job-name> <arg>
+
+    Enqueues the piece of into the <job-name> queue. Job name may be:
+    replicate, delete_bucket, delete_object, repair_object, object_health
     
 EOM
 }
