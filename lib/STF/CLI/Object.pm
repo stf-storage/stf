@@ -54,7 +54,7 @@ sub show_object {
         id            => $object->{id},
         path          => join( '/', $object->{bucket_name}, $object->{name} ),
         internal_name => $object->{internal_name},
-        num_replicas  => $object->{num_replicas},
+        num_replica   => $object->{num_replica},
         size          => $object->{size},
         created_at    => $self->format_time($object->{created_at}),
         entities      => [ map {
