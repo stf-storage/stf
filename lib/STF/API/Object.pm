@@ -7,7 +7,7 @@ use STF::Constants qw(STF_DEBUG :object STORAGE_MODE_TEMPORARILY_DOWN STORAGE_MO
 use STF::Dispatcher::PSGI::HTTPException;
 use Class::Accessor::Lite
     new => 1,
-    rw => [ qw(furl urandom) ]
+    rw => [ qw(furl urandom max_num_replica) ]
 ;
 
 sub status_for {
@@ -260,9 +260,22 @@ sub repair {
         } );
     }
 
-    my $need = $object->{num_replica};
     my $have = scalar @$intact;
-    if ($need <= $have) {
+    my $need = $object->{num_replica};
+    my $max_num_replica = $self->max_num_replica;
+    if ( defined $max_num_replica && $max_num_replica <= $have ) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[    Repair] No need to repair %s (need %d, have %d, system max replica %d)\n",
+                $object_id,
+                $need,
+                $have,
+                $max_num_replica,
+            ;
+        }
+
+        # Return the number of object fixed... which is nothing
+        return 0;
+    } elsif ($need <= $have) {
         if (STF_DEBUG) {
             printf STDERR "[    Repair] No need to repair %s (need %d, have %d)\n",
                 $object_id,
