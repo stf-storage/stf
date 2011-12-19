@@ -33,6 +33,8 @@ EOM
 WriteMakefile(
     NAME => "STF",
     VERSION_FROM => 'lib/STF.pm',
+    LICENSE => "artistic_2",
+    AUTHOR    => 'Daisuke Maki C<< <daisuke@endeworks.jp> >>',
     PREREQ_PM => {
         # Only Migrator requires these
         'Coro' => 0,
