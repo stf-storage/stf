@@ -33,7 +33,12 @@ sub get_object {
         }
     }
 
-    $self->get('API::Object')->lookup( $id_ish );
+    my $object = $self->get('API::Object')->lookup( $id_ish );
+    if ($object) {
+        my $bucket = $self->get('API::Bucket')->lookup( $object->{bucket_id} );
+        $object->{bucket_name} = $bucket->{name};
+    }
+    return $object;
 }
 
 sub get_entities {

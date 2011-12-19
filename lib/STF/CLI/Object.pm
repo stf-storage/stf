@@ -35,14 +35,15 @@ sub show_objects_in_storage {
 
     my $dbh = $self->get('DB::Master');
     my $sth = $dbh->prepare(<<EOSQL);
-        SELECT object.id, bucket.name as bucket_name
+        SELECT object.id
             FROM object JOIN bucket ON object.bucket_id = bucket.id
                         JOIN entity ON object.id = entity.object_id
             WHERE entity.storage_id = ? LIMIT ?
 EOSQL
     $sth->execute( $storage_id, $limit );
     while ( my $h = $sth->fetchrow_hashref ) {
-        $self->show_object( $h );
+        my $object = $self->get_object( $h->{id} );
+        $self->show_object( $object );
     }
 }
 
