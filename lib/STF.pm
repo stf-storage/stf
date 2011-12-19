@@ -40,7 +40,7 @@ Ikebe Tomohiro
 Copyright (C) 2011 by livedoor, inc.
 
 This library is free software; you can redistribute it and/or modify
-it under the The Artistic License 2.0 (GPL Compatible)
+it under The Artistic License 2.0 (GPL Compatible)
 
 L<http://www.opensource.org/licenses/Artistic-2.0>
 
