@@ -8,6 +8,7 @@ use STF::Utils ();
 use parent qw( STF::API::WithDBI );
 use Class::Accessor::Lite
     new => 1,
+    rw  => [ qw(max_num_replica) ],
 ;
 
 sub search_with_url {
@@ -130,6 +131,23 @@ sub replicate {
                 FROM entity e JOIN storage s ON e.storage_id = s.id
                 WHERE object_id = ? AND s.mode = ?
 EOSQL
+
+        # short-circuit here if you only want N replicas max
+        my $max_num_replica = $self->max_num_replica;
+        if ( defined $max_num_replica && $max_num_replica <= $count ) {
+            if ( STF_DEBUG ) {
+                printf STDERR 
+                    "[ Replicate] Object %s has %d entities, but max replicas for this system is %d (num_replica = %d)\n",
+                    $object_id,
+                    $count,
+                    $max_num_replica,
+                    $object->{num_replica}
+                ;
+            }
+            return (); # no replication
+        }
+
+
         if ( $object->{num_replica} <= $count ) {
             if ( STF_DEBUG ) {
                 printf STDERR
