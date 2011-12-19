@@ -15,7 +15,7 @@ sub run {
 
     my $options = $self->{options};
     if ( $options->{storage} ) {
-        $self->show_objects_in_storage( $options->{storage_id}, $options->{limit} );
+        $self->show_objects_in_storage( $options->{storage}, $options->{limit} );
     } else {
         my $object = $self->get_object($object_id);
         if (! $object ) {
