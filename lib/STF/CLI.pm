@@ -9,6 +9,7 @@ sub new {
     my $self = bless {
         cmds => {
             enqueue   => 'STF::CLI::Enqueue',
+            health    => 'STF::CLI::Health',
             object    => 'STF::CLI::Object',
             storage   => 'STF::CLI::Storage',
         }
@@ -68,6 +69,12 @@ sub show_subcommands {
     print STDOUT <<EOM
 
 $0 <subcommand> [options...]
+
+health [-a] <id-is>
+health [-a] -s <storage-id> -l <limit>
+
+    Displays the health status of an object. This means actual HTTP requests
+    will run to check if the entities are actuall retrievable
 
 object <id-ish>
 object -s <storage-id> -l <limit>
