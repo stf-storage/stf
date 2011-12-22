@@ -29,7 +29,6 @@ Please make sure to put them in to build/test this application.
     make test
 
 EOM
-    exit 1;
 }
 
 if (! $Config{use64bitint}) {
