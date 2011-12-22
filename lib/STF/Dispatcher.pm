@@ -204,8 +204,10 @@ sub create_bucket {
 
     my $res = $self->txn_block( 'DB::Master' => $txn, $self->create_id, $args->{bucket_name} );
     if (my $e = $@) {
+        if (STF_DEBUG) {
+            printf STDERR "Failed to create bucket: $e\n";
+        }
         $self->handle_exception($e);
-        printf STDERR "Failed to create bucket: $e\n";
     }
 
     return $res || ();
@@ -230,8 +232,10 @@ sub delete_bucket {
     my ($bucket, $recursive) = @$args{ qw(bucket) };
     my $res = $self->txn_block( 'DB::Master' => $txn, $bucket->{id} );
     if (my $e = $@) {
+        if (STF_DEBUG) {
+            print STDERR "[Dispatcher] Failed to delete bucket: $e\n";
+        }
         $self->handle_exception($e);
-        print STDERR "[Dispatcher] Failed to delete bucket: $e\n";
     } else {
         if ( STF_DEBUG ) {
             printf STDERR "[Dispatcher] Deleted bucket %s (%s)\n",
@@ -365,8 +369,10 @@ sub create_object {
     my ($res, $old_object_id) = $self->txn_block( 'DB::Master' => $txn,
         $object_id, $bucket->{id}, $replicas, $object_name, $size, $consistency, $suffix, $input );
     if (my $e = $@) {
+        if (STF_DEBUG) {
+            print STDERR "Error while creating object: $e\n";
+        }
         $self->handle_exception($e);
-        print STDERR "Error while creating object: $e\n";
         return ();
     }
     undef $txn_block_timer;
@@ -480,8 +486,10 @@ sub delete_object {
     my ($bucket, $object_name) = @$args{ qw(bucket object_name) };
     my ($res, $object_id) = $self->txn_block( 'DB::Master' => $txn, $bucket->{id}, $object_name);
     if (my $e = $@) {
+        if (STF_DEBUG) {
+            print STDERR "Failed to delete object: $e\n";
+        }
         $self->handle_exception($e);
-        print STDERR "Failed to delete object: $e\n";
         return ();
     }
 
@@ -533,8 +541,10 @@ sub modify_object {
 
     my ($object_id) = $self->txn_block( 'DB::Master' => $txn, $bucket->{id}, $object_name, $replicas);
     if (my $e = $@) {
+        if (STF_DEBUG) {
+            printf STDERR "[Dispatcher]: Failed to modify object: %s\n", $e;
+        }
         $self->handle_exception($e);
-        printf STDERR "[Dispatcher]: Failed to modify object: %s\n", $e;
         return ();
     }
 
