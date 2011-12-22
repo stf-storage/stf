@@ -35,6 +35,10 @@ Daisuke Maki C<< <daisuke@endeworks.jp> >>
 
 Ikebe Tomohiro
 
+=head1 CONTRIBUTORS
+
+mattn (Yasuhiro Matsumoto)
+
 =head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2011 by livedoor, inc.
