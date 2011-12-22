@@ -67,7 +67,7 @@ use Carp ();
             mysql_enable_utf8 => 1,
         }
     ],
-    # The Q4M DB.
+    # The Q4M/Schwartz DB.
     'DB::Queue' => [
         $ENV{ STF_QUEUE_DSN } || "dbi:mysql:dbname=stf_queue",
         $ENV{ STF_QUEUE_USERNAME } || "root",
