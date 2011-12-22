@@ -1,5 +1,6 @@
 use strict;
 use ExtUtils::MakeMaker;
+use Config;
 
 # The additional \n helps to fool Module::Install
 sub MY::test_via_harness { "\tprove --lib --rc=t/proverc t\n" }
@@ -26,6 +27,15 @@ Please make sure to put them in to build/test this application.
     export PATH=/path/to/mysql/bin:\$PATH
     perl Makefile.PL
     make test
+
+EOM
+    exit 1;
+}
+
+if (! $Config{use64bitint}) {
+    print STDERR <<EOM;
+STF requires 64 bit ints, and your perl doesn't seem to have use64bitint
+defined :/
 
 EOM
     exit 1;
