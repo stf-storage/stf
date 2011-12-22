@@ -2,6 +2,7 @@ package STF::Dispatcher;
 use strict;
 use feature 'state';
 use parent qw( STF::Trait::WithDBI );
+use Config;
 use File::Basename ();
 use File::Temp ();
 use Guard ();
@@ -49,6 +50,32 @@ sub bootstrap {
     );
 }
 
+my $supported_64bigint = $Config{use64bitint};
+if (!$supported_64bigint) {
+    require Math::BigInt;
+    Math::BigInt->import;
+}
+
+sub _pack_head {
+    my ($time, $serial) = @_;
+    if ($supported_64bigint) {
+        return pack( "ql", $time, $serial );
+    }
+    pack( "N2l", unpack( 'NN', $time ), $serial );
+}
+
+sub _unpack_head {
+    if ($supported_64bigint) {
+        return unpack( "ql", shift() );
+    }
+    my $high = shift;
+    my $low = shift;
+    my $time = Math::BigInt->new(
+        "0x" . unpack("H*", CORE::pack("N2", $high, $low)));
+    my $serial = unpack( "l", shift() );
+    return $time, $serial;
+}
+
 sub new {
     my ($class, %args) = @_;
 
@@ -72,7 +99,7 @@ sub new {
         die "PANIC: Could not open shared memory: $!";
     }
     $mutex->setall(1);
-    $shm->write( pack( "ql", 0, 0 ), 0, 24 );
+    $shm->write( _pack_head( 0, 0 ), 0, 24 );
 
     $self->{mutex} = $mutex;
     $self->{shared_mem} = $shm;
@@ -170,7 +197,7 @@ sub create_id {
     my $host_id = (int($self->host_id + $$)) & 0xffff; # 16 bits
     my $time_id = time();
 
-    my ($shm_time, $shm_serial) = unpack( "ql", $shm->read(0, 24) );
+    my ($shm_time, $shm_serial) = _unpack_head( $shm->read(0, 24) );
     if ( $shm_time == $time_id ) {
         $shm_serial++;
     } else {
@@ -181,7 +208,7 @@ sub create_id {
         # Overflow :/ we received more than SERIAL_BITS
         die "serial bits overflowed";
     }
-    $shm->write( pack("ql", $time_id, $shm_serial ), 0, 24 );
+    $shm->write( _pack_head( $time_id, $shm_serial ), 0, 24 );
 
     my $time_bits = ($time_id - EPOCH_OFFSET) << TIME_SHIFT;
     my $serial_bits = $shm_serial << SERIAL_SHIFT;
