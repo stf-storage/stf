@@ -16,6 +16,24 @@ STF is built on top of long trusted software like Apache (or nginx), Perl, Q4M (
 
 Please read http://stf-storage.github.com/setup.html
 
+## Very simple usage via lwp-request
+
+    # create a bucket
+    lwp-request -m PUT http://stf-host/bucket
+    Please enter content (text/plain) to be PUTed:
+    # (Press Ctrl+D here so you don't send any content)
+
+    # create an object
+    lwp-request -m PUT http://stf-host/bucket/object
+    Please enter content (text/plain) to be PUTed:
+    # Type in random stuff here to be sent to the server
+
+    # get the object
+    lwp-request http://stf-host/bucket/object
+
+    # delete the object
+    lwp-request -m DELETE http://stf-host/bucket/object
+
 ## See Also
 
 * Web site - http://stf-storage.github.com
