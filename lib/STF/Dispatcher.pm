@@ -2,7 +2,6 @@ package STF::Dispatcher;
 use strict;
 use feature 'state';
 use parent qw( STF::Trait::WithDBI );
-use Config;
 use File::Basename ();
 use File::Temp ();
 use Guard ();
@@ -13,6 +12,7 @@ use POSIX();
 use STF::Constants qw(
     :entity
     :server
+    HAVE_64BITINT
     STF_DEBUG
     STF_TIMER
     STF_NGINX_STYLE_REPROXY
@@ -37,6 +37,16 @@ use Class::Accessor::Lite
     ) ]
 ;
 
+BEGIN {
+    if (! HAVE_64BITINT) {
+        if ( STF_DEBUG ) {
+            print STDERR "[Dispatcher] You don't have 64bit int. Emulating using Math::BigInt\n";
+        }
+        require Math::BigInt;
+        Math::BigInt->import;
+    }
+}
+
 sub bootstrap {
     my $class = shift;
     my $context = STF::Context->bootstrap;
@@ -50,30 +60,26 @@ sub bootstrap {
     );
 }
 
-my $supported_64bigint = $Config{use64bitint};
-if (!$supported_64bigint) {
-    require Math::BigInt;
-    Math::BigInt->import;
-}
-
 sub _pack_head {
     my ($time, $serial) = @_;
-    if ($supported_64bigint) {
+    if ( HAVE_64BITINT ) {
         return pack( "ql", $time, $serial );
+    } else {
+        pack( "N2l", unpack( 'NN', $time ), $serial );
     }
-    pack( "N2l", unpack( 'NN', $time ), $serial );
 }
 
 sub _unpack_head {
-    if ($supported_64bigint) {
+    if ( HAVE_64BITINT ) {
         return unpack( "ql", shift() );
+    } else {
+        my $high = shift;
+        my $low = shift;
+        my $time = Math::BigInt->new(
+            "0x" . unpack("H*", CORE::pack("N2", $high, $low)));
+        my $serial = unpack( "l", shift() );
+        return $time, $serial;
     }
-    my $high = shift;
-    my $low = shift;
-    my $time = Math::BigInt->new(
-        "0x" . unpack("H*", CORE::pack("N2", $high, $low)));
-    my $serial = unpack( "l", shift() );
-    return $time, $serial;
 }
 
 sub new {

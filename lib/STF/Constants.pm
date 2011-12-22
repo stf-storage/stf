@@ -1,6 +1,7 @@
 package STF::Constants;
 use strict;
 use parent qw(Exporter);
+use Config ();
 
 my %constants;
 BEGIN {
@@ -14,6 +15,8 @@ BEGIN {
         OBJECT_INACTIVE => 0,
         ENTITY_ACTIVE => 1,
         ENTITY_INACTIVE => 0,
+
+        HAVE_64BITINT => $Config::Config{use64bitint},
 
         EPOCH_OFFSET  => 946684800,
         HOST_ID_BITS  => 16,
@@ -96,6 +99,7 @@ our %EXPORT_TAGS = (
 );
 
 our @EXPORT_OK = (
+    'HAVE_64BITINT',
     'STF_CACHE_DEBUG',
     'STF_DEBUG',
     'STF_TIMER',
