@@ -66,7 +66,7 @@ WriteMakefile(
         'String::Urandom' => 0,
         'Text::Xslate' => 0,
         'YAML' => 0,
-        'STF::Dispatcher::PSGI' => '1.06',
+        'STF::Dispatcher::PSGI' => '1.07',
     },
     BUILD_REQUIRES => {
         # For tests
