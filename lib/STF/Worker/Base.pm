@@ -9,7 +9,7 @@ use Class::Accessor::Lite
 sub new {
     my ($class, %args) = @_;
     my $self = bless {
-        interval => 1,
+        interval => 1_000_000,
         max_works_per_child => 1_000,
         %args
     }, $class;
