@@ -180,9 +180,6 @@ EOSQL
             $read_timer = STF::Utils::timer_guard( "replicate [read content]" );
         }
 
-        # This needs to be saved into a temporary file, and then each
-        # coro will reopen it so it can pass a file handle
-        my $tempinput = File::Temp->new( CLEANUP => 1 );
         my ($buf, $ret);
         my $size = $object->{size};
         my $sofar = 0;
