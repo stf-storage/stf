@@ -226,16 +226,16 @@ sub create_id {
 sub create_bucket {
     my ($self, $args) = @_;
 
-    state $txn = sub {
+    state $txn = $self->txn_block(sub {
         my ($self, $id, $bucket_name) = @_;
         my $bucket_api = $self->get('API::Bucket');
         $bucket_api->create({
             id   => $id,
             name => $bucket_name,
         } );
-    };
+    });
 
-    my $res = $self->txn_block( 'DB::Master' => $txn, $self->create_id, $args->{bucket_name} );
+    my $res = $txn->( $self->create_id, $args->{bucket_name} );
     if (my $e = $@) {
         if (STF_DEBUG) {
             printf STDERR "Failed to create bucket: $e\n";
@@ -249,7 +249,7 @@ sub create_bucket {
 sub delete_bucket {
     my ($self, $args) = @_;
 
-    state $txn = sub {
+    state $txn = $self->txn_block(sub {
         my ($self, $id ) = @_;
         my $bucket_api = $self->get('API::Bucket');
 
@@ -260,10 +260,10 @@ sub delete_bucket {
         }
 
         return 1;
-    };
+    });
 
     my ($bucket, $recursive) = @$args{ qw(bucket) };
-    my $res = $self->txn_block( 'DB::Master' => $txn, $bucket->{id} );
+    my $res = $txn->( $bucket->{id} );
     if (my $e = $@) {
         if (STF_DEBUG) {
             print STDERR "[Dispatcher] Failed to delete bucket: $e\n";
@@ -305,7 +305,7 @@ sub create_object {
         $timer = STF::Utils::timer_guard();
     }
 
-    state $txn = sub {
+    state $txn = $self->txn_block( sub {
         my $txn_timer;
         if ( STF_TIMER ) {
             $txn_timer = STF::Utils::timer_guard( "create_object (txn closure)");
@@ -381,7 +381,7 @@ sub create_object {
         });
 
         return (1, $old_object_id);
-    };
+    } );
 
     my ($bucket, $replicas, $object_name, $size, $consistency, $suffix, $input) = 
         @$args{ qw( bucket replicas object_name size consistency suffix input) };
@@ -399,7 +399,7 @@ sub create_object {
         $txn_block_timer = STF::Utils::timer_guard( "create_object (txn_block)" );
     }
 
-    my ($res, $old_object_id) = $self->txn_block( 'DB::Master' => $txn,
+    my ($res, $old_object_id) = $txn->(
         $object_id, $bucket->{id}, $replicas, $object_name, $size, $consistency, $suffix, $input );
     if (my $e = $@) {
         if (STF_DEBUG) {
@@ -485,7 +485,7 @@ sub delete_object {
         $timer = STF::Utils::timer_guard();
     }
 
-    state $txn = sub {
+    state $txn = $self->txn_block( sub {
         my ($self, $bucket_id, $object_name) = @_;
         my $object_api = $self->get( 'API::Object' );
         my $object_id = $object_api->find_object_id( {
@@ -505,10 +505,10 @@ sub delete_object {
         }
 
         return (1, $object_id);
-    };
+    } );
 
     my ($bucket, $object_name) = @$args{ qw(bucket object_name) };
-    my ($res, $object_id) = $self->txn_block( 'DB::Master' => $txn, $bucket->{id}, $object_name);
+    my ($res, $object_id) = $txn->( $bucket->{id}, $object_name);
     if (my $e = $@) {
         if (STF_DEBUG) {
             print STDERR "Failed to delete object: $e\n";
@@ -535,7 +535,7 @@ sub modify_object {
         ;
     }
 
-    state $txn = sub {
+    state $txn = $self->txn_block( sub {
         my ($self, $bucket_id, $object_name, $replicas) = @_;
         my $object_api = $self->get('API::Object');
         my $object_id = $object_api->find_active_object_id( {
@@ -561,9 +561,9 @@ sub modify_object {
         }
 
         return $object_id;
-    };
+    });
 
-    my ($object_id) = $self->txn_block( 'DB::Master' => $txn, $bucket->{id}, $object_name, $replicas);
+    my ($object_id) = $txn->( $bucket->{id}, $object_name, $replicas);
     if (my $e = $@) {
         if (STF_DEBUG) {
             printf STDERR "[Dispatcher]: Failed to modify object: %s\n", $e;
