@@ -40,7 +40,7 @@ use Class::Accessor::Lite
 BEGIN {
     if (! HAVE_64BITINT) {
         if ( STF_DEBUG ) {
-            print STDERR "[Dispatcher] You don't have 64bit int. Emulating using Math::BigInt\n";
+            print STDERR "[Dispatcher] You don't have 64bit int. Emulating using Math::BigInt (This will be SLOW! Use 64bit-enabled Perls for STF!)\n";
         }
         require Math::BigInt;
         Math::BigInt->import;
