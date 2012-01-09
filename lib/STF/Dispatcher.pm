@@ -452,7 +452,9 @@ sub get_object {
         # XXX forcefully check the health of this object randomly
         health_check      => rand() < $self->health_check_probability,
     });
+
     if ($uri) {
+        my @args = (200, [ 'X-Reproxy-URL' => $uri ]);
         if ( STF_NGINX_STYLE_REPROXY ) {
             # nginx emulation of X-Reproxy-URL
             # location /reproxy {
@@ -461,22 +463,11 @@ sub get_object {
             #     proxy_pass $reproxy;
             #     proxy_hide_header Content-Type;
             # }
-            STF::Dispatcher::PSGI::HTTPException->throw(
-                200,
-                [
-                    'X-Accel-Redirect' => STF_NGINX_STYLE_REPROXY_ACCEL_REDIRECT_URL,
-                    'X-Reproxy-URL' => $uri,
-                ],
-            );
-        } else {
-            STF::Dispatcher::PSGI::HTTPException->throw(
-                200,
-                [
-                    'X-Reproxy-URL' => $uri,
-                ],
-            );
+            push @{$args[1]},
+                'X-Accel-Redirect' => STF_NGINX_STYLE_REPROXY_ACCEL_REDIRECT_URL
+            ;
         }
-        STF::Dispatcher::PSGI::HTTPException->throw( 200, [ 'X-Reproxy-URL' => $uri ], [] );
+        STF::Dispatcher::PSGI::HTTPException->throw(@args);
     }
 
     if ( STF_DEBUG ) {
