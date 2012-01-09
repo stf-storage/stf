@@ -333,7 +333,9 @@ sub create_object {
             bucket_id =>  $bucket_id,
             object_name => $object_name
         } );
-        undef $find_object_timer;
+        if ( STF_TIMER ) {
+            undef $find_object_timer;
+        }
 
         if ( $old_object_id ) {
             if ( STF_DEBUG ) {
@@ -360,7 +362,9 @@ sub create_object {
             replicas      => $replicas,
         } );
 
-        undef $insert_object_timer;
+        if ( STF_TIMER ) {
+            undef $insert_object_timer;
+        }
 
         # Create entities. These are the actual entities which are replicated
         # across the system
@@ -394,11 +398,6 @@ sub create_object {
     }
     my $object_id = $self->create_id();
 
-    my $txn_block_timer;
-    if (STF_TIMER) {
-        $txn_block_timer = STF::Utils::timer_guard( "create_object (txn_block)" );
-    }
-
     my ($res, $old_object_id) = $txn->(
         $object_id, $bucket->{id}, $replicas, $object_name, $size, $consistency, $suffix, $input );
     if (my $e = $@) {
@@ -408,7 +407,6 @@ sub create_object {
         $self->handle_exception($e);
         return ();
     }
-    undef $txn_block_timer;
 
     my $post_timer;
     if (STF_TIMER) {
@@ -426,7 +424,9 @@ sub create_object {
     }
 
     $self->enqueue( replicate => $object_id );
-    undef $post_timer;
+    if (STF_TIMER) {
+        undef $post_timer;
+    }
 
     return $res;
 }
