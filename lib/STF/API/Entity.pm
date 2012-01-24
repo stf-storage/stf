@@ -123,7 +123,7 @@ sub replicate {
     if (! defined $replicas ) {
         my $check_replica_timer;
         if ( STF_TIMER ) {
-            $check_replica_timer = STF::Utils::timer_guard( "replicate [check replicas]" );
+            $check_replica_timer = STF::Utils::timer_guard( "STF::API::Entity::replicate [check replicas]" );
         }
         # Only replicate if actual replicas (entities) < object->{num_replica}
         my ($count) = $dbh->selectrow_array( <<EOSQL, undef, $object_id, STORAGE_MODE_READ_WRITE );
@@ -248,7 +248,7 @@ EOSQL
     my $storages = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, STORAGE_MODE_READ_WRITE, $object_id);
         SELECT s.id, s.uri FROM storage s
             WHERE s.mode = ? AND s.id NOT IN (SELECT storage_id FROM entity WHERE object_id = ?)
-        ORDER BY rand() LIMIT $replicas
+        ORDER BY rand() LIMIT @{[ $replicas * 2 ]}
 EOSQL
     if (@$storages < $replicas) {
         if ( STF_DEBUG ) {
@@ -328,6 +328,8 @@ EOSQL
         if ( STF_DEBUG ) {
             printf STDERR "[ Replicate] PUT %s was %s\n", $uri, ($ok ? "OK" : "FAIL");
         }
+
+        last if $ok_count >= $replicas;
     }
 
     if ($ok_count <= 0) { 
