@@ -25,15 +25,15 @@ use Carp ();
         # Path to static files
         # htdocs => path_to( "htdocs" ),
     },
-    # Used for Admin interface. You should not nee to change this
+    # Used for Admin interface. You should not need to change this
     'AdminWeb::Router' => {
         routes => path_to("etc/admin/routes.pl"),
     },
-    # Used for Admin interface. You should not nee to change this
+    # Used for Admin interface. You should not need to change this
     'AdminWeb::Validator' => {
         profiles => path_to('etc/admin/profiles.pl'),
     },
-    # Used for Admin interface. You should not nee to change this
+    # Used for Admin interface. You should not need to change this
     'AdminWeb::View::Xslate' => {
         path => [
             path_to("view"),
@@ -102,4 +102,3 @@ use Carp ();
         loop_class     => $ENV{ STF_QUEUE_TYPE } || "Q4M",
     },
 }
-    
