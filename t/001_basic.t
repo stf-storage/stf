@@ -1,4 +1,5 @@
 use strict;
+use Cwd ();
 use Test::More;
 use Plack::Test;
 use HTTP::Request::Common qw(PUT HEAD GET DELETE POST);
@@ -283,6 +284,11 @@ EOSQL
     }
 
 };
+
+# XXX under very rare circumstances, I've seen calls to cwd() fail during
+# testing. I'm just going to override this by setting STF_HOME here
+
+$ENV{ STF_HOME } = Cwd::cwd();
 
 my $app = require "t/dispatcher.psgi";
 foreach my $impl ( qw(MockHTTP Server) ) {
