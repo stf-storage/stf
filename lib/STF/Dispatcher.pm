@@ -9,6 +9,7 @@ use IPC::SysV qw(S_IRWXU S_IRUSR S_IWUSR IPC_CREAT IPC_NOWAIT SEM_UNDO);
 use IPC::SharedMem;
 use IPC::Semaphore;
 use POSIX();
+use Scalar::Util ();
 use STF::Constants qw(
     :entity
     :server
@@ -82,6 +83,12 @@ sub _unpack_head {
     }
 }
 
+# XXX use hash so we can de-register ourselves?
+my @RESOURCE_DESTRUCTION_GUARDS;
+END {
+    undef @RESOURCE_DESTRUCTION_GUARDS;
+}
+
 sub new {
     my ($class, %args) = @_;
 
@@ -110,18 +117,65 @@ sub new {
     $self->{mutex} = $mutex;
     $self->{shared_mem} = $shm;
 
+    # XXX WHAT ON EARTH ARE YOU DOING HERE?
+    #
+    # We normally protect ourselves from leaking resources in DESTROY, but...
+    # when we are enveloped in a PSGI app, a reference to us stays alive until
+    # global destruction.
+    #
+    # At global destruction time, the order in which objects get cleaned
+    # up is undefined, so it often happens that the mutex/shared memory gets
+    # freed before the dispatcher object -- so when DESTROY gets called,
+    # $self->{mutex} and $self->{shared_mem} are gone already, and we can't
+    # call remove().
+    #
+    # To avoid this, we keep a guard object that makes sure that the resources
+    # are cleaned up at END {} time
+    push @RESOURCE_DESTRUCTION_GUARDS, (sub {
+        my $SELF = shift;
+        Scalar::Util::weaken($SELF);
+        Guard::guard(sub {
+            eval { $SELF->cleanup };
+        });
+    })->($self);
+
     $self;
 }
 
 sub DESTROY {
     my $self = shift;
-    if ( $self->{parent} == $$ ) {
+    $self->cleanup;
+}
+
+sub cleanup {
+    my $self = shift;
+    if ( $self->{parent} != $$ ) {
         if ( STF_DEBUG ) {
-            printf STDERR "[Dispatcher] Cleaning up semaphore and shared memroy\n";
+            print STDERR "[Dispatcher] Cleanup skipped (PID $$ != $self->{parent})\n";
         }
+        return;
+    }
+
+    {
         local $@;
-        eval { $self->{mutex}->remove };
-        eval { $self->{shared_mem}->remove };
+        if ( my $mutex = $self->{mutex} ) {
+            eval {
+                if ( STF_DEBUG ) {
+                    printf STDERR "[Dispatcher] Cleaning up semaphore (%s)\n",
+                        $mutex->id
+                }
+                $mutex->remove;
+            };
+        }
+        if ( my $shm = $self->{shared_mem} ) {
+            eval {
+                if ( STF_DEBUG ) {
+                    printf STDERR "[Dispatcher] Cleaning up shared memory (%s)\n",
+                        $shm->id
+                }
+                $shm->remove
+            };
+        }
     }
 }
 

@@ -64,6 +64,7 @@ WriteMakefile(
         'SQL::Maker' => 0,
         'Starlet' => 0,
         'String::Urandom' => 0,
+        'Task::Weaken' => 0,
         'Text::Xslate' => 0,
         'YAML' => 0,
         'STF::Dispatcher::PSGI' => '1.07',
