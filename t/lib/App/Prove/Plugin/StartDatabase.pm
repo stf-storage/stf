@@ -62,7 +62,6 @@ sub load {
 }
 
 END {
-warn "FREE MYSQLD";
     undef $MYSQLD;
 }
 
