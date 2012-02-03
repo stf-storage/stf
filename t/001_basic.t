@@ -1,5 +1,6 @@
 use strict;
 use Cwd ();
+use Digest::MD5 qw(md5_hex);
 use Test::More;
 use Plack::Test;
 use HTTP::Request::Common qw(PUT HEAD GET DELETE POST);
@@ -15,6 +16,18 @@ use_ok "STF::Worker::Replicate";
 my $random_string = sub {
     my @chars = ('a'..'z');
     join "", map { $chars[ rand @chars ] } 1..($_[0] || 8);
+};
+
+my $create_data = sub {
+    my $chunks = shift;
+    my $content;
+    my $md5 = Digest::MD5->new;
+    for (1..$chunks) {
+        my $piece = $random_string->(1024);
+        $md5->add($piece);
+        $content .= $piece;
+    }
+    return ($content, $md5->hexdigest);
 };
 
 my $code = sub {
@@ -46,9 +59,11 @@ my $code = sub {
 
     # 1K is the base unit. 1K = 1024 chars. 
     my @chars = ( 'a'..'z', 'A'..'Z', 0..9 );
-    my $content = join '', map { $chars[rand @chars] } 1.. (1024 * $chunks);
+
+    my ($content, $content_hash) = $create_data->($chunks);
 
     note "PUT to /$bucket_name/$object_name, replication count = 3";
+
     $res = $cb->(
         PUT "http://127.0.0.1/$bucket_name/$object_name",
             "X-Replication-Count" => 2,
@@ -115,7 +130,10 @@ EOSQL
         if (! ok $res->is_success, "GET is successful") {
             diag $res->as_string;
         } else {
-            is $res->content, $content, "content matches";
+            if (! is md5_hex($res->content), $content_hash, "content matches") {
+                diag $res->as_string;
+            }
+
             # should not contain X-Reproxy-URL
             if (! ok ! $res->header('X-Reproxy-URL'), "X-Reproxy-URL should not exist in response (GET BEFORE storing)" ) {
                 diag $res->as_string;
@@ -197,7 +215,7 @@ EOSQL
         }
             
         # re-put an object with new content
-        $content = join '', map { $chars[rand @chars] } 1..1024 * $chunks;
+        ($content, $content_hash) = $create_data->($chunks);
 
         note "PUT to /$bucket_name/$object_name, replication count = 3 (write-over)";
 
@@ -219,7 +237,7 @@ EOSQL
             if (! ok $res->is_success, "GET is successful") {
                 diag $res->as_string;
             } else {
-                is $res->content, $content, "content matches";
+                is md5_hex($res->content), $content_hash, "content matches";
             }
         }
     }
