@@ -288,18 +288,32 @@ sub repair {
         return 0;
     } else {
         my $n = $need - $have;
-        my $ref_url = join "/", $intact->[0]->{uri}, $object->{internal_name};
+
         if (STF_DEBUG) {
             printf STDERR "[    Repair] Going to replicated %s %d times\n",
                 $object_id,
                 $n,
             ;
-            print STDERR "[    Repair] Using content from $ref_url\n";
         }
-        my $furl = $self->get('Furl');
-        my (undef, $code, undef, undef, $content) = $furl->get( $ref_url );
-        if (! HTTP::Status::is_success( $code )) {
-            die "PANIC: failed to retrieve supposedly good url $ref_url: $code";
+        # Try very hard to get a good copy
+        my ($code, $content);
+        foreach my $storage ( @$intact ) {
+            my $ref_url = join "/", $intact->[0]->{uri}, $object->{internal_name};
+            if (STF_DEBUG) {
+                print STDERR "[    Repair] Using content from $ref_url\n";
+            }
+            my $furl = $self->get('Furl');
+            (undef, $code, undef, undef, $content) = $furl->get( $ref_url );
+            if (! HTTP::Status::is_success( $code )) {
+                print STDERR "semi-PANIC: failed to retrieve supposedly good url $ref_url: $code\n";
+                $content = undef;
+                next;
+            }
+        }
+
+        if (! $content) {
+            print STDERR "PANIC: Could not load a single good content from any storage! Can't repair $object_id...\n";
+            return 0;
         }
 
         my $replicated = $entity_api->replicate( {
