@@ -43,6 +43,11 @@ has min_object_id => (
     is => 'rw',
 );
 
+has proc_name => (
+    is => 'ro',
+    default => 'migrate-stf'
+);
+
 has workers => (
     is => 'ro',
     default => 5
@@ -91,13 +96,14 @@ sub _build_conn {
 sub set_proc_name {
     my ($self, $message) = @_;
 
-    my $fmt = "migrate-stf [%s] (%s -> %s)";
+    my $fmt = "%s [%s] (%s -> %s)";
     if ( $message ) {
         $fmt .= " %s";
     }
 
     $0 = sprintf(
         $fmt,
+        $self->proc_name,
         $self->storage_id,
         $self->max_object_id,
         $self->min_object_id,

@@ -1,0 +1,66 @@
+#!perl
+use strict;
+use Getopt::Long;
+use STF::Context;
+use STF::Constants qw(STORAGE_MODE_CRASH_RECOVERED STORAGE_MODE_TEMPORARILY_DOWN);
+use STF::Migrator;
+
+main();
+
+sub main {
+    my ($storage_id, $help);
+    if (! GetOptions( "storage_id=i" => \$storage_id, "help!" => \$help ) ) {
+        exit 1;
+    }
+
+    if (! $storage_id) {
+        print STDERR "No storage_id specified!\n";
+        exit 1;
+    }
+
+    if ($help) {
+        require Pod::Usage;
+        Pod::Usage::pod2usage(-verbose => 2, -exitval => 0);
+    }
+
+    my $ctxt = STF::Context->bootstrap;
+
+    # Get the storage
+    my $storage_api = $ctxt->get('API::Storage');
+    my $storage = $storage_api->lookup( $storage_id );
+    if (! $storage) {
+        print STDERR "Storage $storage_id does not exist!\n";
+        exit 1;
+    }
+
+    # Use migrator, but make sure to put it DOWN, migrate, then put
+    # in CRASH mode.
+
+    # Make sure to put this DOWN
+    $storage_api->update( $storage_id, {
+        mode => STORAGE_MODE_TEMPORARILY_DOWN
+    } );
+
+    my $migrator = STF::Migrator->new(
+        proc_name    => "stf-recover-crash",
+        connect_info => $ctxt->config->{'DB::Master'},
+        storage_id   => $storage_id,
+    );
+    $migrator->run;
+
+    $storage_api->update( $storage_id, {
+        mode => STORAGE_MODE_CRASH_RECOVERED
+    } );
+}
+
+__END__
+
+=head1 NAME
+
+stf-recover-storage
+
+=head1 SYNOPSIS
+
+    stf-recover-storage --storage_id=[id]
+
+=cut
