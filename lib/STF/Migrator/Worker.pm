@@ -264,12 +264,12 @@ sub get_object {
     } else {
         my $conn = $self->conn;
         my $raw_uris = $conn->run(sub {
-            $_->selectall_arrayref( <<EOSQL, undef, $object->{id} );
+            $_->selectall_arrayref( <<EOSQL, undef, $object->{id}, $self->storage_id, STORAGE_MODE_READ_ONLY, STORAGE_MODE_READ_WRITE );
                 SELECT CONCAT_WS("/", s.uri, o.internal_name) FROM 
                     entity e
                         JOIN object o ON e.object_id = o.id
                         JOIN storage s ON e.storage_id = s.id
-                    WHERE o.id = ?
+                    WHERE o.id = ? AND s.id != ? AND s.mode IN (?, ?)
 EOSQL
         });
         @uris = map { $_->[0] } @$raw_uris;
