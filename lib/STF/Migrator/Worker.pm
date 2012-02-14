@@ -33,6 +33,11 @@ has storage_id => (
     required => 1,
 );
 
+has use_storage_as_source => (
+    is => 'ro',
+    default => 1,
+);
+
 has max_object_id => (
     is => 'ro',
 );
@@ -206,15 +211,10 @@ EOSQL
         return;
     }
 
-    my $uri = sprintf "%s/%s",
-        $self->storage_uri,
-        $object->{internal_name}
-    ;
-
     my $furl = FurlX::Coro::HTTP->new(timeout => 180);
-    my @res = $furl->get($uri);
-    if ( ! HTTP::Status::is_success($res[1]) ) {
-        print "# $object_id: GET $uri failed ($$)\n";
+    my $content =  $self->get_object( $furl, $object );
+    if (! $content ) {
+        print "# Could not get content for object $object->{id} ($$)\n";
         return;
     }
 
@@ -232,7 +232,7 @@ EOSQL
 
     my $copied = 0;
     foreach my $new_storage (@$storages) {
-        $copied += $self->put_object( $furl, $object, $new_storage, $res[4] );
+        $copied += $self->put_object( $furl, $object, $new_storage, $content );
         if ($copied >= $howmany) {
             last;
         }
@@ -244,6 +244,47 @@ EOSQL
         return 1;
     }
 
+    return ();
+}
+
+sub get_object {
+    my ($self, $furl, $object) = @_;
+
+    # XXX If we're fetching from an already active storage, cool. just
+    # use the same storage we're migrating from. Otherwise, get from
+    # any existing entity, EXCEPT for the one we're migratin from
+
+    my @uris;
+    if ( $self->use_storage_as_source ) {
+        my $uri = sprintf "%s/%s",
+            $self->storage_uri,
+            $object->{internal_name}
+        ;
+        push @uris, $uri;
+    } else {
+        my $conn = $self->conn;
+        my $raw_uris = $conn->run(sub {
+            $_->selectall_arrayref( <<EOSQL, undef, $object->{id} );
+                SELECT WS_CONCAT("/", s.uri, o.internal_name) FROM 
+                    entity e
+                        JOIN object o ON e.object_id = o.id
+                        JOIN storage s ON e.storage_id = s.id
+                    WHERE o.id = ?
+EOSQL
+        });
+        @uris = map { $_->[0] } @$raw_uris;
+    }
+
+    foreach my $uri ( @uris ) {
+        my @res = $furl->get($uri);
+        if ( ! HTTP::Status::is_success($res[1]) ) {
+            print "# $object->{id}: GET $uri failed ($$)\n";
+        } else {
+            return $res[4];
+        }
+    }
+
+    print "# $object->{id}: ALL get for object $object->{id} failed ($$)\n";
     return ();
 }
 
