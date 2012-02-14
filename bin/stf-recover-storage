@@ -45,6 +45,7 @@ sub main {
         proc_name    => "stf-recover-crash",
         connect_info => $ctxt->config->{'DB::Master'},
         storage_id   => $storage_id,
+        use_storage_as_source => 0,
     );
     $migrator->run;
 

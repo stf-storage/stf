@@ -58,6 +58,11 @@ has segment_size => (
     default => 5_000
 );
 
+has use_storage_as_source => (
+    is => 'ro',
+    default => 1,
+);
+
 sub BUILD {
     my $self = shift;
 
@@ -166,6 +171,7 @@ EOSQL
             storage_uri   => $storage->{uri},
             max_object_id => $max_object_id,
             min_object_id => $object_id,
+            use_storage_as_source => $self->use_storage_as_source,
         );
 
         my $pid = $pfm->start;
