@@ -98,7 +98,7 @@ sub run {
             $_->selectall_arrayref(<<EOSQL, undef, $storage_id, $max_object_id, $min_object_id );
                 SELECT e.object_id
                     FROM entity e
-                    FORCE INDEX (object_id)
+                    FORCE INDEX (PRIMARY)
                     WHERE e.storage_id = ? AND e.object_id <= ? AND e.object_id > ?
                     ORDER BY e.object_id DESC
 EOSQL
@@ -265,7 +265,7 @@ sub get_object {
         my $conn = $self->conn;
         my $raw_uris = $conn->run(sub {
             $_->selectall_arrayref( <<EOSQL, undef, $object->{id} );
-                SELECT WS_CONCAT("/", s.uri, o.internal_name) FROM 
+                SELECT CONCAT_WS("/", s.uri, o.internal_name) FROM 
                     entity e
                         JOIN object o ON e.object_id = o.id
                         JOIN storage s ON e.storage_id = s.id

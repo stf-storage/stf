@@ -154,7 +154,7 @@ EOSQL
             $_->selectrow_array(<<EOSQL, undef, $storage_id, $max_object_id, $min_object_id);
                 SELECT e.object_id
                     FROM entity e
-                    FORCE INDEX (object_id)
+                    FORCE INDEX (PRIMARY)
                     WHERE e.storage_id = ? AND e.object_id <= ? AND e.object_id > ?
                     ORDER BY e.object_id DESC LIMIT $segment_size,1
 EOSQL
