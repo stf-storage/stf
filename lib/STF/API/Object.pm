@@ -249,7 +249,7 @@ sub repair {
 
     if ( @$broken ) {
         if (STF_DEBUG) {
-            printf STDERR "[    Repair] Removing entities for $object_id in\n";
+            printf STDERR "[    Repair] Removing broken entities for $object_id in\n";
             foreach my $storage (@$broken) {
                 print STDERR "[    Repair] + @{[ $storage->{uri} || '(null)' ]} (id = $storage->{id})\n";
             }
