@@ -68,7 +68,7 @@ sub load {
     $dbh->do( "DELETE FROM storage" );
     my $id = 1;
     foreach my $storage (split /,/, $ENV{STF_STORAGE_URLS}) {
-        $dbh->do( "INSERT INTO storage (id, uri, mode, used, capacity, created_at) VALUES ( ?, ?, 1, 0, 10000, UNIX_TIMESTAMP(NOW()))", undef, $id++, $storage );
+        $dbh->do( "INSERT INTO storage (id, uri, mode, created_at) VALUES ( ?, ?, 1, UNIX_TIMESTAMP(NOW()))", undef, $id++, $storage );
     }
 }
 
