@@ -517,4 +517,50 @@ EOSQL
     return $rv_replace && $rv_delete;
 }
 
+sub rename {
+    my ($self, $args) = @_;
+
+    my $source_bucket_id = $args->{ source_bucket_id };
+    my $source_object_name = $args->{ source_object_name };
+    my $dest_bucket_id = $args->{ destination_bucket_id };
+    my $dest_object_name = $args->{ destination_object_name };
+
+    my $source_object_id = $self->find_object_id( {
+        bucket_id =>  $source_bucket_id,
+        object_name => $source_object_name
+    } );
+
+    # This should always exist
+    if (! $source_object_id ) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[    Rename] Source object did not exist (bucket_id = %s, object_name = %s)\n",
+                $source_bucket_id,
+                $source_object_name
+            ;
+        }
+        return;
+    }
+
+    # This shouldn't exist
+    my $dest_object_id = $self->find_object_id( {
+        bucket_id => $dest_bucket_id,
+        object_name => $dest_object_name
+    } );
+    if ( $dest_object_id ) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[    Rename] Destination object already exists (bucket_id = %s, object_name = %s)\n",
+                $dest_bucket_id,
+                $dest_object_name
+            ;
+        }
+        return;
+    }
+
+    $self->update( $source_object_id, {
+        bucket_id => $dest_bucket_id,
+        name      => $dest_object_name
+    } );
+}
+
+
 1;

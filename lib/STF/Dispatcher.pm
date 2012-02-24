@@ -633,6 +633,38 @@ sub modify_object {
     return (!(!$object_id)) || ();
 }
 
+sub rename_object {
+    my ($self, $args) = @_;
+
+    state $txn = $self->txn_block( sub {
+        my ($self, $source_bucket_id, $source_object_name, $dest_bucket_id, $dest_object_name) = @_;
+        my $object_api = $self->get('API::Object');
+        my $object_id = $object_api->rename( {
+            source_bucket_id => $source_bucket_id,
+            source_object_name => $source_object_name,
+            destination_bucket_id => $dest_bucket_id,
+            destination_object_name => $dest_object_name
+        });
+        return $object_id;
+    } );
+
+    my $object_id = $txn->(
+        $args->{source_bucket}->{id},
+        $args->{source_object_name},
+        $args->{destination_bucket}->{id},
+        $args->{destination_object_name},
+    );
+    if (my $e = $@) {
+        if (STF_DEBUG) {
+            printf STDERR "[Dispatcher]: Failed to rename object: %s\n", $e;
+        }
+        $self->handle_exception($e);
+        return ();
+    }
+
+    return $object_id;
+}
+
 sub enqueue {
     my ($self, $func, $object_id) = @_;
 
