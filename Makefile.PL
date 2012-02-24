@@ -67,7 +67,7 @@ WriteMakefile(
         'Task::Weaken' => 0,
         'Text::Xslate' => 0,
         'YAML' => 0,
-        'STF::Dispatcher::PSGI' => '1.07',
+        'STF::Dispatcher::PSGI' => '1.08',
     },
     BUILD_REQUIRES => {
         # For tests
