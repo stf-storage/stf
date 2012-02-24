@@ -3,7 +3,75 @@ use strict;
 use parent qw( STF::API::WithDBI );
 use Guard ();
 use STF::Constants qw(:storage STF_DEBUG);
-use Class::Accessor::Lite new => 1;
+use Class::Accessor::Lite
+    new => 1,
+    rw  => [ qw( enable_meta ) ]
+;
+
+my @META_KEYS = qw(used capacity notes);
+
+# XXX These queries to load meta info should, and can be optimized
+sub search {
+    my ($self, @args) = @_;
+    my $list = $self->SUPER::search(@args);
+    if ($self->enable_meta) {
+        my $meta_api = $self->get('API::StorageMeta');
+        foreach my $object ( @$list ) {
+            my ($meta) = $meta_api->search({ storage_id => $object->{id} });
+            $object->{meta} = $meta;
+        }
+    }
+    return wantarray ? @$list : $list;
+}
+
+sub lookup {
+    my ($self, $id) = @_;
+    my $object = $self->SUPER::lookup($id);
+    if ($object && $self->enable_meta) {
+        my ($meta) = $self->get('API::StorageMeta')->search({
+            storage_id => $object->{id}
+        });
+        $object->{meta} = $meta;
+    }
+    return $object;
+}
+
+sub create {
+    my ($self, $args) = @_;
+
+    my %meta_args;
+    foreach my $key ( @META_KEYS ) {
+        $meta_args{$key} = delete $args->{$key};
+    }
+
+    my $object = $self->SUPER::create($args);
+    if ( $self->enable_meta ) {
+        my $meta = $self->get('API::StorageMeta')->create({
+            %meta_args,
+            storage_id => $object->{id},
+        });
+        $object->{meta} = $meta;
+    }
+    return $object;
+}
+
+sub update {
+    my ($self, $id, $args) = @_;
+
+    my %meta_args;
+    foreach my $key ( @META_KEYS ) {
+        $meta_args{$key} = delete $args->{$key};
+    }
+
+    my $rv = $self->SUPER::update($id, $args);
+    if ( $self->enable_meta ) {
+        my $meta = $self->get('API::StorageMeta')->create({
+            %meta_args,
+            storage_id => $id,
+        });
+    }
+    return $rv;
+}
 
 sub update_usage_for_all {
     my $self = shift;
@@ -32,7 +100,10 @@ sub update_usage {
             FROM object o JOIN entity e ON o.id = e.object_id
             WHERE e.storage_id = ?
 EOSQL
-    $self->update( $storage_id => { used => $used, });
+
+    $dbh->do( <<EOSQL, undef, $used, $storage_id );
+        UPDATE storage_meta SET used = ? WHERE storage_id = ?
+EOSQL
     $self->lookup( $storage_id ); # for cache
     return $used;
 }

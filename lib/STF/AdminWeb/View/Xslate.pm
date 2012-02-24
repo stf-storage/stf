@@ -1,5 +1,6 @@
 package STF::AdminWeb::View::Xslate;
 use strict;
+use Encode ();
 use Text::Xslate;
 use Class::Accessor::Lite
     rw => [ qw(
@@ -23,7 +24,7 @@ sub process {
     my $content = $self->render( $template, $context->stash );
     my $response = $context->response;
     $response->content_type( "text/html" );
-    $response->body( $content );
+    $response->body( Encode::encode_utf8( $content ) );
 }
 
 sub render {

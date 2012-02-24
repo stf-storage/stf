@@ -8,6 +8,7 @@ use STF::API::DeletedObject;
 use STF::API::Entity;
 use STF::API::Object;
 use STF::API::Storage;
+use STF::API::StorageMeta;
 use STF::Constants qw(STF_DEBUG);
 
 register Furl => Furl::HTTP->new( timeout => 30 );
@@ -35,7 +36,7 @@ register 'API::Object' => sub {
     );
 };
 
-foreach my $name (qw(API::Bucket API::Entity API::DeletedObject API::Storage)) {
+foreach my $name (qw(API::Bucket API::Entity API::DeletedObject API::Storage API::StorageMeta)) {
     my $klass = "STF::$name";
     register $name => sub {
         my $c = shift;

@@ -5,7 +5,7 @@ use Regexp::Common qw(URI);
 return +{
     storage_add => {
         required => [qw(id uri capacity mode)],
-        optional => [qw(used)],
+        optional => [qw(used notes)],
         defaults => {
             used => 0,
         },
@@ -44,6 +44,7 @@ return +{
     },
     storage_edit => {
         required => [qw(id uri capacity mode)],
+        optional => [qw(used notes)],
         field_filters => {
             uri => sub {
                 my $uri = shift;

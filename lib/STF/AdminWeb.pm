@@ -13,6 +13,7 @@ use Class::Accessor::Lite
         stf_base
         default_view_class
         use_reverse_proxy
+        storage_meta
         htdocs
     ) ]
 ;
@@ -71,6 +72,9 @@ sub handle_psgi {
         container => $context->container,
     );
     my $guard = $context->container->new_scope();
+    $rc->stash->{TOGGLES} = {
+        storage_meta => $self->storage_meta,
+    };
 
     eval {
         $self->dispatch( $rc, $env );

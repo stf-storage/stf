@@ -114,6 +114,8 @@ sub create {
     my $rv  = $dbh->do(<<EOSQL, undef, $object_id, $bucket_id, $object_name, $internal_name, $size, $replicas);
         INSERT INTO object (id, bucket_id, name, internal_name, size, num_replica, created_at) VALUES (?, ?, ?, ?, ?, ?, UNIX_TIMESTAMP(NOW()))
 EOSQL
+
+    return $rv;
 }
 
 # Returns good/bad entities -- actually, returns the storages that contains

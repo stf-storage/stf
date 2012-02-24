@@ -3,13 +3,36 @@ CREATE TABLE storage (
        id INT NOT NULL PRIMARY KEY,
        uri VARCHAR(100) NOT NULL,
        mode TINYINT NOT NULL DEFAULT 1,
-       used BIGINT  UNSIGNED NOT NULL DEFAULT 0,
-       capacity BIGINT UNSIGNED NOT NULL DEFAULT 0,
        created_at INT NOT NULL,
        updated_at TIMESTAMP,
        UNIQUE KEY(uri),
        KEY(mode)
 ) ENGINE=InnoDB;
+
+/*
+    storage_meta - Used to store storage meta data.
+
+    This is a spearate table because historically the 'storage' table
+    was declared without a character set declaration, and things go
+    badly when multibyte 'notes' are added.
+
+    Make sure to place ONLY items that has nothing to do with the
+    core STF functionality here.
+
+    XXX Theoretically this table could be in a different database
+    than the main mysql instance.
+*/
+CREATE TABLE storage_meta (
+    storage_id INT NOT NULL PRIMARY KEY,
+    used       BIGINT UNSIGNED DEFAULT 0,
+    capacity   BIGINT UNSIGNED DEFAULT 0,
+    notes      TEXT,
+    /* XXX if we move this table to a different database, then
+       this foreign key is moot. this is placed where because I'm 
+       too lazy to cleanup the database when we delete the storage
+    */
+    FOREIGN KEY(storage_id) REFERENCES storage(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE bucket (
        id BIGINT NOT NULL PRIMARY KEY,

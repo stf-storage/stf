@@ -53,11 +53,13 @@ sub search {
 }
 
 sub create {
-    my ($self, $args) = @_;
+    my ($self, $args, $opts) = @_;
 
+    $opts ||= {};
     my ($sql, @binds) = $self->sql_maker->insert(
         $self->table,
         $args,
+        $opts,
     );
     return $self->dbh->do($sql, undef, @binds);
 }

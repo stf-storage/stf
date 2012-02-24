@@ -1,4 +1,43 @@
 [% WRAPPER 'layout.tx' %]
+<style>
+<!--
+    pre.note-content {
+        display: none;
+        padding: 10px;
+        text-align: left;
+        background-color: #fafafa;
+        position: absolute;
+        width: 400px;
+        border: 1px solid #CCC;
+        border: 1px solid rgba(0, 0, 0, 0.15);
+        -webkit-border-radius: 4px;
+        -moz-border-radius: 4px;
+        border-radius: 4px;
+    }
+-->
+</style>
+<script>
+<!--
+    $(document).ready(function() {
+        $("a.note-toggle").click( function(e) {
+            var id = $(e.target).attr('for');
+            $("pre[for=" + id + "]").each( function(i, p) {
+                p = $(p);
+                if ( p.css('display') == 'none' ) {
+                    p.css({
+                        left: ($(p.parent()).position().left - 250) + 'px'
+                    });
+                    p.show();
+                } else {
+                    p.hide();
+                }
+            } );
+            return false;
+        } );
+    });
+-->
+</script>
+
 <div class="op">
 <a href="[% c.uri_for('/storage/add') %]">Add new storage node</a>
 </div>
@@ -6,16 +45,29 @@
   <tr>
     <th>ID</th>
     <th>URI</th>
-    <th>Capacity</th>
     <th>Mode</th>
+[% IF (TOGGLES.storage_meta) %]
+    <th>Capacity</th>
+    <th>Used</th>
+    <th>Notes</th>
+[% END %]
     <th>Entities</th>
   </tr>
   [% FOREACH storage IN storages %]
   <tr>
     <td style="width: 50px;"><a href="[% c.uri_for('/storage', storage.id, 'edit') %]">[% storage.id %]</a></td>
     <td>[% storage.uri %]</td>
-    <td class="digit">[% storage.capacity | human_readable%]</td>
     <td class="digit">[% mode_str(storage.mode) %]</td>
+[% IF (TOGGLES.storage_meta) %]
+    <td class="digit">[% storage.meta.capacity | human_readable%]</td>
+    <td class="digit">[% storage.meta.used | human_readable%]</td>
+    <td>[% IF (storage.meta.notes) %]
+        <a href="#" class="note-toggle" for="[% storage.id %]">notes</a>
+        <pre for="[% storage.id %]" class="note-content">[% storage.meta.notes %]</pre>
+    [% ELSE -%]
+        -
+    [%- END %]</td>
+[% END %]
     <td class="digit __num-entities" id="num-entities-[% storage.id %]"><a href="[% c.uri_for('/storage/', storage.id, 'entities') %]"><img src="[% c.uri_for('/static/images/img_sankaku.gif') %]" /></a></td>
   </tr>
   [% END %]

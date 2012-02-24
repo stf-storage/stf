@@ -1,6 +1,15 @@
 use Carp ();
 
 +{
+    # API::* allows you to configure a lot of detail.
+    # Normally you don't need to do extra work here, but you can for example
+    # control if extended
+    # 'API::Object' => {}
+    # 'API::Entity' => {},
+    'API::Storage' => {
+        enable_meta => $ENV{STF_ENABLE_STORAGE_META},
+    },
+
     # Dispatcher settings
     'Dispatcher' => {
         # host_id is used to generate unique object IDs.
@@ -24,6 +33,9 @@ use Carp ();
 
         # Path to static files
         # htdocs => path_to( "htdocs" ),
+
+        # Set to 1 if you would like to show/edit storage meta attributes
+        storage_meta => $ENV{STF_ENABLE_STORAGE_META},
     },
     # Used for Admin interface. You should not need to change this
     'AdminWeb::Router' => {
@@ -41,6 +53,7 @@ use Carp ();
         ],
         module => [
             'STF::Xslate::Utils',
+            'Data::Dumper::Concise',
         ],
         suffix => '.tx',
         syntax => 'TTerse',
