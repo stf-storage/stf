@@ -242,6 +242,59 @@ EOSQL
         }
     }
 
+    { 
+        note "Moving object...";
+        $res = $cb->( PUT "http://127.0.0.1/$bucket_name.2" );
+        if (! ok $res->is_success, "Bucket creation should succeed" ) {
+            diag $res->as_string;
+        }
+
+        note "First, moving to the same bucket, different name";
+        my $move_req = HTTP::Request->new( MOVE => "http://127.0.0.1/$bucket_name/$object_name" );
+        $move_req->header( 'X-STF-Move-Destination', "/$bucket_name/$object_name.2" );
+        $res = $cb->( $move_req );
+        if (! ok $res->is_success, "Move successful (1)") {
+            diag $res->as_string;
+        }
+
+        $res = $cb->( GET "http://127.0.0.1/$bucket_name/$object_name.2" );
+        if (! ok $res->is_success, "GET is successful (after rename to $object_name.2") {
+            diag $res->as_string;
+        } else {
+            is md5_hex($res->content), $content_hash, "content matches";
+        }
+
+        note "Now moving to a different bucket, differnt name";
+        $move_req = HTTP::Request->new( MOVE => "http://127.0.0.1/$bucket_name/$object_name.2" );
+        $move_req->header( 'X-STF-Move-Destination', "/$bucket_name.2/$object_name" );
+        $res = $cb->( $move_req );
+        if (! ok $res->is_success, "Move successful (2)" ) {
+            diag $res->as_string;
+        }
+
+        $res = $cb->( GET "http://127.0.0.1/$bucket_name.2/$object_name" );
+        if (! ok $res->is_success, "GET is successful (after rename to bucket $bucket_name.2") {
+            diag $res->as_string;
+        } else {
+            is md5_hex($res->content), $content_hash, "content matches";
+        }
+
+        note "Now moving back to the original location";
+        $move_req = HTTP::Request->new( MOVE => "http://127.0.0.1/$bucket_name.2/$object_name" );
+        $move_req->header( 'X-STF-Move-Destination', "/$bucket_name/$object_name" );
+        $res = $cb->( $move_req );
+        if (! ok $res->is_success, "Move successful (3)" ) {
+            diag $res->as_string;
+        }
+
+        $res = $cb->( GET "http://127.0.0.1/$bucket_name/$object_name" );
+        if (! ok $res->is_success, "GET is successful (after rename to bucket $object_name") {
+            diag $res->as_string;
+        } else {
+            is md5_hex($res->content), $content_hash, "content matches";
+        }
+    }
+
     note "DELETE /$bucket_name/$object_name";
     $res = $cb->(
         DELETE "http://127.0.0.1/$bucket_name/$object_name"
