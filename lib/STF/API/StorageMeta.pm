@@ -7,8 +7,6 @@ sub create {
     my ($self, $args, $opts) = @_;
     $opts ||= {};
     $opts->{prefix} = "REPLACE INTO";
-use Data::Dumper::Concise;
-warn Dumper($args);
     $self->SUPER::create($args, $opts);
 }
 
