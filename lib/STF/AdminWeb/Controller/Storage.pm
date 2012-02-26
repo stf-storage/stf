@@ -2,6 +2,9 @@ package STF::AdminWeb::Controller::Storage;
 use strict;
 use parent qw(STF::AdminWeb::Controller);
 use STF::Utils;
+use STF::Constants qw(
+    STF_ENABLE_STORAGE_META
+);
 
 sub load_storage {
     my ($self, $c) = @_;
@@ -81,10 +84,17 @@ sub edit {
     my ($self, $c) = @_;
 
     my $storage = $self->load_storage($c);
-    $self->fillinform( $c, {
+    my %fill = (
         %$storage,
-        capacity => STF::Utils::human_readable_size( $storage->{capacity} )
-    } );
+        capacity => STF::Utils::human_readable_size( $storage->{capacity} ),
+    );
+    if ( STF_ENABLE_STORAGE_META ) {
+        my $meta = $storage->{meta};
+        foreach my $meta_key ( keys %$meta ) {
+            $fill{ $meta_key } = $meta->{ $meta_key };
+        }
+    }
+    $self->fillinform( $c, \%fill );
 }
 
 sub edit_post {
@@ -96,8 +106,21 @@ sub edit_post {
     my $result = $self->validate( $c, storage_edit => $params );
     if ($result->success) {
         my $valids = $result->valid;
+        my %meta;
         delete $valids->{id};
-        $c->get('API::Storage')->update( $storage->{id} => $valids );
+        if ( STF_ENABLE_STORAGE_META ) {
+            foreach my $k ( keys %$valids ) {
+                next if ( (my $sk = $k) !~ s/^meta_// );
+
+                $meta{$sk} = delete $valids->{$k};
+            }
+        }
+        my $api = $c->get('API::Storage');
+        $api->update( $storage->{id} => $valids );
+        if ( STF_ENABLE_STORAGE_META ) {
+            $api->update_meta( $storage->{id}, \%meta );
+        }
+
         $c->redirect( $c->uri_for( "/storage/list", { done => 1 } ) );
     } else {
         $c->stash->{template} = 'storage/edit';

@@ -8,7 +8,15 @@ use STF::API::DeletedObject;
 use STF::API::Entity;
 use STF::API::Object;
 use STF::API::Storage;
-use STF::API::StorageMeta;
+use STF::Constants qw(STF_ENABLE_STORAGE_META STF_ENABLE_OBJECT_META);
+BEGIN {
+    if ( STF_ENABLE_STORAGE_META ) {
+        require STF::API::StorageMeta;
+    }
+    if ( STF_ENABLE_OBJECT_META ) {
+        require STF::API::ObjectMeta;
+    }
+}
 use STF::Constants qw(STF_DEBUG);
 
 register Furl => Furl::HTTP->new( timeout => 30 );
@@ -22,7 +30,11 @@ foreach my $dbkey (qw(DB::Master DB::Queue)) {
     register $dbkey => sub {
         my $c = shift;
         my $config = $c->get('config');
-        DBI->connect( @{$config->{$dbkey}} );
+        my $dbh = DBI->connect( @{$config->{$dbkey}} );
+        $dbh->{HandleError} = sub {
+            our @CARP_NOT = ('STF::API::WithDBI');
+            Carp::croak(shift) };
+        return $dbh;
     }, { scoped => 1 };
 }
 
@@ -36,7 +48,14 @@ register 'API::Object' => sub {
     );
 };
 
-foreach my $name (qw(API::Bucket API::Entity API::DeletedObject API::Storage API::StorageMeta)) {
+my @api_names = qw(API::Bucket API::Entity API::DeletedObject API::Storage);
+if ( STF_ENABLE_STORAGE_META ) {
+    push @api_names, 'API::StorageMeta';
+}
+if ( STF_ENABLE_OBJECT_META ) {
+    push @api_names, 'API::ObjectMeta';
+}
+foreach my $name (@api_names) {
     my $klass = "STF::$name";
     register $name => sub {
         my $c = shift;

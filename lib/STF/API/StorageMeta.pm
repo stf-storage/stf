@@ -3,19 +3,12 @@ use strict;
 use parent qw( STF::API::WithDBI );
 use Class::Accessor::Lite new => 1;
 
-sub create {
-    my ($self, $args, $opts) = @_;
-    $opts ||= {};
-    $opts->{prefix} = "REPLACE INTO";
-    $self->SUPER::create($args, $opts);
-}
-
-sub update {
-    my ($self, $id, $args, $opts) = @_;
-    $opts ||= {};
-    $opts->{prefix} = "REPLACE INTO";
-    $args->{storage_id} = $id;
-    $self->SUPER::create($args, $opts);
+sub update_for {
+    my ($self, $storage_id, $args) = @_;
+    $self->SUPER::create(
+        { %$args, storage_id => $storage_id },
+        { prefix => "REPLACE INTO" }
+    );
 }
 
 1;

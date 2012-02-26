@@ -57,6 +57,13 @@ CREATE TABLE object (
        UNIQUE KEY(internal_name)
 ) ENGINE=InnoDB;
 
+/* object_meta - same caveats as storage_meta applies */
+CREATE TABLE object_meta (
+    object_id BIGINT NOT NULL PRIMARY KEY,
+    hash      CHAR(32),
+    FOREIGN KEY(object_id) REFERENCES object(id) ON DELETE CASCADE
+);
+
 CREATE TABLE deleted_object ENGINE=InnoDB SELECT * FROM object LIMIT 0;
 ALTER TABLE deleted_object ADD PRIMARY KEY(id);
 -- ALTER TABLE deleted_object ADD UNIQUE KEY(internal_name);

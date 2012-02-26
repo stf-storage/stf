@@ -18,6 +18,8 @@ use STF::Constants qw(
     STF_TIMER
     STF_NGINX_STYLE_REPROXY
     STF_NGINX_STYLE_REPROXY_ACCEL_REDIRECT_URL
+    STF_ENABLE_STORAGE_META
+    STF_ENABLE_OBJECT_META
 );
 use STF::Context;
 use STF::Dispatcher::PSGI::HTTPException;
@@ -45,6 +47,10 @@ BEGIN {
         }
         require Math::BigInt;
         Math::BigInt->import;
+    }
+
+    if ( STF_ENABLE_OBJECT_META ) {
+        require Digest::MD5;
     }
 }
 
@@ -405,6 +411,7 @@ sub create_object {
         if ( STF_TIMER ) {
             $insert_object_timer = STF::Utils::timer_guard( "create_object (insert)" );
         }
+
         my $internal_name = $object_api->create_internal_name( { suffix => $suffix } );
         # Create an object entry. This is the "master" reference to the object.
         $object_api->create({
@@ -415,6 +422,21 @@ sub create_object {
             size          => $size,
             replicas      => $replicas,
         } );
+
+        if ( STF_ENABLE_OBJECT_META ) {
+            # XXX I'm not sure below is correct, but it works on my tests :/
+            my $md5 = Digest::MD5->new;
+            if ( eval { fileno $input }) {
+                $md5->addfile( $input );
+            } elsif ( eval { $input->can('read') } ) {
+                $md5->add( $input->read() );
+            }
+            seek $input, 0, 0;
+            $self->get('API::ObjectMeta')->create({
+                object_id => $object_id,
+                hash      => $md5->hexdigest,
+            });
+        }
 
         if ( STF_TIMER ) {
             undef $insert_object_timer;

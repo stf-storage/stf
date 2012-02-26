@@ -26,19 +26,19 @@
       </select>
     </td>
   </tr>
-[% IF (TOGGLES.storage_meta) %]
+[% IF (const.STF_ENABLE_STORAGE_META) %]
   <tr>
-    <th><label for="used">Used</label></th>
-    <td><input type="text" name="used" id="used" /></td>
+    <th><label for="meta_used">Used</label></th>
+    <td><input type="text" name="meta_used" id="used" /></td>
   </tr>
   <tr>
-    <th><label for="capacity">Capacity</label></th>
-    <td><input type="text" name="capacity" id="capacity" /></td>
+    <th><label for="meta_capacity">Capacity</label></th>
+    <td><input type="text" name="meta_capacity" id="capacity" /></td>
   </tr>
   <tr>
-    <th><label for="notes">Notes</label></th>
+    <th><label for="meta_notes">Notes</label></th>
     <td>
-        <textarea name="notes" rows="10" cols="50">[% storage.meta.notes %]</textarea>
+        <textarea name="meta_notes" rows="10" cols="50">[% storage.meta.notes %]</textarea>
     </td>
   </tr>
 [% END %]

@@ -1,14 +1,16 @@
 use Carp ();
 
+# Environment variables
+# STF_ENABLE_STORAGE_META
+# STF_HOST_ID
+# STF_DEBUG
+
 +{
     # API::* allows you to configure a lot of detail.
-    # Normally you don't need to do extra work here, but you can for example
-    # control if extended
+    # Normally you don't need to do extra work here
     # 'API::Object' => {}
     # 'API::Entity' => {},
-    'API::Storage' => {
-        enable_meta => $ENV{STF_ENABLE_STORAGE_META},
-    },
+    # 'API::Storage' => {}
 
     # Dispatcher settings
     'Dispatcher' => {
@@ -33,9 +35,6 @@ use Carp ();
 
         # Path to static files
         # htdocs => path_to( "htdocs" ),
-
-        # Set to 1 if you would like to show/edit storage meta attributes
-        storage_meta => $ENV{STF_ENABLE_STORAGE_META},
     },
     # Used for Admin interface. You should not need to change this
     'AdminWeb::Router' => {

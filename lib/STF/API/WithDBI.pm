@@ -73,7 +73,8 @@ sub update {
         $args,
         ref $id eq 'HASH' ? $id : { id => $id }
     );
-    return $self->dbh->do($sql, undef, @binds);
+    my $dbh = $self->dbh;
+    return $dbh->do($sql, undef, @binds);
 }
 
 sub delete {

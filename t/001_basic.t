@@ -5,6 +5,7 @@ use Test::More;
 use Plack::Test;
 use HTTP::Request::Common qw(PUT HEAD GET DELETE POST);
 use HTTP::Date;
+use STF::Constants qw(STF_ENABLE_OBJECT_META);
 use STF::Test qw(ts_request clear_queue);
 
 use_ok "STF::Context";
@@ -86,6 +87,13 @@ my $code = sub {
                 WHERE b.name = ? AND o.name = ?
 EOSQL
         ok $object, "found object matchin $bucket_name + $object_name";
+
+        if ( STF_ENABLE_OBJECT_META ) {
+            my $meta = $dbh->selectrow_hashref( <<EOSQL, undef, $object->{id} );
+                SELECT * FROM object_meta WHERE object_id = ?
+EOSQL
+            is $meta->{hash}, $content_hash, "content has is properly stoerd";
+        }
     }
 
     {

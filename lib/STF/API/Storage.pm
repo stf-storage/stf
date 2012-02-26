@@ -2,10 +2,9 @@ package STF::API::Storage;
 use strict;
 use parent qw( STF::API::WithDBI );
 use Guard ();
-use STF::Constants qw(:storage STF_DEBUG);
+use STF::Constants qw(:storage STF_DEBUG STF_ENABLE_STORAGE_META);
 use Class::Accessor::Lite
     new => 1,
-    rw  => [ qw( enable_meta ) ]
 ;
 
 my @META_KEYS = qw(used capacity notes);
@@ -14,7 +13,7 @@ my @META_KEYS = qw(used capacity notes);
 sub search {
     my ($self, @args) = @_;
     my $list = $self->SUPER::search(@args);
-    if ($self->enable_meta) {
+    if ( STF_ENABLE_STORAGE_META ) {
         my $meta_api = $self->get('API::StorageMeta');
         foreach my $object ( @$list ) {
             my ($meta) = $meta_api->search({ storage_id => $object->{id} });
@@ -27,7 +26,7 @@ sub search {
 sub lookup {
     my ($self, $id) = @_;
     my $object = $self->SUPER::lookup($id);
-    if ($object && $self->enable_meta) {
+    if ( STF_ENABLE_STORAGE_META ) {
         my ($meta) = $self->get('API::StorageMeta')->search({
             storage_id => $object->{id}
         });
@@ -40,37 +39,31 @@ sub create {
     my ($self, $args) = @_;
 
     my %meta_args;
-    foreach my $key ( @META_KEYS ) {
-        $meta_args{$key} = delete $args->{$key};
+    if ( STF_ENABLE_STORAGE_META ) {
+        foreach my $key ( @META_KEYS ) {
+            if (exists $args->{$key} ) {
+                $meta_args{$key} = delete $args->{$key};
+            }
+        }
     }
 
-    my $object = $self->SUPER::create($args);
-    if ( $self->enable_meta ) {
-        my $meta = $self->get('API::StorageMeta')->create({
+    my $rv = $self->SUPER::create($args);
+
+    if ( STF_ENABLE_STORAGE_META ) {
+        $self->get('API::StorageMeta')->create({
             %meta_args,
-            storage_id => $object->{id},
-        });
-        $object->{meta} = $meta;
-    }
-    return $object;
-}
-
-sub update {
-    my ($self, $id, $args) = @_;
-
-    my %meta_args;
-    foreach my $key ( @META_KEYS ) {
-        $meta_args{$key} = delete $args->{$key};
-    }
-
-    my $rv = $self->SUPER::update($id, $args);
-    if ( $self->enable_meta ) {
-        my $meta = $self->get('API::StorageMeta')->create({
-            %meta_args,
-            storage_id => $id,
+            storage_id => $args->{id},
         });
     }
     return $rv;
+}
+
+sub update_meta {
+    if ( STF_ENABLE_STORAGE_META ) {
+        my ($self, $storage_id, $args) = @_;
+        my $rv = $self->get('API::StorageMeta')->update_for( $storage_id, $args );
+        return $rv;
+    }
 }
 
 sub update_usage_for_all {

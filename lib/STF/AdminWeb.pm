@@ -72,10 +72,6 @@ sub handle_psgi {
         container => $context->container,
     );
     my $guard = $context->container->new_scope();
-    $rc->stash->{TOGGLES} = {
-        storage_meta => $self->storage_meta,
-    };
-
     eval {
         $self->dispatch( $rc, $env );
     };

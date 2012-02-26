@@ -4,8 +4,8 @@ use Regexp::Common qw(URI);
 
 return +{
     storage_add => {
-        required => [qw(id uri capacity mode)],
-        optional => [qw(used notes)],
+        required => [qw(id uri mode)],
+        optional => [qw(meta_used meta_notes meta_capacity)],
         defaults => {
             used => 0,
         },
@@ -15,7 +15,7 @@ return +{
                 $uri =~ s{/*$}{};
                 $uri;
             },
-            capacity => \&STF::Utils::as_bytes,
+            meta_capacity => \&STF::Utils::as_bytes,
         },
         constraint_methods => {
             uri => [
@@ -43,15 +43,15 @@ return +{
         },
     },
     storage_edit => {
-        required => [qw(id uri capacity mode)],
-        optional => [qw(used notes)],
+        required => [qw(id uri mode)],
+        optional => [qw(meta_used meta_notes meta_capacity )],
         field_filters => {
             uri => sub {
                 my $uri = shift;
                 $uri =~ s{/*$}{};
                 $uri;
             },
-            capacity => \&STF::Utils::as_bytes,
+            meta_capacity => \&STF::Utils::as_bytes,
         },
         constraint_methods => {
             uri => qr{$RE{URI}{HTTP}},
