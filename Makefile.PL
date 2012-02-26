@@ -51,7 +51,7 @@ WriteMakefile(
         'DBD::mysql' => 0,
         'Furl' => '0.38',
         'Guard' => 0,
-        'HTML::FillInForm' => 0,
+        'HTML::FillInForm::Lite' => 0,
         'HTTP::Parser::XS' => 0,
         'IPC::SysV' => 0,
         'Plack' => '0.9981',

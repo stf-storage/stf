@@ -1,7 +1,7 @@
 package STF::AdminWeb;
 use strict;
 use Class::Load ();
-use HTML::FillInForm;
+use HTML::FillInForm::Lite;
 use STF::Constants;
 use STF::Context;
 use STF::AdminWeb::Context;
@@ -15,6 +15,7 @@ use Class::Accessor::Lite
         use_reverse_proxy
         storage_meta
         htdocs
+        fif
     ) ]
 ;
 
@@ -42,6 +43,13 @@ sub bootstrap {
     );
 
     return $app;
+}
+
+sub new {
+    my $class = shift;
+    my %args = (@_ == 1 && ref($_[0]) eq 'HASH' ? %{$_[0]} : @_);
+    $args{fif} = HTML::FillInForm::Lite->new;
+    bless { %args }, $class;
 }
 
 sub to_app {
@@ -128,10 +136,10 @@ sub dispatch {
     if ($res->content_type && $res->content_type =~ m{^text/x?html$}i) {
         if ( $req->method eq 'POST' ) {
             my $body = $res->body;
-            $res->body( HTML::FillInForm->fill( \$body, $req ) );
+            $res->body( $self->fif->fill( \$body, $req ) );
         } elsif ( my $fdat = $context->stash->{fdat} ) {
             my $body = $res->body;
-            $res->body( HTML::FillInForm->fill( \$body, $fdat ) );
+            $res->body( $self->fif->fill( \$body, $fdat ) );
         }
     }
 }
