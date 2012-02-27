@@ -3,12 +3,26 @@ use strict;
 use parent qw(STF::API::WithDBI);
 use Digest::MurmurHash ();
 use HTTP::Status ();
-use STF::Constants qw(STF_DEBUG :object STORAGE_MODE_TEMPORARILY_DOWN STORAGE_MODE_READ_ONLY STORAGE_MODE_READ_WRITE);
+use STF::Constants qw(
+    :object
+    STF_DEBUG
+    STF_ENABLE_OBJECT_META
+    STORAGE_MODE_TEMPORARILY_DOWN
+    STORAGE_MODE_READ_ONLY
+    STORAGE_MODE_READ_WRITE
+);
 use STF::Dispatcher::PSGI::HTTPException;
 use Class::Accessor::Lite
     new => 1,
     rw => [ qw(furl urandom max_num_replica) ]
 ;
+
+sub lookup_meta {
+    if ( STF_ENABLE_OBJECT_META ) {
+        my ($self, $object_id) = @_;
+        return $self->get('API::ObjectMeta')->lookup_for( $object_id );
+    }
+}
 
 sub status_for {
     my ($self, $id) = @_;
@@ -136,6 +150,13 @@ sub check_health {
         return ([], []);
     }
 
+    my $object_meta = $self->lookup_meta( $object_id );
+    if (! $object_meta) {
+        if (STF_DEBUG) {
+            print STDERR "[    Health] No matching object meta for $object_id (harmless)\n";
+        }
+    }
+
     my $entity_api = $self->get( 'API::Entity' );
     my @entities = $entity_api->search( { object_id => $object_id } );
     if (@entities) {
@@ -191,17 +212,58 @@ sub check_health {
             print STDERR "[    Health] Going to check $url\n";
         }
 
-        my (undef, $code) = eval { $furl->head( $url ) };
-        if ($@) {
-            print STDERR "[    Health] HTTP request raised an exception: $@\n";
-            # Make sure this becomes an error
-            $code = 500;
-        }
+        my $is_success;
+        if (STF_ENABLE_OBJECT_META && $object_meta ) {
+            # XXX If the object wasn't created with meta info (which can
+            # happen), then we shouldn't run all this
+            my $hash = Digest::MD5->new;
+            my (undef, $code) = eval {
+                $furl->request(
+                    url => $url,
+                    method => "GET",
+                    write_code => sub {
+                        my ($st, $msg, $hdrs, $partial) = @_;
+                        return unless HTTP::Status::is_success( $st );
+                        $hash->add( $partial );
+                    }
+                );
+            };
+            if ($@) {
+                print STDERR "[    Health] HTTP request raised an exception: $@\n";
+                # Make sure this becomes an error
+                $code = 500;
+            }
+            my $code_ok = HTTP::Status::is_success( $code );
+            if (STF_DEBUG) {
+                printf STDERR "[    Health] GET %s was %s (%d)\n",
+                    $url, ($code_ok ? "OK" : "FAIL"), $code;
+            }
 
-        my $is_success = HTTP::Status::is_success( $code );
-        if (STF_DEBUG) {
-            printf STDERR "[    Health] HEAD %s was %s (%d)\n",
-                $url, ($is_success ? "OK" : "FAIL"), $code;
+            my $hash_ok = 0;
+            if ($code_ok) {
+                my $expected = $object_meta->{hash};
+                my $actual   = $hash->hexdigest();
+                $hash_ok = $expected eq $actual;
+                if (STF_DEBUG) {
+                    printf STDERR "[    Health] MD5 hashes for %s %s (DB = %s, actual = %s)\n",
+                        $url, ( $hash_ok ? "OK" : "FAIL"), $expected, $actual
+                    ;
+                }
+            }
+
+            $is_success = $code_ok && $hash_ok;
+        } else { # we don't have object meta, and thus no hash
+            my (undef, $code) = eval { $furl->head( $url ) };
+            if ($@) {
+                print STDERR "[    Health] HTTP request raised an exception: $@\n";
+                # Make sure this becomes an error
+                $code = 500;
+            }
+            $is_success = HTTP::Status::is_success( $code );
+            if (STF_DEBUG) {
+                printf STDERR "[    Health] HEAD %s was %s (%d)\n",
+                    $url, ($is_success ? "OK" : "FAIL"), $code;
+            }
         }
 
         if ($is_success) {
@@ -239,6 +301,7 @@ sub repair {
         return;
     }
 
+    my $furl = $self->get('Furl');
     my $entity_api = $self->get( 'API::Entity' );
     my @entities = $entity_api->search( { object_id => $object_id } );
     my ($intact, $broken) = $self->check_health( $object_id );
@@ -260,6 +323,18 @@ sub repair {
             storage_id => [ -in => map { $_->{id} } @$broken ],
             object_id => $object_id
         } );
+
+        # Attempt to remove actual bad entities
+        foreach my $broken ( @$broken ) {
+            # Timeout fast!
+            local $furl->{timeout} = 5;
+            my $url = join "/", $broken->{uri}, $object->{internal_name};
+            if (STF_DEBUG) {
+                printf STDERR "[    Repair] Deleting broken entity %s\n", $url;
+            }
+            eval { $furl->delete( $url ) };
+        }
+
     }
 
     my $have = scalar @$intact;
@@ -297,6 +372,7 @@ sub repair {
                 $n,
             ;
         }
+
         # Try very hard to get a good copy
         my ($code, $content);
         foreach my $storage ( @$intact ) {
@@ -304,7 +380,6 @@ sub repair {
             if (STF_DEBUG) {
                 print STDERR "[    Repair] Using content from $ref_url\n";
             }
-            my $furl = $self->get('Furl');
             (undef, $code, undef, undef, $content) = $furl->get( $ref_url );
             if (! HTTP::Status::is_success( $code )) {
                 print STDERR "semi-PANIC: failed to retrieve supposedly good url $ref_url: $code\n";
@@ -330,7 +405,7 @@ sub repair {
                 $replicated,
             ;
         }
-                
+
         # Return the number of object fixed... which is $replicated
         return $replicated;
     }

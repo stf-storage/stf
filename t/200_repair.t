@@ -135,7 +135,7 @@ EOSQL
 
     { # check files
         my @files = glob( $pattern );
-        is scalar @files, 2, "Should be 2 files";
+        is scalar @files, 2, "Should be 2 files in $pattern";
     }
 
     { # check entities
@@ -194,6 +194,56 @@ EOSQL
     }
 
     ok $object_health_queue_size_after < $object_health_queue_size, "queue size has not increased (before=$object_health_queue_size, after=$object_health_queue_size_after)";
+
+    note "alright, it worked for the most normal case of storages crashing. Howabout corrupted files?";
+    {
+        my ($file) = sort { rand } glob $pattern;
+        open my $fh, '>', $file;
+        print $fh "garbage!";
+        close $fh;
+    }
+
+    my $bucket_object = $container->get('API::Bucket')->lookup_by_name( $bucket );
+    my $object_id = $container->get('API::Object')->find_object_id( {
+        bucket_id => $bucket_object->{id},
+        object_name => "test",
+    } );
+    $container->get('API::Queue')->enqueue( repair_object => $object_id );
+
+    eval {
+        local $SIG{ALRM} = sub { die "RepairObject timeout" };
+        alarm(5);
+        my $worker = STF::Worker::RepairObject->new(
+            container => $context->container,
+            max_works_per_child => 1,
+            breadth => 2,
+        );
+        $worker->work;
+    };
+    if ($@) {
+        fail "Error running RepairObject worker: $@";
+    }
+    alarm(0);
+
+    note "At this point, the object is fixed.";
+
+    { # check files
+        my @files = glob( $pattern );
+        is scalar @files, 2, "Should be 2 files in $pattern";
+    }
+
+    { # check entities
+        my $dbh      = $container->get( 'DB::Master' );
+        my $entities = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $bucket, "test" );
+            SELECT o.id, s.uri, o.internal_name
+                FROM object o JOIN bucket b ON b.id = o.bucket_id
+                              JOIN entity e ON o.id = e.object_id
+                              JOIN storage s ON s.id = e.storage_id 
+                WHERE b.name = ? AND o.name = ?
+EOSQL
+        is scalar @$entities, 2, "Should be 2 entities";
+    }
+
 };
 my $app = require "t/dispatcher.psgi";
 test_psgi 
