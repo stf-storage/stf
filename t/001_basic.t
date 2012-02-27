@@ -6,7 +6,7 @@ use Plack::Test;
 use HTTP::Request::Common qw(PUT HEAD GET DELETE POST);
 use HTTP::Date;
 use STF::Constants qw(STF_ENABLE_OBJECT_META);
-use STF::Test qw(ts_request clear_queue);
+use STF::Test qw(clear_queue);
 
 use_ok "STF::Context";
 use_ok "STF::Worker::DeleteBucket";

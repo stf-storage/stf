@@ -1,29 +1,17 @@
 package STF::Test;
 use strict;
 use parent qw(Exporter);
-use lib "extlib/lib/perl5";
 use Carp;
 use DBI;
-use File::Basename ();
-use File::Path ();
-use Furl;
-use Guard;
 use Plack::Runner;
 use Proc::Guard ();
-use SQL::Maker;
-use Test::mysqld;
 use Test::TCP;
 use Test::More;
-use YAML;
 
 our @EXPORT_OK = qw(
     clear_queue
     deploy_fixtures
-    split_sql_statements
     start_plackup
-    start_mysqld
-    start_worker
-    ts_request
     write_file
 );
 
@@ -77,41 +65,6 @@ sub start_memcached {
     $memcached->{port} = $port;
     note "     Started at port " . $memcached->{port};
     return $memcached;
-}
-
-sub ts_request($) {
-    my $req = shift;
-
-    $req->uri->host( $ENV{ STF_HOST } );
-    $req->uri->port( $ENV{ STF_PORT } );
-
-    my $furl = Furl->new;
-    my $res  = $furl->request( $req );
-    return $res->as_http_response;
-}
-
-sub start_worker {
-    my $run_dir = File::Spec->catdir( qw( t run ) );
-    # remove directory
-    if ( -e $run_dir ) {
-        if (! remove_tree( $run_dir )) {
-            die "Failed to remove $run_dir: $!";
-        }
-    }
-    # create it
-
-    if (! make_path( $run_dir ) || ! -d $run_dir ) {
-        die "Failed to create dir $run_dir: $!";
-    }
-
-    my $worker = Proc::Guard->new(
-        command => [
-            $^X, "bin/stf-worker", "--config", "t/config.pl",
-        ]
-    );
-    sleep 20;
-
-    $ENV{ _STF_WORKER } = $worker;
 }
 
 sub clear_queue {

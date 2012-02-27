@@ -2,7 +2,7 @@ use strict;
 use Test::More;
 use Plack::Test;
 use HTTP::Request::Common qw(GET PUT);
-use STF::Test qw(clear_queue ts_request);
+use STF::Test qw(clear_queue);
 
 use_ok "STF::Context";
 use_ok "STF::Worker::ObjectHealth";

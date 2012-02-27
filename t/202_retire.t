@@ -2,7 +2,7 @@ use strict;
 use Test::More;
 use Plack::Test;
 use HTTP::Request::Common qw(PUT);
-use STF::Test qw(clear_queue ts_request);
+use STF::Test qw(clear_queue);
 use STF::Constants qw(:storage);
 use Guard;
 
