@@ -1,6 +1,5 @@
 package STF::Worker::UpdateUsage;
 use strict;
-use feature 'state';
 use parent qw(STF::Worker::Base STF::Trait::WithContainer);
 
 sub new {

@@ -1,6 +1,5 @@
 package STF::Worker::Replicate;
 use strict;
-use feature 'state';
 use parent qw(STF::Worker::Base STF::Trait::WithDBI);
 
 sub new {

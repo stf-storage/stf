@@ -1,6 +1,5 @@
 package STF::Worker::DeleteObject;
 use strict;
-use feature 'state';
 use parent qw(STF::Worker::Base STF::Trait::WithDBI);
 use STF::Constants qw(STF_DEBUG);
 

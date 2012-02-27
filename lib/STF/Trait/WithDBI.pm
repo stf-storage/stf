@@ -1,6 +1,5 @@
 package STF::Trait::WithDBI;
 use strict;
-use feature 'state';
 use parent qw(STF::Trait::WithContainer);
 use DBI ();
 use Guard ();
