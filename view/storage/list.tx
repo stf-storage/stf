@@ -46,7 +46,7 @@
     <th>ID</th>
     <th>URI</th>
     <th>Mode</th>
-[% IF (TOGGLES.storage_meta) %]
+[% IF (const.STF_ENABLE_STORAGE_META) %]
     <th>Capacity</th>
     <th>Used</th>
     <th>Notes</th>
@@ -58,7 +58,7 @@
     <td style="width: 50px;"><a href="[% c.uri_for('/storage', storage.id, 'edit') %]">[% storage.id %]</a></td>
     <td>[% storage.uri %]</td>
     <td class="digit">[% mode_str(storage.mode) %]</td>
-[% IF (TOGGLES.storage_meta) %]
+[% IF (const.STF_ENABLE_STORAGE_META) %]
     <td class="digit">[% storage.meta.capacity | human_readable%]</td>
     <td class="digit">[% storage.meta.used | human_readable%]</td>
     <td>[% IF (storage.meta.notes) %]
