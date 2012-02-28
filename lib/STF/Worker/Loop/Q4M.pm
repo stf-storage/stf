@@ -80,6 +80,8 @@ EOSQL
                     printf STDERR "[ Loop::Q4M] ---- END %s:%s ----\n", $table, $row_id;
                 } );
             }
+            eval { $dbh->do("SELECT queue_end()") };
+
             $self->incr_processed();
             my $sig_guard = Guard::guard(\&$setsig);
 
@@ -89,7 +91,8 @@ EOSQL
             POSIX::sigaction( SIGTERM, $default );
 
             my $guard = $impl->container->new_scope;
-            $impl->work_once( $object_id );
+            eval { $impl->work_once( $object_id ) };
+            warn $@ if $@;
             if ( (my $interval = $self->interval) > 0 ) {
                 Time::HiRes::usleep( $interval );
             }
