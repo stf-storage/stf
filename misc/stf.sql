@@ -62,7 +62,7 @@ CREATE TABLE object_meta (
     object_id BIGINT NOT NULL PRIMARY KEY,
     hash      CHAR(32),
     FOREIGN KEY(object_id) REFERENCES object(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB;
 
 CREATE TABLE deleted_object ENGINE=InnoDB SELECT * FROM object LIMIT 0;
 ALTER TABLE deleted_object ADD PRIMARY KEY(id);
