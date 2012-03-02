@@ -16,7 +16,7 @@ sub new {
     my $function = $args{function} ||= {};
     $function->{nl2br} = Text::Xslate::html_builder(sub {
         my $text = "$_[0]";
-        $text =~ s{\n\n+}{<br />}gsm;
+        $text =~ s{\n}{<br />}gsm;
         return $text;
     });
 
