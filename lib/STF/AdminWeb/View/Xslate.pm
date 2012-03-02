@@ -12,6 +12,14 @@ use Class::Accessor::Lite
 sub new {
     my ($class, %args) = @_;
     my $app = delete $args{app};
+
+    my $function = $args{function} ||= {};
+    $function->{nl2br} = Text::Xslate::html_builder(sub {
+        my $text = "$_[0]";
+        $text =~ s{\n\n+}{<br />}gsm;
+        return $text;
+    });
+
     bless {
         suffix => delete $args{suffix},
         xslate => Text::Xslate->new(%args),

@@ -63,7 +63,7 @@
     <td class="digit">[% storage.meta.used | human_readable%]</td>
     <td>[% IF (storage.meta.notes) %]
         <a href="#" class="note-toggle" for="[% storage.id %]">notes</a>
-        <pre for="[% storage.id %]" class="note-content">[% storage.meta.notes %]</pre>
+        <div for="[% storage.id %]" class="note-content">[% storage.meta.notes | nl2br %]</div>
     [% ELSE -%]
         -
     [%- END %]</td>
