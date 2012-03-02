@@ -6,6 +6,8 @@ use Class::Accessor::Lite
     rw => [ qw(cache_expires) ]
 ;
 
+our $DEFAULT_CACHE_EXPIRES = 5 * 60;
+
 sub cache_key {
     my ($self, @keys) = @_;
     join '.', @keys;
@@ -29,7 +31,7 @@ sub cache_set {
     if (STF_CACHE_DEBUG) {
         printf STDERR " + Cache SET for %s\n", $key
     }
-    $self->get('Memcached')->set( $key, $value, $expires || $self->cache_expires );
+    $self->get('Memcached')->set( $key, $value, $expires || $self->cache_expires || $DEFAULT_CACHE_EXPIRES );
 }
 
 sub cache_delete {
