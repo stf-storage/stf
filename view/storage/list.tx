@@ -1,7 +1,7 @@
 [% WRAPPER 'layout.tx' %]
 <style>
 <!--
-    pre.note-content {
+    div.note-content {
         display: none;
         padding: 10px;
         text-align: left;
