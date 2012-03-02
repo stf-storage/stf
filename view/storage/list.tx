@@ -21,7 +21,7 @@
     $(document).ready(function() {
         $("a.note-toggle").click( function(e) {
             var id = $(e.target).attr('for');
-            $("pre[for=" + id + "]").each( function(i, p) {
+            $("div[for=" + id + "]").each( function(i, p) {
                 p = $(p);
                 if ( p.css('display') == 'none' ) {
                     p.css({
