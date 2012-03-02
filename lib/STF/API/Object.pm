@@ -187,6 +187,9 @@ sub check_health {
 
         # an entity in TEMPORARILY_DOWN node needs to be treated as alive
         if ($storage->{mode} == STORAGE_MODE_TEMPORARILY_DOWN) {
+            if (STF_DEBUG) {
+                print STDERR "[    Health] storage $entity->{storage_id} is temporarily down. Adding to intact list\n";
+            }
             push @intact, $storage;
             next;
         }
