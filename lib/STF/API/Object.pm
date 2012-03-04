@@ -136,7 +136,7 @@ sub find_suspicious_neighbors {
         my $before = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $storage_id, $object_id );
             SELECT o.* FROM  object o JOIN entity e ON o.id = e.object_id
                 WHERE e.storage_id = ? AND object_id < ?
-                ORDER BY object_id ASC LIMIT $breadth
+                ORDER BY object_id DESC LIMIT $breadth
 EOSQL
         my $after = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $storage_id, $object_id );
             SELECT o.* FROM  object o JOIN entity e ON o.id = e.object_id
