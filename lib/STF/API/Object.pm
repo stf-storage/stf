@@ -145,7 +145,7 @@ EOSQL
 EOSQL
 
         foreach my $object ( @$before, @$after ) {
-            $objects{ $_->{id} } = $object;
+            $objects{ $object->{id} } = $object;
         }
     }
 
