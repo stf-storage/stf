@@ -35,7 +35,8 @@ sub work_once {
             # in the near vicinity are likely to be missing. Find
             # objects with close IDs and check these
             if ( STF_DEBUG ) {
-                printf STDERR "[    Repair] Repaired %d items. Going to check neighbors\n",
+                printf STDERR "[    Repair] Repaired object %s (%d items).\n",
+                    $object_id,
                     $n
                 ;
             }
