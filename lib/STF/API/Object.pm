@@ -133,19 +133,25 @@ sub find_suspicious_neighbors {
     my $dbh = $self->dbh;
     foreach my $storage_id ( map { $_->{storage_id} } @entities ) {
         # find neighbors in this storage
-        my $before = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $storage_id, $object_id );
-            SELECT o.* FROM  object o JOIN entity e ON o.id = e.object_id
-                WHERE e.storage_id = ? AND object_id < ?
-                ORDER BY object_id DESC LIMIT $breadth
+        my $before = $dbh->selectall_arrayref( <<EOSQL, undef, $storage_id, $object_id );
+            SELECT e.object_id FROM entity e FORCE INDEX (PRIMARY)
+                WHERE e.storage_id = ? AND e.object_id < ?
+                ORDER BY e.object_id DESC LIMIT $breadth
 EOSQL
-        my $after = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $storage_id, $object_id );
-            SELECT o.* FROM  object o JOIN entity e ON o.id = e.object_id
-                WHERE e.storage_id = ? AND object_id > ?
-                ORDER BY object_id ASC LIMIT $breadth
+        my $after = $dbh->selectall_arrayref( <<EOSQL, undef, $storage_id, $object_id );
+            SELECT e.object_id FROM entity e FORCE INDEX (PRIMARY)
+                WHERE e.storage_id = ? AND e.object_id > ?
+                ORDER BY e.object_id ASC LIMIT $breadth
 EOSQL
 
-        foreach my $object ( @$before, @$after ) {
-            $objects{ $object->{id} } = $object;
+        foreach my $row ( @$before, @$after ) {
+            my $object_id = $row->[0];
+            next if $objects{ $object_id };
+
+            my $object = $self->lookup( $object_id );
+            if ($object) {
+                $objects{ $object_id } = $object;
+            }
         }
     }
 
