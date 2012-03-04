@@ -42,7 +42,9 @@ sub work_once {
 
             my $memd = $self->get( 'Memcached' );
             my $timeout = 3600;
-            foreach my $neighbor ( $object_api->find_neighbors( $object_id, $self->breadth ) ) {
+
+            my @objects = $object_api->find_suspicious_neighbors( $object_id, $self->breadth );
+            foreach my $neighbor ( @objects ) {
                 my $key = join '.', 'repair', 'queued', $neighbor->{id};
                 next if $memd->get( $key );
 

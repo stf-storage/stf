@@ -118,6 +118,40 @@ EOSQL
     return (@$before, @$after)
 }
 
+sub find_suspicious_neighbors {
+    my ($self, $object_id, $breadth) = @_;
+
+    if ($breadth <= 0) {
+        $breadth = 10;
+    }
+
+    my @entities = $self->get('API::Entity')->search({
+        object_id => $object_id
+    });
+
+    my %objects;
+    my $dbh = $self->dbh;
+    foreach my $storage_id ( map { $_->{storage_id} } @entities ) {
+        # find neighbors in this storage
+        my $before = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $storage_id, $object_id );
+            SELECT o.* FROM  object o JOIN entity e ON o.id = e.object_id
+                WHERE e.storage_id = ? AND object_id < ?
+                ORDER BY object_id ASC LIMIT $breadth
+EOSQL
+        my $after = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $storage_id, $object_id );
+            SELECT o.* FROM  object o JOIN entity e ON o.id = e.object_id
+                WHERE e.storage_id = ? AND object_id > ?
+                ORDER BY object_id ASC LIMIT $breadth
+EOSQL
+
+        foreach my $object ( @$before, @$after ) {
+            $objects{ $_->{id} } = $object;
+        }
+    }
+
+    return values %objects;
+}
+
 sub create {
     my ($self, $args) = @_;
 
