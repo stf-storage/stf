@@ -38,7 +38,7 @@ sub work_once {
 
     my $queue_api = $self->get('API::Queue');
     if (STF_DEBUG) {
-        print STDERR "[    Health] Enqueuing repair for $object_id\n";
+        print STDERR "[    Health] Enqueue object repair for $object_id\n";
     }
 
     $queue_api->enqueue( repair_object => $object_id );
