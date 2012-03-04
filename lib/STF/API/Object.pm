@@ -410,7 +410,7 @@ sub repair {
         my $n = $need - $have;
 
         if (STF_DEBUG) {
-            printf STDERR "[    Repair] Going to replicated %s %d times\n",
+            printf STDERR "[    Repair] Going to replicate %s %d times\n",
                 $object_id,
                 $n,
             ;
