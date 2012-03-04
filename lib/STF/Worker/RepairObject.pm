@@ -61,7 +61,7 @@ sub work_once {
         }
     };
     if ($@) {
-        Carp::confess("Failed to replicate $object_id: $@");
+        Carp::confess("Failed to repair $object_id: $@");
     }
 }
 
