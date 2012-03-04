@@ -379,7 +379,7 @@ sub repair {
         # Try very hard to get a good copy
         my ($code, $content);
         foreach my $storage ( @$intact ) {
-            my $ref_url = join "/", $intact->[0]->{uri}, $object->{internal_name};
+            my $ref_url = join "/", $storage->{uri}, $object->{internal_name};
             if (STF_DEBUG) {
                 print STDERR "[    Repair] Using content from $ref_url\n";
             }
