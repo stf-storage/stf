@@ -32,7 +32,7 @@ sub queue_waitcond {
         return $code->($impl);
     }
 
-    $self->queue_table;
+    $self->queue_table( $impl );
 }
 
 sub work {
