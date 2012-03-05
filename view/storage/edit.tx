@@ -17,7 +17,7 @@
       <select name="mode" id="mode">
         <option value="[% const.STORAGE_MODE_READ_WRITE %]">[% mode_str(const.STORAGE_MODE_READ_WRITE) %]</option>
         <option value="[% const.STORAGE_MODE_READ_ONLY %]">[% mode_str(const.STORAGE_MODE_READ_ONLY) %]</option>
-        <option value="[% const.STORAGE_MODE_DOWN %]">[% mode_str(const.STORAGE_MODE_DOWN) %]</option>
+        <option value="[% const.STORAGE_MODE_TEMPORARILY_DOWN %]">[% mode_str(const.STORAGE_MODE_TEMPORARILY_DOWN) %]</option>
         <option value="[% const.STORAGE_MODE_RETIRE %]">[% mode_str(const.STORAGE_MODE_RETIRE) %]</option>
         <option value="[% const.STORAGE_MODE_CRASH %]">[% mode_str(const.STORAGE_MODE_CRASH) %]</option>
         [% IF storage.mode > const.STORAGE_MODE_RETIRE OR storage.mode < const.STORAGE_MODE_CRASH %]
