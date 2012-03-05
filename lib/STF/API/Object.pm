@@ -373,7 +373,7 @@ sub repair {
             local $furl->{timeout} = 5;
             my $url = join "/", $broken->{uri}, $object->{internal_name};
             if (STF_DEBUG) {
-                printf STDERR "[    Repair] Deleting broken entity %s\n", $url;
+                printf STDERR "[    Repair] Deleting broken entity %s for object %s\n", $url, $object_id;
             }
             eval { $furl->delete( $url ) };
         }
@@ -421,7 +421,9 @@ sub repair {
         foreach my $storage ( @$intact ) {
             my $ref_url = join "/", $storage->{uri}, $object->{internal_name};
             if (STF_DEBUG) {
-                print STDERR "[    Repair] Using content from $ref_url\n";
+                printf STDERR "[    Repair] Using content from %s for %s\n",
+                    $ref_url, $object_id,
+                ;
             }
             (undef, $code, undef, undef, $content) = $furl->get( $ref_url );
             if (! HTTP::Status::is_success( $code )) {
@@ -443,7 +445,8 @@ sub repair {
         } );
 
         if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] Wanted %d, replicated %d times\n",
+            printf STDERR "[    Repair] Object %s wanted %d, replicated %d times\n",
+                $object_id,
                 $n,
                 $replicated,
             ;
