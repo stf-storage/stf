@@ -7,6 +7,7 @@ use STF::Constants qw(:storage);
 use Guard;
 
 use_ok "STF::Context";
+use_ok "STF::Worker::RepairObject";
 use_ok "STF::Worker::RetireStorage";
 use_ok "STF::Worker::Replicate";
 
@@ -61,6 +62,15 @@ EOSQL
         );
         $worker->work;
     }
+
+    {
+        my $worker = STF::Worker::RepairObject->new(
+            container => $context->container,
+            max_works_per_child => 1,
+        );
+        $worker->work;
+    }
+
 
     # check that entity count is back
     my $entities = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $bucket, "test" );
