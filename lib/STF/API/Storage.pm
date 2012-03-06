@@ -107,46 +107,25 @@ sub move_entities {
 
     my $dbh = $self->dbh;
     my $sth = $dbh->prepare( <<EOSQL );
-        SELECT e.*, CONCAT_WS('/', s.uri, o.internal_name) as url
-            FROM entity e INNER JOIN storage s ON e.storage_id = s.id
-                          INNER JOIN object  o ON e.object_id  = o.id
-            WHERE s.id = ?
-            LIMIT ?
+        SELECT e.object_id FROM entity e FORCE INDEX (PRIMARY)
+            JOIN object o ON e.object_id = o.id
+            WHERE e.storage_id = ? AND e.object_id > ? LIMIT ?
 EOSQL
     my $limit = 10_000;
-    my $skipped = 0;
     my $processed = 0;
-    my %invalid;
-    my $entity_api = $self->get( 'API::Entity');
+    my $object_id = 0;
+    my $queue_api = $self->get( 'API::Queue');
     while ( 1 ) {
-        my $rv = $sth->execute( $storage_id, $limit );
-        while ( my $entity = $sth->fetchrow_hashref ) {
+        my $rv = $sth->execute( $storage_id, $object_id, $limit );
+        last if $rv <= 0;
+        $sth->bind_columns( \($object_id ) );
+        while ( $sth->fetchrow_arrayref ) {
             $processed++;
-            my $replicated = $entity_api->replicate( { object_id => $entity->{object_id} } ) || 0;
-            if ( $replicated > 0 ) {
-                if (STF_DEBUG) {
-                    printf STDERR "[      Move] Deleting entity storage = %s, object = %s\n",
-                        $entity->{storage_id},
-                        $entity->{object_id}
-                    ;
-                }
-                $entity_api->delete({
-                    storage_id => $entity->{storage_id},
-                    object_id  => $entity->{object_id},
-                });
-            } else {
-                # XXX これ、object_idだけでいいんじゃ？
-                my $key = join '-', @$entity{ qw(storage_id object_id) };
-                if ( ! $invalid{$key}++) {
-                    if ( STF_DEBUG ) {
-                        printf STDERR "[      Move] Failed to replicate object_id %s on storage_id %s\n",
-                            @$entity{ qw(object_id storage_id) };
-                    }
-                    $skipped++;
-                }
-            }
+            $queue_api->enqueue( repair_object => $object_id );
         }
-        last if ( $rv < $limit );
+        if ( $limit == $rv ) {
+            sleep 60;
+        }
     }
 
     return $processed;
