@@ -26,6 +26,17 @@ sub get_func_id {
     $funcmap->{$func};
 }
 
+sub size {
+    my ($self, $func) = @_;
+
+    my $dbh = $self->dbh('DB::Queue');
+    my $table = "queue_$func";
+    my ($count) = $dbh->selectrow_array( <<EOSQL );
+        SELECT COUNT(*) FROM $table
+EOSQL
+    return $count;
+}
+
 sub enqueue {
     my ($self, $func, $object_id) = @_;
     my $func_id = $self->get_func_id( $func );

@@ -115,6 +115,8 @@ EOSQL
     my $processed = 0;
     my $object_id = 0;
     my $queue_api = $self->get( 'API::Queue');
+
+    my $size = $queue_api->size( 'repair_object' );
     while ( 1 ) {
         my $rv = $sth->execute( $storage_id, $object_id, $limit );
         last if $rv <= 0;
@@ -145,7 +147,13 @@ EOSQL
                     $limit
                 ;
             }
-            sleep 60;
+
+            my $prev = $size;
+            $size = $queue_api->size( 'repair_object' );
+            while ( $size > $prev ) {
+                sleep 60;
+                $size = $queue_api->size( 'repair_object' );
+            }
         }
     }
 
