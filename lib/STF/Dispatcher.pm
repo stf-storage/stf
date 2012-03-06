@@ -8,7 +8,7 @@ use Guard ();
 use IPC::SysV qw(S_IRWXU S_IRUSR S_IWUSR IPC_CREAT IPC_NOWAIT SEM_UNDO);
 use IPC::SharedMem;
 use IPC::Semaphore;
-use POSIX();
+use POSIX ':signal_h';
 use Scalar::Util ();
 use STF::Constants qw(
     :entity
@@ -690,9 +690,29 @@ sub rename_object {
 sub enqueue {
     my ($self, $func, $object_id) = @_;
 
-    my $queue_api = $self->get( 'API::Queue' );
-    my $rv = eval { $queue_api->enqueue( $func, $object_id ) };
-    if ($@) {
+    # signals to mask in the handler
+    my $mask = POSIX::SigSet->new( SIGALRM );
+    # the handler code ref
+    my $action = POSIX::SigAction->new(
+        sub { die "connect timeout\n" },
+        $mask,
+        # not using (perl 5.8.2 and later) 'safe' switch or sa_flags
+    );
+    my $oldaction = POSIX::SigAction->new();
+    sigaction( SIGALRM, $action, $oldaction );
+    my $rv;
+    eval {
+        eval {
+            alarm(2); # seconds before time out
+            my $queue_api = $self->get( 'API::Queue' );
+            $rv = $queue_api->enqueue( $func, $object_id );
+        };
+        alarm(0); # cancel alarm (if connect worked fast)
+        die "$@\n" if $@; # connect died
+    };
+    sigaction( SIGALRM, $oldaction );  # restore original signal handler
+
+    if ( $@ ) {
         # XXX This should not be seen by the client,
         # but we need to make sure to log it
         printf STDERR "[Dispatcher] Error while enqueuing: %s\n + func: %s\n + object ID = %s\n",
