@@ -419,6 +419,15 @@ sub repair {
         # Try very hard to get a good copy
         my ($code, $content);
         foreach my $storage ( @$intact ) {
+            if ( $storage->{mode} != STORAGE_MODE_READ_ONLY && $storage->{mode} != STORAGE_MODE_READ_WRITE ) {
+                if ( STF_DEBUG ) {
+                    printf STDERR "[    Repair] Skipping storage %d as it's not readable",
+                        $storage->{id}
+                    ;
+                }
+                next;
+            }
+
             my $ref_url = join "/", $storage->{uri}, $object->{internal_name};
             if (STF_DEBUG) {
                 printf STDERR "[    Repair] Using content from %s for %s\n",
@@ -426,7 +435,9 @@ sub repair {
                 ;
             }
             (undef, $code, undef, undef, $content) = $furl->get( $ref_url );
-            if (! HTTP::Status::is_success( $code )) {
+            if (HTTP::Status::is_success( $code )) {
+                last;
+            } else {
                 print STDERR "semi-PANIC: failed to retrieve supposedly good url $ref_url: $code\n";
                 $content = undef;
                 next;
