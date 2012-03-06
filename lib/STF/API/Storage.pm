@@ -126,7 +126,18 @@ EOSQL
                     $object_id,
                 ;
             }
-            $queue_api->enqueue( repair_object => $object_id );
+
+            # XXX Grrr, I want to say "put this in the repair queue, but don't
+            # propagate it in the object health queue", but because of
+            # historical reasons there are no way to pass in extra meta data
+            # (obviously, we can change that, but that entails rethinking
+            # the API, and I'm in no mood to do this right now).
+            # Here, I'm going to resort to prefixing the data with
+            # extra markers. This means the worker also needs to change. eek
+            #
+            # Prefixes:
+            #   NP: no propagate
+            $queue_api->enqueue( repair_object => "NP:$object_id" );
         }
         if ( $limit == $rv ) {
             if ( STF_DEBUG ) {
