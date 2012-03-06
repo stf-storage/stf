@@ -121,9 +121,19 @@ EOSQL
         $sth->bind_columns( \($object_id ) );
         while ( $sth->fetchrow_arrayref ) {
             $processed++;
+            if ( STF_DEBUG ) {
+                printf STDERR "[   Storage] Sending object %s to repair queue\n",
+                    $object_id,
+                ;
+            }
             $queue_api->enqueue( repair_object => $object_id );
         }
         if ( $limit == $rv ) {
+            if ( STF_DEBUG ) {
+                printf STDERR "[   Storage] Sent %d objects, sleeping to give it some time...\n",
+                    $limit
+                ;
+            }
             sleep 60;
         }
     }
