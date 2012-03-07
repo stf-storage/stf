@@ -1,6 +1,8 @@
 package STF::Utils;
 use strict;
 use Guard ();
+use POSIX ':signal_h';
+use Time::HiRes ();
 
 sub merge_hashes {
     my ($left, $right) = @_;
@@ -59,6 +61,40 @@ sub timer_guard {
             $elapsed
         ;
     };
+}
+
+# This is a rather forceful timeout wrapper that allows us to, for example,
+# wrap calls to things blocking in the C layer (such as some DBD's).
+# Returns the error that occurred. If the call timed out, then this
+# error is set to "timeout_call timed out (%d secs)"
+sub timeout_call {
+    my ($timeout, $cb, $timeout_cb, @args) = @_;
+
+    $timeout_cb ||= sub { die sprintf "timeout_call timed out (%d secs)\n", $timeout };
+
+    # signals to mask in the handler
+    my $mask = POSIX::SigSet->new( SIGALRM );
+    # the handler code ref
+    my $action = POSIX::SigAction->new(
+        $timeout_cb,
+        $mask,
+        # not using (perl 5.8.2 and later) 'safe' switch or sa_flags
+    );
+    my $oldaction = POSIX::SigAction->new();
+    sigaction( SIGALRM, $action, $oldaction );
+    my $rv;
+    eval {
+        eval {
+            Time::HiRes::alarm($timeout); # seconds before time out
+            $cb->(@args);
+        };
+        Time::HiRes::alarm(0); # cancel alarm (if connect worked fast)
+        die "$@\n" if $@; # connect died
+    };
+    my $e = $@;
+    sigaction( SIGALRM, $oldaction );  # restore original signal handler
+
+    return $e;
 }
 
 1;

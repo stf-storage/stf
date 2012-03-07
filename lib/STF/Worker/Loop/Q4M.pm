@@ -10,7 +10,7 @@ use Scalar::Util ();
 use Time::HiRes ();
 use STF::Constants qw(STF_DEBUG);
 use Class::Accessor::Lite
-    rw => [ qw(interval) ]
+    rw => [ qw(interval queue_name) ]
 ;
 
 sub queue_table {
@@ -42,8 +42,9 @@ sub work {
 
     my $table = $self->queue_table( $impl );
     my $waitcond = $self->queue_waitcond( $impl );
-    my $dbh = $self->get('DB::Queue') or
-        Carp::confess( "Could not fetch DB::Queue" );
+    my $queue_name = $self->queue_name || $ENV{STF_QUEUE_NAME} || 'DB::Queue';
+    my $dbh = $self->get($queue_name) or
+        Carp::confess( "Could not fetch $queue_name" );
 
     my $loop = 1;
     my $object_id;

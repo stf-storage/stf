@@ -21,14 +21,22 @@ my $code = sub {
     my $guard = $container->new_scope();
     my $dbh = $container->get( 'DB::Master' );
 
-    # Remove everything in the storage so we can focus on our only object
+    # Clean up the database so that we don't get bogus errors
+    # (This should really be done in the original test that
+    # broke the consistency, damnit)
     {
-        my $list = $dbh->selectall_arrayref( <<EOM, undef );
-            SELECT CONCAT_WS('/', b.name, o.name) AS path
-                FROM object o JOIN bucket b ON o.bucket_id = b.id
-EOM
-        foreach my $row ( @$list ) {
-            $cb->(DELETE "http://127.0.0.1/$row->[0]");
+        my $list = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} } );
+            SELECT * FROM entity
+EOSQL
+        foreach my $entity (@$list) {
+            my $object = $dbh->selectrow_hashref( <<EOSQL, undef, $entity->{object_id} );
+                SELECT * FROM object WHERE id = ?
+EOSQL
+            if (! $object) {
+                $dbh->do( <<EOSQL, undef, $entity->{object_id} );
+                    DELETE FROM entity WHERE object_id = ?
+EOSQL
+            }
         }
     }
 
@@ -54,7 +62,18 @@ EOM
     my $storages = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} } );
         SELECT s.* FROM storage s
 EOSQL
-    my $crashed  = $storages->[0];
+    my $crashed;
+    my $count;
+    foreach my $storage (@$storages) {
+        ($count) = $dbh->selectrow_array( <<EOSQL, undef, $storage->{id} );
+            SELECT count(*) FROM entity WHERE storage_id = ?
+EOSQL
+        if ($count > 0) {
+            note "Storage $storage->{id} has $count entities. Choosing this as our crashed storage";
+            $crashed = $storage;
+            last;
+        }
+    }
 
     $dbh->do( <<EOSQL, undef, STORAGE_MODE_CRASH, $crashed->{id} );
         UPDATE storage SET mode = ? WHERE id = ?
@@ -78,7 +97,7 @@ EOSQL
     {
         my $worker = STF::Worker::RepairObject->new(
             container => $context->container,
-            max_works_per_child => 1,
+            max_works_per_child => $count,
         );
         $worker->work;
     }

@@ -108,7 +108,6 @@ sub move_entities {
     my $dbh = $self->dbh;
     my $sth = $dbh->prepare( <<EOSQL );
         SELECT e.object_id FROM entity e FORCE INDEX (PRIMARY)
-            JOIN object o ON e.object_id = o.id
             WHERE e.storage_id = ? AND e.object_id > ? LIMIT ?
 EOSQL
     my $limit = 10_000;

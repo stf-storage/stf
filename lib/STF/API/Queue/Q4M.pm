@@ -1,11 +1,13 @@
 package STF::API::Queue::Q4M;
 use strict;
 use parent qw(STF::Trait::WithDBI);
+use Digest::MurmurHash ();
 use STF::Constants qw(:func STF_DEBUG);
 use Class::Accessor::Lite
     new => 1,
     rw => [ qw(
         funcmap
+        queue_names
     ) ]
 ;
 
@@ -29,12 +31,16 @@ sub get_func_id {
 sub size {
     my ($self, $func) = @_;
 
-    my $dbh = $self->dbh('DB::Queue');
     my $table = "queue_$func";
-    my ($count) = $dbh->selectrow_array( <<EOSQL );
-        SELECT COUNT(*) FROM $table
+    my $total = 0;
+    foreach my $queue_name ( @{ $self->queue_names } ) {
+        my $dbh = $self->dbh($queue_name);
+        my ($count) = $dbh->selectrow_array( <<EOSQL );
+            SELECT COUNT(*) FROM $table
 EOSQL
-    return $count;
+        $total += $count;
+    }
+    return $total;
 }
 
 sub enqueue {
@@ -48,18 +54,43 @@ sub enqueue {
         Carp::confess("No object_id given for $func");
     }
 
-    my $dbh = $self->dbh('DB::Queue');
     my $table = "queue_$func";
+    # Sort the queue names by the murmur hash value of queue_name + object_id
+    my $queue_names = $self->queue_names;
+    my %queues = (
+        map {
+            ( $_ => Digest::MurmurHash::murmur_hash( $_ . $object_id ) )
+        } @$queue_names
+    );
+    foreach my $queue_name ( sort { $queues{$a} <=> $queues{$b} } keys %queues) {
+        my $dbh = $self->dbh($queue_name);
+        if (STF_DEBUG) {
+            printf STDERR "[     Queue] INSERT %s into %s for %s on %s\n",
+                $object_id, $table, $func, $queue_name
+            ;
+        }
 
-    if (STF_DEBUG) {
-        printf STDERR "[     Queue] INSERT %s into %s for %s\n",
-            $object_id, $table, $func
-        ;
-    }
-    my $rv  = $dbh->do(<<EOSQL, undef, $object_id );
-        INSERT INTO $table ( args, created_at ) VALUES (?, UNIX_TIMESTAMP( NOW() ) )
+        my $rv;
+        my $err = STF::Utils::timeout_call(
+            0.5,
+            sub {
+                $rv = $dbh->do(<<EOSQL, undef, $object_id );
+                    INSERT INTO $table ( args, created_at ) VALUES (?, UNIX_TIMESTAMP( NOW() ) )
 EOSQL
-    return $rv;
+            }
+        );
+        if ( $err ) {
+            # XXX Don't wrap in STF_DEBUG
+            printf STDERR "[     Queue] Error while enqueuing: %s\n + func: %s\n + object ID = %s\n",
+                $err,
+                $func,
+                $object_id,
+            ;
+            next;
+        }
+
+        return $rv;
+    }
 }
 
 1;

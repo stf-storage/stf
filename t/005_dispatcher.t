@@ -54,13 +54,15 @@ subtest 'enqueue timeout' => sub {
         host_id   => time()
     );
 
-    $ctxt->container->register( 'API::Queue' => Plack::Util::inline_object(
-        enqueue => sub {
+    my $dbh = $ctxt->container->get('DB::Queue');
+    # XXX hack to get the call to stall
+    local $dbh->{Callbacks} = {
+        do => sub {
             sleep 10;
-        }
-    ) );
+        },
+    };
 
-    my $buf;
+    my $buf = '';
     open my $stderr, '>', \$buf;
     eval {
         local *STDERR = $stderr;
@@ -70,7 +72,7 @@ subtest 'enqueue timeout' => sub {
     };
     alarm(0);
     ok !$@, "enqueue timed out 'silently'";
-    like $buf, qr/connect timeout/;
+    like $buf, qr/timeout_call timed out/;
 };
 
 done_testing;

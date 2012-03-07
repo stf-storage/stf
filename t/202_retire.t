@@ -42,8 +42,18 @@ my $code = sub {
     my $storages = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} } );
         SELECT s.* FROM storage s
 EOSQL
-    my $retired  = $storages->[0];
-
+    my $retired;
+    my $count;
+    foreach my $storage (@$storages) {
+        ($count) = $dbh->selectrow_array( <<EOSQL, undef, $storage->{id} );
+            SELECT count(*) FROM entity WHERE storage_id = ?
+EOSQL
+        if ($count > 0) {
+            note "Storage $storage->{id} has $count entities. Choosing this as our retired storage";
+            $retired = $storage;
+            last;
+        }
+    }
     $dbh->do( <<EOSQL, undef, STORAGE_MODE_RETIRE, $retired->{id} );
         UPDATE storage SET mode = ? WHERE id = ?
 EOSQL
@@ -66,7 +76,7 @@ EOSQL
     {
         my $worker = STF::Worker::RepairObject->new(
             container => $context->container,
-            max_works_per_child => 1,
+            max_works_per_child => $count,
         );
         $worker->work;
     }

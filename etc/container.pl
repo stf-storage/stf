@@ -26,7 +26,14 @@ register Memcached => sub {
     Cache::Memcached::Fast->new( $config->{'Memcached'} );
 };
 
+my @queue_names;
 foreach my $dbkey (qw(DB::Master DB::Queue)) {
+    # XXX lazy. We need to know which queue databases are available,
+    # so we'll just skim it from the list
+    if ( $dbkey =~ /::Queue/) {
+        push @queue_names, $dbkey;
+    }
+
     register $dbkey => sub {
         my $c = shift;
         my $config = $c->get('config');
@@ -79,6 +86,7 @@ register "API::Queue" => sub {
         cache_expires => 86400,
         %{ $c->get('config')->{ "API::Queue::$type" } || {} },
         container => $c,
+        queue_names => \@queue_names,
     );
 };
 
