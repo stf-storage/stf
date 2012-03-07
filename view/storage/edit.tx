@@ -1,55 +1,69 @@
 [% WRAPPER 'layout.tx' %]
 
-<form method="post" action="[% c.uri_for('/storage', storage.id, 'edit') %]">
+[% INCLUDE "storage/heading.tx" %]
+
+<form class="form-horizontal" method="post" action="[% c.uri_for('/storage', storage.id, 'edit') %]">
 [% error_msgs(result) %]
-<table class="info">
-  <tr>
-    <th><label for="id">ID</label></th>
-    <td>[% storage.id %]</td>
-  </tr>
-  <tr>
-    <th><label for="uri">URI</label></th>
-    <td><input size="60" type="text" name="uri" id="uri" /></td>
-  </tr>
-  <tr>
-    <th><label for="mode">Mode</label></th>
-    <td>
-      <select name="mode" id="mode">
-        <option value="[% const.STORAGE_MODE_READ_WRITE %]">[% mode_str(const.STORAGE_MODE_READ_WRITE) %]</option>
-        <option value="[% const.STORAGE_MODE_READ_ONLY %]">[% mode_str(const.STORAGE_MODE_READ_ONLY) %]</option>
-        <option value="[% const.STORAGE_MODE_TEMPORARILY_DOWN %]">[% mode_str(const.STORAGE_MODE_TEMPORARILY_DOWN) %]</option>
-        <option value="[% const.STORAGE_MODE_RETIRE %]">[% mode_str(const.STORAGE_MODE_RETIRE) %]</option>
-        <option value="[% const.STORAGE_MODE_CRASH %]">[% mode_str(const.STORAGE_MODE_CRASH) %]</option>
-        [% IF storage.mode > const.STORAGE_MODE_RETIRE OR storage.mode < const.STORAGE_MODE_CRASH %]
-        <option value="[% storage.mode %]">[% mode_str(storage.mode) %]</option>
-        [% END %]
-      </select>
-    </td>
-  </tr>
-[% IF (const.STF_ENABLE_STORAGE_META) %]
-  <tr>
-    <th><label for="meta_used">Used</label></th>
-    <td><input type="text" name="meta_used" id="used" /></td>
-  </tr>
-  <tr>
-    <th><label for="meta_capacity">Capacity</label></th>
-    <td><input type="text" name="meta_capacity" id="capacity" /></td>
-  </tr>
-  <tr>
-    <th><label for="meta_notes">Notes</label></th>
-    <td>
-        <textarea name="meta_notes" rows="10" cols="50">[% storage.meta.notes %]</textarea>
-    </td>
-  </tr>
+<fieldset>
+    <legend>Edit Storage</legend>
+    <div class="control-group">
+        <label class="control-label" for="id">ID</label>
+        <div class="controls">
+            <input name="id" type="text" class="input-xlarge" id="input-id" readonly="readonly">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label" for="uri">URI</label>
+        <div class="controls">
+            <input name="uri" type="text" class="input-xlarge" id="input-uri">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label" for="mode">Mode</label>
+        <div class="controls">
+            <select name="mode" id="input-mode">
+[% FOREACH mode IN [
+    const.STORAGE_MODE_READ_WRITE,
+    const.STORAGE_MODE_READ_ONLY,
+    const.STORAGE_MODE_TEMPORARILY_DOWN,
+    const.STORAGE_MODE_CRASH,
+    const.STORAGE_MODE_CRASH_RECOVER_NOW,
+    const.STORAGE_MODE_CRASH_RECOVERED,
+    const.STORAGE_MODE_RETIRE,
+    const.STORAGE_MODE_MIGRATE_NOW,
+    const.STORAGE_MODE_MIGRATED
+] %]
+                <option value="[% mode %]">[% mode_str(mode) %]</option>
 [% END %]
-</table>
-<div class="submit">
-<input type="submit" value=" Update " />
-<input type="button" value=" Delete " onClick="javascript: if(confirm('Are you sure you want to delete this object?')) { this.form.action='[% c.uri_for('/storage', storage.id, 'delete') %]'; this.form.submit(); } else { return false; }" />
-</div>
-
+            </select>
+        </div>
+    </div>
+[% IF (const.STF_ENABLE_STORAGE_META) %]
+    <div class="control-group">
+        <label class="control-label" for="meta_used">Used</label>
+        <div class="controls">
+            <input name="meta_used" type="text" class="input-xlarge" id="input-meta_used">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label" for="meta_capacity">Capacity</label>
+        <div class="controls">
+            <input name="meta_capacity" type="text" class="input-xlarge" id="input-meta_capacity">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label" for="meta_capacity">Notes</label>
+        <div class="controls">
+            <textarea name="meta_notes" rows="5" class="input-xxlarge"></textarea>
+        </div>
+    </div>
+[% END %]
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary"><i class="icon-pencil icon-white"></i> Update</button>
+        <button type="button" class="btn btn-danger" onClick="javascript: if(confirm('Are you sure you want to delete this object?')) { this.form.action='[% c.uri_for('/storage', storage.id, 'delete') %]'; this.form.submit(); } else { return false; }"><i class="icon-trash icon-white"></i> Delete</button>
+    </div>
+</fieldset>
 </form>
-
 
 [% END %]
 

@@ -91,7 +91,7 @@ sub edit {
     if ( STF_ENABLE_STORAGE_META ) {
         my $meta = $storage->{meta};
         foreach my $meta_key ( keys %$meta ) {
-            $fill{ $meta_key } = $meta->{ $meta_key };
+            $fill{ "meta_$meta_key" } = $meta->{ $meta_key };
         }
     }
     $self->fillinform( $c, \%fill );

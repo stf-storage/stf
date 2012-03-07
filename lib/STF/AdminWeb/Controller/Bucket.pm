@@ -22,7 +22,7 @@ sub list {
     my %q;
     my $req = $c->request;
     if ( my $name = $req->param('name') ) {
-        $q{name} = $name;
+        $q{name} = { LIKE => $name };
     }
 
     my @buckets = $c->get('API::Bucket')->search(

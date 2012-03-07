@@ -1,34 +1,57 @@
 [% WRAPPER 'layout.tx' %]
 
-<h1>[% c.stf_uri( bucket, object) %]</h1>
+<div class="well">
+    <h2>Object [% object.id %]</h2>
+</div>
 
-<table class="list">
-  <tr>
-    <th>[% loc('Object ID') %]</th>
+<table class="table table-striped table-bordered table-condensed">
+<thead>
+<tr>
+    <th colspan="2">Essentials</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+    <td>ID</td>
     <td>[% object.id %]</td>
-  </tr>
-  <tr>
-    <th>[% loc('mtime') %]</th>
+</tr>
+<tr>
+    <td>Public URI</td>
+    <td><a href="[% c.stf_uri( bucket, object) %]">[% c.stf_uri( bucket, object) %]</a></td>
+</tr>
+<tr>
+    <td>Replicas</td>
+    <td>[% object.num_replica %]</td>
+</tr>
+<tr>
+    <td>Last Modified</td>
     <td>[% object.updated_at %]</td>
-  </tr>
-  <tr class="[% object.status == const.OBJECT_ACTIVE ? "acitve" : "inactive" %]">
-    <th>[% loc('Status') %]</th>
-    <td>[% object.status %]</td>
-  </tr>
+</tr>
+<tr>
+    <td>Status</td>
+    <td>[% IF (object.status == const.OBJECT_ACTIVE) %]Active[% ELSE %]Inactive[% END %]</td>
+</tr>
+</tbody>
 </table>
 
-
-<table class="list">
-  <tr>
+<table class="table table-striped table-bordered table-condensed">
+<thead>
+<tr>
+    <th colspan="3">Entities</th>
+</tr>
+</thead>
+<tbody>
+<tr>
     <th>[% loc('Storage ID') %]</th><th>[% loc('Entity URL') %]</th><th>[% loc('Status') %]</th>
-  </tr>
-  [% FOREACH entity IN entities %]
-  <tr>
+</tr>
+[% FOREACH entity IN entities %]
+<tr>
     <td class="digit">[% entity.storage_id %]</td>
     <td class="text"><a href="[% entity.url %]">[% entity.url %]</a></td>
-    <td class="digit">[% entity.status %]</td>
-  </tr>
-  [% END %]
+    <td class="digit">[% IF (entity.status == const.OBJECT_ACTIVE) %]Active[% ELSE %]Inactive[% END %]</td>
+</tr>
+[% END %]
+</tbody>
 </table>
 
 [% END %]

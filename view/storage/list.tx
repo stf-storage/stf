@@ -38,11 +38,10 @@
 -->
 </script>
 
-<div class="op">
-<a href="[% c.uri_for('/storage/add') %]">Add new storage node</a>
-</div>
-<table class="list">
-  <tr>
+[% INCLUDE "storage/heading.tx" %]
+
+<table class="table table-striped table-bordered table-condensed">
+<tr>
     <th>ID</th>
     <th>URI</th>
     <th>Mode</th>
@@ -71,11 +70,15 @@
     <td class="digit __num-entities" id="num-entities-[% storage.id %]"><a href="[% c.uri_for('/storage/', storage.id, 'entities') %]"><img src="[% c.uri_for('/static/images/img_sankaku.gif') %]" /></a></td>
   </tr>
   [% END %]
+<tr>
+    <td colspan="[% IF (const.STF_ENABLE_STORAGE_META) %]7[% ELSE %]4[% END %]">
+        [% paginate( c.uri_for('/storage/list'), pager ) %]
+    </td>
+</tr>
+
 </table>
-<div class="op">
-<a href="[% c.uri_for('/storage/add') %]">Add new storage node</a>
+
 </div>
 
-[% paginate( c.uri_for('/storage/list'), pager ) %]
 
 [% END %]

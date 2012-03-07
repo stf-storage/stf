@@ -1,0 +1,7 @@
+<div class="well">
+    <div class="pull-right">
+        <a class="btn btn-small" href="[% c.uri_for( "/storage/add" ) %]"><i class="icon-plus"></i></a>
+    </div>
+    <h2>Storages</h2>
+</div>
+

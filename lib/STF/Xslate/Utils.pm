@@ -35,7 +35,7 @@ sub paginate {
     my ($uri, $pager) = @_;
 
     my $form = $uri->query_form;
-    sprintf qq{<div class="pagination">%s | %s</div>},
+    sprintf qq{%s | %s},
         $pager->previous_page ?
             sprintf '<a href="%s">Prev</a>',
                 do {
