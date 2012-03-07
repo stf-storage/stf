@@ -200,44 +200,4 @@ sub find_and_retire {
     }
 }
 
-sub recover_crash {
-    my ($self, $storage_id) = @_;
-
-    if ( STF_DEBUG ) {
-        printf STDERR "[     Crash] Recovering storage %s\n",
-            $storage_id
-        ;
-    }
-    $self->update( $storage_id, { mode => STORAGE_MODE_CRASH_RECOVER_NOW } );
-
-    my $guard = Guard::guard {
-        $self->update( $storage_id, { mode => STORAGE_MODE_CRASH } );
-    };
-
-    my $processed = $self->move_entities( $storage_id );
-
-    $guard->cancel;
-
-    if (STF_DEBUG) {
-        printf STDERR "[     Crash] Storage %d, processed %d rows\n",
-            $storage_id, $processed;
-    }
-    $self->update( $storage_id => { mode => STORAGE_MODE_CRASH_RECOVERED } );
-}
-
-sub find_and_recover_crash {
-    my $self = shift;
-
-    my @storages = $self->search( { mode => STORAGE_MODE_CRASH  } );
-
-    foreach my $storage ( @storages ) {
-        $self->recover_crash( $storage->{id} );
-    }
-
-    if (STF_DEBUG) {
-        printf STDERR "[     Crash] Recovered %d storages\n",
-            scalar @storages;
-    }
-}
-
 1;
