@@ -91,6 +91,8 @@ EOSQL
 
         return $rv;
     }
+
+    return ();
 }
 
 1;
