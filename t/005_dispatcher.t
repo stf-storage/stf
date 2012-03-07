@@ -5,6 +5,7 @@ use Guard qw(scope_guard);
 BEGIN {
     use_ok "STF::Dispatcher";
     use_ok "STF::Constants", "SERIAL_BITS";
+    use_ok "Plack::Util";
 }
 
 subtest 'create ID' => sub {
@@ -42,6 +43,34 @@ subtest 'create ID' => sub {
     note "now time() is " . time();
     eval { $d->create_id };
     ok ! $@, "no overflow";
+};
+
+subtest 'enqueue timeout' => sub {
+    my $ctxt = STF::Context->bootstrap(config => "t/config.pl");
+    my $d    = STF::Dispatcher->new(
+        cache_expires => 300,
+        container => $ctxt->container,
+        context   => $ctxt,
+        host_id   => time()
+    );
+
+    $ctxt->container->register( 'API::Queue' => Plack::Util::inline_object(
+        enqueue => sub {
+            sleep 10;
+        }
+    ) );
+
+    my $buf;
+    open my $stderr, '>', \$buf;
+    eval {
+        local *STDERR = $stderr;
+        alarm(10);
+        local $SIG{ALRM} = sub { die "BAD TIMEOUT" };
+        $d->enqueue( replicate => 1 );
+    };
+    alarm(0);
+    ok !$@, "enqueue timed out 'silently'";
+    like $buf, qr/connect timeout/;
 };
 
 done_testing;
