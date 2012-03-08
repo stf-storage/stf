@@ -15,7 +15,6 @@ use Class::Accessor::Lite
         use_reverse_proxy
         storage_meta
         htdocs
-        fif
     ) ]
 ;
 
@@ -43,13 +42,6 @@ sub bootstrap {
     );
 
     return $app;
-}
-
-sub new {
-    my $class = shift;
-    my %args = (@_ == 1 && ref($_[0]) eq 'HASH' ? %{$_[0]} : @_);
-    $args{fif} = HTML::FillInForm::Lite->new;
-    bless { %args }, $class;
 }
 
 sub to_app {
@@ -129,18 +121,6 @@ sub dispatch {
     $controller->execute( $context, $action );
     if (! $context->finished) {
         $self->render( $context, $controller, $action );
-    }
-
-    my $req = $context->request;
-    my $res = $context->response;
-    if ($res->content_type && $res->content_type =~ m{^text/x?html$}i) {
-        if ( $req->method eq 'POST' ) {
-            my $body = $res->body;
-            $res->body( $self->fif->fill( \$body, $req ) );
-        } elsif ( my $fdat = $context->stash->{fdat} ) {
-            my $body = $res->body;
-            $res->body( $self->fif->fill( \$body, $fdat ) );
-        }
     }
 }
 
