@@ -407,7 +407,7 @@ sub repair {
         # Return the number of object fixed... which is nothing
         return 0;
     } else {
-        my $n = $need - $have;
+        my $n = (($max_num_replica > $need) ? $need : $max_num_replica) - $have;
 
         if (STF_DEBUG) {
             printf STDERR "[    Repair] Going to replicate %s %d times\n",
