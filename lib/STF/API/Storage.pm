@@ -122,6 +122,15 @@ EOSQL
         $sth->bind_columns( \($object_id ) );
         while ( $sth->fetchrow_arrayref ) {
             $processed++;
+
+            my $object = $self->get('API::Object')->lookup( $object_id );
+            if (! $object) {
+                printf STDERR "[   Storage] Object %s does not exist. Skipping\n",
+                    $object_id
+                ;
+                next;
+            }
+
             if ( STF_DEBUG ) {
                 printf STDERR "[   Storage] Sending object %s to repair queue\n",
                     $object_id,
