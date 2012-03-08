@@ -337,15 +337,32 @@ sub repair {
     }
 
     my $object = $self->lookup( $object_id );
+    my $entity_api = $self->get( 'API::Entity' );
     if (! $object) {
         if (STF_DEBUG) {
             print STDERR "[    Repair] No matching object $object_id\n";
+        }
+
+        my @entities = $entity_api->search( {
+            object_id => $object_id 
+        } );
+        if (@entities) {
+            if ( STF_DEBUG ) {
+                print STDERR "[    Repair] Removing orphaned entities in storages:\n";
+                foreach my $entity ( @entities ) {
+                    printf STDERR "[    Repair] + %s\n",
+                        $entity->{storage_id}
+                    ;
+                }
+            }
+            $entity_api->delete( {
+                object_id => $object_id
+            } );
         }
         return;
     }
 
     my $furl = $self->get('Furl');
-    my $entity_api = $self->get( 'API::Entity' );
     my @entities = $entity_api->search( { object_id => $object_id } );
     my ($intact, $broken) = $self->check_health( $object_id );
 
