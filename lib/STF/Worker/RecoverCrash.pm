@@ -2,6 +2,7 @@ package STF::Worker::RecoverCrash;
 use strict;
 use parent qw(STF::Worker::Base STF::Trait::WithContainer);
 use STF::Constants qw(:storage STF_DEBUG);
+use STF::Utils ();
 
 sub new {
     my $class = shift;
@@ -28,9 +29,11 @@ sub work_once {
             }
             $api->update( $storage_id, { mode => STORAGE_MODE_CRASH_RECOVER_NOW } );
             my $guard = Guard::guard {
-                eval {
-                    $api->update( $storage_id, { mode => STORAGE_MODE_CRASH } );
-                };
+                STF::Utils::timeout_call( 2, sub {
+                    eval {
+                        $api->update( $storage_id, { mode => STORAGE_MODE_CRASH } );
+                    };
+                } );
             };
 
             # Signals terminate the process, but don't allow us to fire the
