@@ -42,7 +42,11 @@ sub work {
 
     my $table = $self->queue_table( $impl );
     my $waitcond = $self->queue_waitcond( $impl );
-    my $queue_name = $self->queue_name || $ENV{STF_QUEUE_NAME} || 'DB::Queue';
+    my $queue_name =
+        $self->queue_name ||
+        $ENV{STF_WORKER_QUEUE_NAME} ||
+        'DB::Queue'
+    ;
     my $dbh = $self->get($queue_name) or
         Carp::confess( "Could not fetch $queue_name" );
 
