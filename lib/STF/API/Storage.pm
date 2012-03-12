@@ -124,12 +124,6 @@ EOSQL
             $processed++;
 
             my $object = $self->get('API::Object')->lookup( $object_id );
-            if (! $object) {
-                printf STDERR "[   Storage] Object %s does not exist. Skipping\n",
-                    $object_id
-                ;
-                next;
-            }
 
             if ( STF_DEBUG ) {
                 printf STDERR "[   Storage] Sending object %s to repair queue\n",
@@ -149,7 +143,7 @@ EOSQL
             #   NP: no propagate
             $queue_api->enqueue( repair_object => "NP:$object_id" );
         }
-        if ( $limit == $rv ) {
+        if ( $limit <= $processed ) {
             if ( STF_DEBUG ) {
                 printf STDERR "[   Storage] Sent %d objects, sleeping to give it some time...\n",
                     $limit
