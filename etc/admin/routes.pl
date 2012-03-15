@@ -57,6 +57,12 @@ router {
         controller => 'Bucket',
         action     => 'objects',
     };
+    foreach my $action ( qw(repair delete) ) {
+        connect "/ajax/object/:object_id/$action.json" => {
+            controller => 'Object',
+            action     => $action,
+        }, { method => "POST" };
+    }
 
     connect qr{^/object/([^/]+)/([\w\/%+._-]+)$} => {
         controller => 'Object',

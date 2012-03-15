@@ -1,6 +1,7 @@
 package STF::AdminWeb::Controller::Object;
 use strict;
 use parent qw(STF::AdminWeb::Controller);
+use JSON ();
 
 sub view_public_name {
     my ($self, $c) = @_;
@@ -53,5 +54,33 @@ sub view {
     $stash->{entities} = \@entities;
 }
 
+sub repair {
+    my ($self, $c) = @_;
+
+    my $object_id = $c->match->{object_id};
+    $c->get('API::Queue')->enqueue(repair_object => $object_id);
+
+    my $response = $c->response;
+    $response->code( 200 );
+    $response->content_type("application/json");
+    $c->finished(1);
+
+    $response->body(JSON::encode_json({ message => "object enqueued for repair" }));
+}
+
+sub delete {
+    my ($self, $c) = @_;
+    my $object_id = $c->match->{object_id};
+
+    $c->get('API::Object')->mark_for_delete( $object_id );
+    $c->get('API::Queue')->enqueue( delete_object => $object_id );
+
+    my $response = $c->response;
+    $response->code( 200 );
+    $response->content_type("application/json");
+    $c->finished(1);
+
+    $response->body(JSON::encode_json({ message => "object deleted" }));
+}
 
 1;

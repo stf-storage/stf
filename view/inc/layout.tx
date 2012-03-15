@@ -19,9 +19,9 @@
        }
     -->
     </style>
-    <link rel="stylesheet" href="[% c.uri_for('/static/css/bootstrap-responsive.css') %]" type="text/css" />
-    <script type="text/javascript" src="[% c.uri_for('/static/js/bootstrap.min.js') %]"></script>
+    <!-- link rel="stylesheet" href="[% c.uri_for('/static/css/bootstrap-responsive.css') %]" type="text/css" /-->
     <script type="text/javascript" src="[% c.uri_for('/static/js/jquery-1.7.1.min.js') %]"></script>
+    <script type="text/javascript" src="[% c.uri_for('/static/js/bootstrap.min.js') %]"></script>
 </head>
 <body>
 
