@@ -53,10 +53,12 @@ router {
         action     => 'view',
     };
 
-    connect '/ajax/num_objects/:bucket_id' => {
-        controller => 'Bucket',
-        action     => 'objects',
-    };
+    foreach my $action ( qw(delete num_objects) ) {
+        connect "/ajax/bucket/:bucket_id/$action.json" => {
+            controller => 'Bucket',
+            action     => $action,
+        }, { method => "POST" };
+    }
     foreach my $action ( qw(repair delete) ) {
         connect "/ajax/object/:object_id/$action.json" => {
             controller => 'Object',

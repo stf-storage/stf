@@ -12,8 +12,8 @@
   </tr>
   [% FOREACH bucket IN buckets %]
   <tr>
-    <td class="digit">[% bucket.id | html %]</td>
-    <td>[% bucket.name | html %]</td>
+    <td class="digit"><a href="/bucket/[% bucket.id %]">[% bucket.id %]</a></td>
+    <td>[% bucket.name %]</td>
     <td class="digit num-objects" id="num-objects-[% bucket.id %]"><a href="[% c.uri_for('/bucket', bucket.id) %]"><img src="[% c.uri_for('/static/images/ajax-loader.gif') %]" /></a></td>
   </tr>
   [% END %]
@@ -24,13 +24,21 @@
 
 <script type="text/javascript">
 <!--
-jQuery(document).ready(function() {
-    jQuery('.num-objects').each(function() {
-        var idStr = this.id.replace(/^num-objects-/, '');
-        var url = "[% c.uri_for('/ajax/num_objects/') %]" + idStr;
-        jQuery('#' + this.id + ' a').load( url );
+    $(document).ready(function() {
+        $('.num-objects').each(function() {
+            var idStr = this.id.replace(/^num-objects-/, '');
+            var url = '[% c.uri_for('/ajax/bucket/') %]' + idStr + '/num_objects.json';
+            var id = this.id;
+            $.ajax({
+                url: url,
+                type: "POST",
+                dataType: "json",
+                success: function(json) {
+                    $('#' + id + ' a').text( json.objects );
+                }
+            });
+        });
     });
-});
 //-->
 </script>
 

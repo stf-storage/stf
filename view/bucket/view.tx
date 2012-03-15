@@ -1,7 +1,71 @@
 [% WRAPPER 'layout.tx' %]
 
+<script type="text/javascript">
+<!--
+    $(document).ready( function() {
+        $("#stf-delete").click(function() {
+            $("div.main", "#delete-confirm div.modal-body").show();
+            $("div.processing", "#delete-confirm div.modal-body").hide();
+            $("div.error", "#delete-confirm div.modal-body").hide();
+            $("#delete-confirm").modal("show");
+            return false;
+        } );
+        $("a.btn-primary", "#delete-confirm").click(function() {
+            if ( ! confirm( "Are you sure you want to proceed DELETING this object?" ) ) {
+                $("#delete-confirm").modal("hide");
+                return false;
+            }
+
+            $("div.main", "#delete-confirm div.modal-body").hide();
+            $("div.processing", "#delete-confirm div.modal-body").show();
+            $.ajax({
+                url: "/ajax/bucket/[% bucket.id %]/delete.json",
+                type: "POST",
+                error: function(xhr, st, err) {
+                    $("div.processing", "#delete-confirm div.modal-body").hide();
+                    $("div.error", "#delete-confirm div.modal-body")
+                        .text("Failed to delete bucket " + err).show();
+                },
+                success: function() {
+                    $("#delete-confirm").modal("hide");
+                    setTimeout( function() {
+                        window.location.reload();
+                    }, 3000 );
+                }
+            });
+        } );
+    });
+-->
+</script>
 <div class="well">
     <h2>Bucket [% bucket.id %]</h2>
+
+    <button id="stf-delete" class="btn btn-danger btn-mini"><i class="icon-trash icon-white"></i> Delete</button>
+</div>
+
+<div class="modal fade" data-toggle="modal" id="delete-confirm">
+    <div class="modal-header">
+        <a class="close" data-dismiss="modal">x</a>
+        <h3>Delete bucket [% bucket.id %]</h3>
+    </div>
+    <div class="modal-body">
+        <div class="main">
+            <div class="alert alert-error">
+                <p>This will <em>DELETE</em> the bucket [% bucket.id %] <em>AND</em> all objects belonging to this bucket <em>PERMANENTLY</em></p>
+                <p>YOU CAN NOT UNDO THIS ACTION!</p>
+            </div>
+            <p>Are you sure you want to do this?</p>
+        </div>
+        <div class="processing" style="display: none">
+            <img src="/static/images/ajax-loader.gif"> Processing...
+        </div>
+        <div class="error" style="display: none">
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#" class="btn btn-danger" data-dismiss="modal">Cancel</a>
+        <a href="#" class="btn btn-primary">Delete</a>
+    </div>
 </div>
 
 <table class="table table-striped table-bordered table-condensed">
@@ -30,7 +94,7 @@
   </tr>
   [% FOREACH object IN objects %]
   <tr class="[% object.status == const.OBJECT_ACTIVE ? "active" : "inactive" %]">
-    <td class="text"><a href="[% c.stf_uri( bucket, object ) %]">[% object.name %]</a></td>
+    <td class="text"><a href="/object/[% object.id %]">[% object.name %]</a></td>
     <td class="digit">[% object.size | human_readable %]</td>
     <td>[% object.updated_at %]</td>
     <td class="digit"><a href="[% c.uri_for('/object', object.id) %]">[% object.entity_count %]/[% object.num_replica %]</a></td>

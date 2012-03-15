@@ -76,7 +76,7 @@
     <div class="modal-body">
         <div class="main">
             <div class="alert alert-error">
-                <p>This will <em>DELETE</em> object [% object.id %] <em>PERMANENTLY</em></p>
+                <p>This will <em>DELETE</em> the object [% object.id %] <em>PERMANENTLY</em></p>
                 <p>YOU CAN NOT UNDO THIS ACTION!</p>
             </div>
             <p>Are you sure you want to do this?</p>
@@ -129,6 +129,10 @@
 <tr>
     <td>Public URI</td>
     <td><a href="[% c.stf_uri( bucket, object) %]">[% c.stf_uri( bucket, object) %]</a></td>
+</tr>
+<tr>
+    <td>Bucket ID</td>
+    <td><a href="/bucket/[% bucket.id %]">[% bucket.id %]</a></td>
 </tr>
 <tr>
     <td>Replicas</td>

@@ -1,17 +1,35 @@
 package STF::AdminWeb::Controller::Bucket;
 use strict;
 use parent qw(STF::AdminWeb::Controller);
+use JSON ();
 
-sub objects {
+sub num_objects {
     my ($self, $c) = @_;
     my $num = $c->get('API::Object')->count({
         bucket_id => $c->match->{bucket_id},
     });
 
+print STDERR "$num\n";
+
     my $res = $c->response;
-    $res->content_type('text/plain');
-    $res->body( $num );
+    $res->content_type('application/json');
+    $res->body( JSON::encode_json( { objects => $num } ) );
     $c->finished(1);
+}
+
+sub delete {
+    my ($self, $c) = @_;
+    my $bucket_id = $c->match->{bucket_id};
+
+    $c->get('API::Bucket')->mark_for_delete( $bucket_id );
+    $c->get('API::Queue')->enqueue( delete_bucket => $bucket_id );
+
+    my $response = $c->response;
+    $response->code( 200 );
+    $response->content_type("application/json");
+    $c->finished(1);
+
+    $response->body(JSON::encode_json({ message => "bucket deleted" }));
 }
 
 sub list {
