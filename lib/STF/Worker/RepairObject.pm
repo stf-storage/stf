@@ -1,25 +1,24 @@
 package STF::Worker::RepairObject;
-use strict;
-use parent qw(STF::Worker::Base STF::Trait::WithDBI);
+use Mouse;
 use STF::Constants qw(STF_DEBUG);
-use Class::Accessor::Lite
-    rw => [ qw(
-        breadth
-    ) ]
-;
 
-sub new {
-    my $class = shift;
-    $class->SUPER::new(
-        # default for breadth: 3. i.e., if we actually repaired an object,
-        # it most likely means that other near-by neighbors are broken.
-        # so if we successfully repaired objects, find at most 6 neighbors
-        # in both increasing/decreasing order
-        breadth => 3,
-        loop_class => $ENV{ STF_QUEUE_TYPE } || 'Q4M',
-        @_
-    );
-}
+extends 'STF::Worker::Base';
+with 'STF::Trait::WithDBI';
+
+# default for breadth: 3. i.e., if we actually repaired an object,
+# it most likely means that other near-by neighbors are broken.
+# so if we successfully repaired objects, find at most 6 neighbors
+# in both increasing/decreasing order
+has breadth => (
+    is => 'rw',
+    default => 3
+);
+
+has '+loop_class' => (
+    default => sub {
+        $ENV{ STF_QUEUE_TYPE } || 'Q4M',
+    }
+);
 
 sub work_once {
     my ($self, $object_id) = @_;
@@ -40,7 +39,7 @@ sub work_once {
                 $n
             ;
         }
-        if ( $n <= 0 ) {
+        if ( !defined $n || $n <= 0 ) {
             return;
         }
 
@@ -81,5 +80,7 @@ sub work_once {
         Carp::confess("Failed to repair $object_id: $@");
     }
 }
+
+no Mouse;
 
 1;

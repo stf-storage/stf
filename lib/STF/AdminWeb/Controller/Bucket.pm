@@ -1,15 +1,14 @@
 package STF::AdminWeb::Controller::Bucket;
-use strict;
-use parent qw(STF::AdminWeb::Controller);
+use Mouse;
 use JSON ();
+
+extends 'STF::AdminWeb::Controller';
 
 sub num_objects {
     my ($self, $c) = @_;
     my $num = $c->get('API::Object')->count({
         bucket_id => $c->match->{bucket_id},
     });
-
-print STDERR "$num\n";
 
     my $res = $c->response;
     $res->content_type('application/json');
@@ -89,5 +88,6 @@ sub view {
     $stash->{pager} = $pager;
 }
 
+no Mouse;
 
 1;

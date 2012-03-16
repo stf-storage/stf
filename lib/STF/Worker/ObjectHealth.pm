@@ -6,17 +6,17 @@
 # worker, which in turn is triggered by API::Object's get method
 
 package STF::Worker::ObjectHealth;
-use strict;
-use parent qw(STF::Worker::Base STF::Trait::WithDBI);
+use Mouse;
 use STF::Constants qw(STF_DEBUG);
 
-sub new {
-    my $class = shift;
-    $class->SUPER::new(
-        loop_class => $ENV{ STF_QUEUE_TYPE } || 'Q4M',
-        @_
-    );
-}
+extends 'STF::Worker::Base';
+with 'STF::Trait::WithDBI';
+
+has '+loop_class' => (
+    default => sub {
+        $ENV{ STF_QUEUE_TYPE } || 'Q4M',
+    }
+);
 
 sub work_once {
     my ($self, $object_id) = @_;
@@ -43,5 +43,7 @@ sub work_once {
 
     $queue_api->enqueue( repair_object => $object_id );
 }
+
+no Mouse;
 
 1;

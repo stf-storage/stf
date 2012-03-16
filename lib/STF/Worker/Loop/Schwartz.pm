@@ -1,16 +1,12 @@
 package STF::Worker::Loop::Schwartz;
-use strict;
-use parent qw(
-    STF::Worker::Loop
-    STF::Trait::WithContainer
-);
+use Mouse;
 use Scalar::Util ();
 use STF::Constants qw(STF_DEBUG);
 use TheSchwartz;
 use Time::HiRes ();
-use Class::Accessor::Lite
-    rw => [ qw(interval) ]
-;
+
+extends 'STF::Worker::Loop';
+with 'STF::Trait::WithContainer';
 
 sub create_client {
     my ($self, $impl) = @_;
@@ -67,5 +63,7 @@ sub work {
         }
     }
 }
+
+no Mouse;
 
 1;

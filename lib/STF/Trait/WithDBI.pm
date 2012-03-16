@@ -1,6 +1,8 @@
 package STF::Trait::WithDBI;
-use strict;
-use parent qw(STF::Trait::WithContainer);
+use Mouse::Role;
+
+with 'STF::Trait::WithContainer';
+
 use DBI ();
 use Guard ();
 
@@ -33,5 +35,7 @@ sub txn_block {
         return @res ;
     };
 }
+
+no Mouse::Role;
 
 1;

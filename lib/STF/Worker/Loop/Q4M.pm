@@ -1,17 +1,17 @@
 package STF::Worker::Loop::Q4M;
-use strict;
-use parent qw(
-    STF::Worker::Loop
-    STF::Trait::WithDBI
-);
+use Mouse;
 use POSIX qw(:signal_h);
 use Guard ();
 use Scalar::Util ();
 use Time::HiRes ();
 use STF::Constants qw(STF_DEBUG);
-use Class::Accessor::Lite
-    rw => [ qw(interval queue_name) ]
-;
+
+extends 'STF::Worker::Loop';
+with 'STF::Trait::WithDBI';
+
+has queue_name => (
+    is => 'rw'
+);
 
 sub queue_table {
     my ($self, $impl) = @_;
@@ -120,5 +120,7 @@ EOSQL
         print STDERR "Process $$ exiting...\n";
     }
 }
+
+no Mouse;
 
 1;

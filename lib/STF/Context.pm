@@ -1,21 +1,34 @@
 package STF::Context;
-use strict;
-use parent qw(
-    STF::Trait::WithContainer
-);
+use Mouse;
 use Carp ();
 use Cwd ();
 use File::Basename ();
 use File::Spec;
 use STF::Container;
 use STF::Utils ();
-use Class::Accessor::Lite
-    new => 1,
-    rw => [ qw(
-        config
-        container
-    ) ]
-;
+
+with 'STF::Trait::WithContainer';
+
+has config => (
+    is => 'rw'
+);
+
+has container => (
+    is => 'rw'
+);
+
+has home => (
+    is => 'rw',
+    default => sub {
+        return
+            $ENV{STF_HOME} ||
+            $ENV{DEPLOY_HOME} ||
+            Cwd::cwd() ||
+            # XXX If you got here, then something is totally whacked.
+            die "Could not figure out where STF home is, even using Cwd::cwd()"
+        ;
+    }
+);
 
 sub bootstrap {
     my ($class, %args) = @_;
@@ -48,14 +61,6 @@ sub bootstrap {
     $self->load_config( $config_file );
     $self->load_container( $container_file );
     return $self;
-}
-
-sub home {
-    my $self = shift;
-    return $self->{home} || $ENV{STF_HOME} || $ENV{DEPLOY_HOME} || Cwd::cwd()
-        # XXX If you got here, then something is totally whacked.
-        || die "Could not figure out where STF home is, even using Cwd::cwd()"
-    ;
 }
 
 sub path_to {

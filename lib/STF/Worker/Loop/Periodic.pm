@@ -1,15 +1,12 @@
 package STF::Worker::Loop::Periodic;
-use strict;
-use parent qw( STF::Worker::Loop STF::Trait::WithContainer );
+use Mouse;
 
-sub new {
-    my ($class, %args) = @_;
-    my $self = $class->SUPER::new(
-        interval            => 60,
-        %args,
-    );
-    return $self;
-}
+extends 'STF::Worker::Loop';
+with 'STF::Trait::WithContainer';
+
+has '+interval' => (
+    default => 60 * 1_000_000
+);
 
 sub work {
     my ($self, $impl) = @_;
@@ -23,9 +20,11 @@ sub work {
         $impl->work_once();
 
         if ( $self->should_loop ) {
-            sleep $self->interval;
+            Time::HiRes::usleep($self->interval);
         }
     }
 }
+
+no Mouse;
 
 1;

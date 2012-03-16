@@ -1,15 +1,16 @@
 package STF::API::Entity;
-use strict;
+use Mouse;
 use Carp ();
 use Furl::HTTP;
 use Scalar::Util ();
 use STF::Constants qw(:entity :storage STF_DEBUG STF_TIMER STORAGE_MODE_READ_WRITE OBJECT_INACTIVE);
 use STF::Utils ();
-use parent qw( STF::API::WithDBI );
-use Class::Accessor::Lite
-    new => 1,
-    rw  => [ qw(max_num_replica) ],
-;
+
+with 'STF::API::WithDBI';
+
+has max_num_replica => (
+    is => 'rw',
+);
 
 sub search_with_url {
     my ($self, $where, $opts) = @_;
@@ -342,5 +343,7 @@ EOSQL
 
     return $ok_count;
 }
+
+no Mouse;
 
 1;

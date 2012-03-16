@@ -1,14 +1,12 @@
 package STF::Trait::WithContainer;
-use strict;
-use Class::Accessor::Lite
-    rw => [ qw(container) ]
-;
+use Mouse::Role;
 
-sub get {
-    my $self = shift;
+has container => (
+    is => 'ro',
+    required => 1,
+    handles => [ qw(get) ],
+);
 
-    $self->container or Carp::confess("no container");
-    $self->container->get(@_);
-}
+no Mouse::Role;
 
 1;

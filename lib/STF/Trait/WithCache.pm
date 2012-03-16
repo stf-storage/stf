@@ -1,12 +1,14 @@
 package STF::Trait::WithCache;
-use strict;
+use Mouse::Role;
+
+with 'STF::Trait::WithContainer';
 use STF::Constants qw(STF_CACHE_DEBUG);
-use parent qw(STF::Trait::WithContainer);
-use Class::Accessor::Lite
-    rw => [ qw(cache_expires) ]
-;
 
 our $DEFAULT_CACHE_EXPIRES = 5 * 60;
+has cache_expires => (
+    is => 'rw',
+    default => $DEFAULT_CACHE_EXPIRES
+);
 
 sub cache_key {
     my ($self, @keys) = @_;
@@ -42,5 +44,7 @@ sub cache_delete {
     }
     $self->get('Memcached')->delete( $key );
 }
+
+no Mouse::Role;
 
 1;

@@ -1,24 +1,21 @@
 package STF::Worker::Base;
-use strict;
+use Mouse;
 use STF::Constants qw(STF_DEBUG);
-use Class::Load ();
-use Class::Accessor::Lite
-    rw => [ qw( loop_class interval max_works_per_child ) ]
-;
 
-sub new {
-    my ($class, %args) = @_;
-    my $self = bless {
-        interval => 1_000_000,
-        max_works_per_child => 1_000,
-        %args
-    }, $class;
-    if (! $self->loop_class) {
-        $self->loop_class( 'Periodic' );
-    }
+has interval => (
+    is => 'rw',
+    default => 1_000_000
+);
 
-    return $self;
-}
+has loop_class => (
+    is => 'rw',
+    default => 'Periodic',
+);
+
+has max_works_per_child => (
+    is => 'rw',
+    default => 1_000
+);
 
 sub create_loop {
     my $self = shift;
@@ -27,8 +24,8 @@ sub create_loop {
     if ( $klass !~ s/^\+// ) {
         $klass = "STF::Worker::Loop::$klass";
     }
-    Class::Load::is_class_loaded($klass) or
-        Class::Load::load_class($klass);
+    Mouse::Util::is_class_loaded($klass) or
+        Mouse::Util::load_class($klass);
 
     my $loop = $klass->new(
         container => $self->container,
@@ -51,6 +48,8 @@ sub work {
 
     $loop->work( $self );
 }
+
+no Mouse;
 
 1;
 

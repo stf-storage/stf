@@ -1,15 +1,17 @@
 package STF::API::StorageMeta;
-use strict;
-use parent qw( STF::API::WithDBI );
-use Class::Accessor::Lite new => 1;
+use Mouse;
+
+with qw( STF::API::WithDBI );
 
 sub update_for {
     my ($self, $storage_id, $args) = @_;
-    $self->SUPER::create(
+    $self->create(
         { %$args, storage_id => $storage_id },
         { prefix => "REPLACE INTO" }
     );
 }
+
+no Mouse;
 
 1;
 

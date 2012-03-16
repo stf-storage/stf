@@ -1,6 +1,5 @@
 package STF::API::Object;
-use strict;
-use parent qw(STF::API::WithDBI);
+use Mouse;
 use Digest::MurmurHash ();
 use HTTP::Status ();
 use STF::Constants qw(
@@ -12,10 +11,20 @@ use STF::Constants qw(
     STORAGE_MODE_READ_WRITE
 );
 use STF::Dispatcher::PSGI::HTTPException;
-use Class::Accessor::Lite
-    new => 1,
-    rw => [ qw(furl urandom max_num_replica) ]
-;
+
+with 'STF::API::WithDBI';
+
+has urandom => (
+    is => 'rw',
+    lazy => 1,
+    builder => sub {
+        String::Urandom->new( LENGTH => 30, CHARS => [ 'a' .. 'z' ] );
+    }
+);
+
+has max_num_replica => (
+    is => 'rw',
+);
 
 sub lookup_meta {
     if ( STF_ENABLE_OBJECT_META ) {
@@ -424,7 +433,12 @@ sub repair {
         # Return the number of object fixed... which is nothing
         return 0;
     } else {
-        my $n = (($max_num_replica > $need) ? $need : $max_num_replica) - $have;
+        my $n;
+        if ( defined $max_num_replica ) {
+            $n = (($max_num_replica > $need) ? $need : $max_num_replica) - $have;
+        } else {
+            $n = $need - $have;
+        }
 
         if (STF_DEBUG) {
             printf STDERR "[    Repair] Going to replicate %s %d times\n",
@@ -711,5 +725,6 @@ sub rename {
     } );
 }
 
+no Mouse;
 
 1;

@@ -42,7 +42,6 @@ WriteMakefile(
         'DBIx::Connector' => 0,
 
         'Cache::Memcached::Fast' => 0,
-        'Class::Accessor::Lite' => 0,
         'Class::Load' => 0,
         'Data::Page' => 0,
         'Data::FormValidator' => 0,
@@ -54,6 +53,7 @@ WriteMakefile(
         'HTML::FillInForm::Lite' => 0,
         'HTTP::Parser::XS' => 0,
         'IPC::SysV' => 0,
+        'Mouse' => 0,
         'Plack' => '0.9981',
         'Plack::Middleware::ReverseProxy' => 0,
         'Plack::Middleware::Static' => 0,

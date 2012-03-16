@@ -1,19 +1,20 @@
 package STF::Worker::Loop;
-use strict;
-use Class::Accessor::Lite
-    rw => [ qw(interval processed max_works_per_child) ]
-;
+use Mouse;
 
-sub new {
-    my ($class, %args) = @_;
-    my $self = bless {
-        interval => 1_000_000,
-        max_works_per_child => 1_000,
-        %args,
-        processed => 0,
-    }, $class;
-    return $self;
-}
+has interval => (
+    is => 'rw',
+    default => 1_000_000
+);
+
+has processed => (
+    is => 'rw',
+    default => 0,
+);
+
+has max_works_per_child => (
+    is => 'rw',
+    default => 1_000
+);
 
 sub incr_processed {
     my $self = shift;
@@ -26,5 +27,7 @@ sub should_loop {
 }
 
 sub work {}
+
+no Mouse;
 
 1;

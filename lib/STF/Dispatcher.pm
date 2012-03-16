@@ -1,7 +1,6 @@
 package STF::Dispatcher;
-use strict;
 use feature 'state';
-use parent qw( STF::Trait::WithDBI );
+use Mouse;
 use File::Basename ();
 use File::Temp ();
 use Guard ();
@@ -24,21 +23,58 @@ use STF::Constants qw(
 use STF::Context;
 use STF::Dispatcher::PSGI::HTTPException;
 use Time::HiRes ();
-use Class::Accessor::Lite
-    rw => [ qw(
-        cache
-        cache_expires
-        context
-        connect_info
-        host_id
-        health_check_probability
-        min_consistency
-        mutex
-        shared_mem
-        shm_name
-        sem_name
-    ) ]
-;
+
+# XXX Don't need this?
+with 'STF::Trait::WithDBI';
+
+has context => (
+    is => 'ro',
+    required => 1,
+);
+
+has health_check_probability => (
+    is => 'ro',
+    default => 0.001,
+);
+
+has host_id => (
+    is => 'ro',
+    isa => 'Int',
+    required => 1,
+    default => sub { $ENV{STF_HOST_ID} },
+);
+
+has min_consistency => (
+    is => 'ro',
+);
+
+has mutex => (
+    is => 'rw',
+);
+
+has parent => (
+    is => 'ro',
+    required => 1,
+    default => $$,
+);
+
+has shared_mem => (
+    is => 'rw',
+);
+
+has sem_name => (
+    is => 'ro',
+    required => 1,
+    default => sub { File::Temp->new(UNLINK => 1) }
+);
+
+has shm_name => (
+    is => 'ro',
+    required => 1,
+    default => sub { File::Temp->new(UNLINK => 1) }
+);
+
+
 
 BEGIN {
     if (! HAVE_64BITINT) {
@@ -60,7 +96,6 @@ sub bootstrap {
     my $config = $context->config;
 
     $class->new(
-        cache_expires => 300,
         %{$config->{'Dispatcher'}},
         container => $context->container,
         context   => $context,
@@ -95,24 +130,12 @@ END {
     undef @RESOURCE_DESTRUCTION_GUARDS;
 }
 
-sub new {
-    my ($class, %args) = @_;
+sub BUILD {
+    my $self = shift;
 
-    my $self = bless {
-        sem_name => File::Temp->new(UNLINK => 1),
-        shm_name => File::Temp->new(UNLINK => 1),
-        health_check_probability => 0.001,
-        %args,
-        parent   => $$,
-    }, $class;
-
-    if (! $self->{host_id} ) {
-        Carp::croak("No host_id specified!");
-    }
-
-    my $semkey = IPC::SysV::ftok( $self->{sem_name}->filename );
+    my $semkey = IPC::SysV::ftok( $self->sem_name->filename );
     my $mutex  = IPC::Semaphore->new( $semkey, 1, S_IRUSR | S_IWUSR | IPC_CREAT );
-    my $shmkey = IPC::SysV::ftok( $self->{shm_name}->filename );
+    my $shmkey = IPC::SysV::ftok( $self->shm_name->filename );
     my $shm    = IPC::SharedMem->new( $shmkey, 24, S_IRWXU | IPC_CREAT );
     if (! $shm) {
         die "PANIC: Could not open shared memory: $!";
@@ -120,8 +143,9 @@ sub new {
     $mutex->setall(1);
     $shm->write( _pack_head( 0, 0 ), 0, 24 );
 
-    $self->{mutex} = $mutex;
-    $self->{shared_mem} = $shm;
+    $self->parent;
+    $self->mutex( $mutex );
+    $self->shared_mem( $shm );
 
     # XXX WHAT ON EARTH ARE YOU DOING HERE?
     #
@@ -148,14 +172,14 @@ sub new {
     $self;
 }
 
-sub DESTROY {
+sub DEMOLISH {
     my $self = shift;
     $self->cleanup;
 }
 
 sub cleanup {
     my $self = shift;
-    if ( $self->{parent} != $$ ) {
+    if ( $self->parent != $$ ) {
         if ( STF_DEBUG ) {
             print STDERR "[Dispatcher] Cleanup skipped (PID $$ != $self->{parent})\n";
         }

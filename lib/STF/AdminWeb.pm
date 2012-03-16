@@ -1,22 +1,38 @@
 package STF::AdminWeb;
-use strict;
-use Class::Load ();
+use Mouse;
 use HTML::FillInForm::Lite;
 use STF::Constants;
 use STF::Context;
 use STF::AdminWeb::Context;
-use Class::Accessor::Lite
-    new => 1,
-    rw => [ qw(
-        context
-        router
-        stf_base
-        default_view_class
-        use_reverse_proxy
-        storage_meta
-        htdocs
-    ) ]
-;
+
+has context => (
+    is => 'rw',
+    required => 1,
+);
+
+has router => (
+    is => 'rw',
+    required => 1,
+);
+
+has stf_base => (
+    is => 'rw'
+);
+
+has default_view_class => (
+    is => 'rw',
+    default => 'Xslate',
+);
+
+has use_reverse_proxy => (
+    is => 'rw',
+    default => 0,
+);
+
+has htdocs => (
+    is => 'rw',
+    required => 1,
+);
 
 sub bootstrap {
     my $class = shift;
@@ -141,8 +157,8 @@ sub get_component {
         return $component;
     }
 
-    Class::Load::load_class($klass) unless
-        Class::Load::is_class_loaded($klass);
+    Mouse::Util::load_class($klass) unless
+        Mouse::Util::is_class_loaded($klass);
 
     my $key = $klass;
     $key =~ s/^STF:://;
@@ -181,5 +197,7 @@ sub render {
     $stash->{stf_base} = $self->stf_base;
     $view->process( $context, $template );
 }
+
+no Mouse;
 
 1;

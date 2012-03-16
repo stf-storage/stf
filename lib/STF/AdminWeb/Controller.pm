@@ -1,21 +1,21 @@
 package STF::AdminWeb::Controller;
-use strict;
-use Class::Accessor::Lite
-    new => 1,
-    rw => [ qw(
-        view_class
-    ) ]
-;
+use Mouse;
 
-sub namespace {
-    my $self = shift;
-    $self->{namespace} ||= do {
+has view_class => (
+    is => 'rw'
+);
+
+has namespace => (
+    is => 'rw',
+    lazy => 1,
+    default => sub {
+        my $self = shift;
         my $pkg = Scalar::Util::blessed($self);
         $pkg =~ s/^STF::AdminWeb::Controller:://;
         $pkg =~ s/::/\//g;
         lc $pkg;
-    };
-}
+    },
+);
 
 sub execute {
     my ($self, $c, $action) = @_;
@@ -33,5 +33,7 @@ sub validate {
     $c->stash->{result} = $result;
     return $result;
 }
+
+no Mouse;
 
 1;

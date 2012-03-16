@@ -1,15 +1,8 @@
 package STF::Worker::RetireStorage;
-use strict;
-use parent qw(STF::Worker::Base STF::Trait::WithContainer);
+use Mouse;
 
-sub new {
-    my $class = shift;
-    $class->SUPER::new(
-        interval => 5 * 60,
-        @_,
-        loop_class => "Periodic"
-    );
-}
+extends 'STF::Worker::Base';
+with 'STF::Trait::WithContainer';
 
 sub work_once {
     my $self = shift;
@@ -21,5 +14,7 @@ sub work_once {
         Carp::confess("Failed to retire storage: $@");
     }
 }
+
+no Mouse;
 
 1;

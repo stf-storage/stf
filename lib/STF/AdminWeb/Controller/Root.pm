@@ -1,9 +1,10 @@
 package STF::AdminWeb::Controller::Root;
-use strict;
-use parent qw(STF::AdminWeb::Controller);
+use Mouse;
 
-sub index {
+extends 'STF::AdminWeb::Controller';
 
-}
+sub index {}
+
+no Mouse;
 
 1;

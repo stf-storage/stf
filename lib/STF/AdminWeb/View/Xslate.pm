@@ -1,19 +1,28 @@
 package STF::AdminWeb::View::Xslate;
-use strict;
+use Mouse;
+
 use Encode ();
 use Text::Xslate;
 use HTML::FillInForm::Lite;
-use Class::Accessor::Lite
-    rw => [ qw(
-        fif
-        suffix
-        xslate
-    ) ]
-;
 
-sub new {
+has fif => (
+    is => 'rw',
+    default => sub {
+        HTML::FillInForm::Lite->new;
+    }
+);
+
+has suffix => (
+    is => 'rw',
+);
+
+has xslate => (
+    is => 'rw', 
+    required => 1,
+);
+
+sub BUILDARGS {
     my ($class, %args) = @_;
-    my $app = delete $args{app};
 
     my $function = $args{function} ||= {};
     $function->{nl2br} = Text::Xslate::html_builder(sub {
@@ -22,11 +31,16 @@ sub new {
         return $text;
     });
 
-    bless {
-        fif    => HTML::FillInForm::Lite->new,
-        suffix => delete $args{suffix},
-        xslate => Text::Xslate->new(%args),
-    }, $class;
+    my %parsed;
+    if (my $fif = delete $args{fif}) {
+        $parsed{fif} = $fif;
+    }
+    if (my $suffix = delete $args{suffix}) {
+        $parsed{suffix} = $suffix;
+    }
+    $parsed{xslate} = Text::Xslate->new(%args);
+
+    return \%parsed;
 }
 
 sub process {
@@ -58,5 +72,7 @@ sub render {
 
     $self->xslate->render( $template, $vars );
 }
+
+no Mouse;
 
 1;

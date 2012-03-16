@@ -1,30 +1,31 @@
 package STF::Container;
-use strict;
-use Guard;
-use Class::Accessor::Lite
-    rw => [ qw(
-        objects
-        registry
-        scoped_objects
-        scoped_registry
-    ) ]
-;
+use Mouse;
+use Guard ();
 
-sub new {
-    my ($class, %args) = @_;
-    bless {
-        objects => {},
-        registry => {},
-        scoped_registry => {},
-        scoped_objects  => {},
-        %args
-    }, $class;
-}
+has objects => (
+    is => 'ro',
+    default => sub { +{} }
+);
+
+has registry => (
+    is => 'ro',
+    default => sub { +{} },
+);
+
+has scoped_objects => (
+    is => 'rw',
+    default => sub { +{} },
+);
+
+has scoped_registry => (
+    is => 'rw',
+    default => sub { +{} },
+);
 
 sub new_scope {
     my ($self, $initialize) = @_;
     $self->scoped_objects({}) if $initialize;
-    return guard { $self->scoped_objects({}) };
+    return Guard::guard( sub { $self->scoped_objects({}) } );
 }
 
 sub get {
@@ -74,5 +75,7 @@ sub register {
         $self->objects->{$key} = $thing;
     }
 }
+
+no Mouse;
 
 1;

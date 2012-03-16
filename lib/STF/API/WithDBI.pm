@@ -1,32 +1,36 @@
 package STF::API::WithDBI;
-use strict;
-use parent qw(
-    STF::Trait::WithCache
-    STF::Trait::WithDBI
-);
+use Mouse::Role;
 use Scalar::Util ();
 use SQL::Maker;
 
-sub sql_maker {
+with qw(
+    STF::Trait::WithCache
+    STF::Trait::WithDBI
+);
+
+has sql_maker => (
+    is => 'rw',
+    lazy => 1,
+    builder => 'build_sql_maker'
+);
+
+has table => (
+    is => 'rw',
+    lazy => 1,
+    builder => 'build_table'
+);
+
+sub build_sql_maker {
     my $self = shift;
-    my $sql_maker = $self->{sql_maker};
-    if ( ! $sql_maker ) {
-        $sql_maker = SQL::Maker->new( driver => $self->dbh->{Driver}->{Name} );
-        $self->{sql_maker} = $sql_maker;
-    }
-    return $sql_maker;
+    return SQL::Maker->new( driver => $self->dbh->{Driver}->{Name} );
 }
 
-sub table {
+sub build_table {
     my $self = shift;
-    my $table = $self->{table};
-    if (! $table) {
-        $table = (split /::/, Scalar::Util::blessed $self)[-1];
-        $table =~ s/([a-z0-9])([A-Z])/$1_$2/g;
-        $table = lc $table;
-        $self->{table} = $table;
-    }
-    return $table;
+    my $table = (split /::/, Scalar::Util::blessed $self)[-1];
+    $table =~ s/([a-z0-9])([A-Z])/$1_$2/g;
+    return lc $table;
+    
 }
 
 sub lookup {
@@ -98,5 +102,7 @@ sub count {
     );
     return $count;
 }
+
+no Mouse::Role;
 
 1;

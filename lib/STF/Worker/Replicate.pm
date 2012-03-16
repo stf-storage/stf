@@ -1,11 +1,14 @@
 package STF::Worker::Replicate;
-use strict;
-use parent qw(STF::Worker::Base STF::Trait::WithDBI);
+use Mouse;
 
-sub new {
-    my $class = shift;
-    $class->SUPER::new(loop_class => $ENV{ STF_QUEUE_TYPE } || 'Q4M', @_);
-}
+extends 'STF::Worker::Base';
+with 'STF::Trait::WithDBI';
+
+has '+loop_class' => (
+    default => sub {
+        $ENV{ STF_QUEUE_TYPE } || 'Q4M',
+    }
+);
 
 sub work_once {
     my ($self, $object_id) = @_;
@@ -19,5 +22,7 @@ sub work_once {
         Carp::confess( "Failed to replicate object ID: $object_id: $@" );
     }
 }
+
+no Mouse;
 
 1;

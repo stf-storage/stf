@@ -1,31 +1,35 @@
 package STF::API::Queue::Q4M;
-use strict;
-use parent qw(STF::Trait::WithDBI);
+use Mouse;
 use Digest::MurmurHash ();
 use STF::Constants qw(:func STF_DEBUG);
-use Class::Accessor::Lite
-    new => 1,
-    rw => [ qw(
-        funcmap
-        queue_names
-    ) ]
-;
+
+with 'STF::Trait::WithDBI';
+
+has funcmap => (
+    is => 'rw',
+    lazy => 1,
+    builder => 'build_funcmap'
+);
+
+has queue_names => (
+    is => 'rw',
+    required => 1,
+);
+
+sub build_funcmap {
+    return {
+        replicate     => Q4M_FUNC_REPLICATE,
+        delete_object => Q4M_FUNC_DELETE_OBJECT,
+        delete_bucket => Q4M_FUNC_DELETE_BUCKET,
+        repair_object => Q4M_FUNC_REPAIR_OBJECT,
+        object_health => Q4M_FUNC_OBJECT_HEALTH,
+    }
+}
 
 sub get_func_id {
     my ($self, $func) = @_;
 
-    my $funcmap = $self->funcmap;
-    if (! $funcmap) {
-        $self->funcmap( $funcmap = {
-            replicate     => Q4M_FUNC_REPLICATE,
-            delete_object => Q4M_FUNC_DELETE_OBJECT,
-            delete_bucket => Q4M_FUNC_DELETE_BUCKET,
-            repair_object => Q4M_FUNC_REPAIR_OBJECT,
-            object_health => Q4M_FUNC_OBJECT_HEALTH,
-        } );
-    }
-
-    $funcmap->{$func};
+    $self->funcmap->{$func};
 }
 
 sub size {
@@ -94,5 +98,7 @@ EOSQL
 
     return ();
 }
+
+no Mouse;
 
 1;

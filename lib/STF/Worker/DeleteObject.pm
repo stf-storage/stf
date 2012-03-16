@@ -1,12 +1,14 @@
 package STF::Worker::DeleteObject;
-use strict;
-use parent qw(STF::Worker::Base STF::Trait::WithDBI);
+use Mouse;
 use STF::Constants qw(STF_DEBUG);
 
-sub new {
-    my $class = shift;
-    $class->SUPER::new(loop_class => $ENV{ STF_QUEUE_TYPE } || 'Q4M', @_);
-}
+extends 'STF::Worker::Base';
+with 'STF::Trait::WithDBI';
+
+has loop_class => (
+    is => 'ro',
+    default => sub {  $ENV{ STF_QUEUE_TYPE } || 'Q4M' }
+);
 
 sub work_once {
     my ($self, $object_id) = @_;
@@ -21,5 +23,7 @@ sub work_once {
         print "Failed to delete $object_id: $@\n";
     }
 }
+
+no Mouse;
 
 1;

@@ -19,7 +19,9 @@ subtest 'create ID' => sub {
     is time(), sleep 1 && time(), "sanity check";
 
     note "now time() is " . time();
-    my $d = STF::Dispatcher->new( host_id => time() );
+
+    local $ENV{STF_HOST_ID} = time();
+    my $d = STF::Dispatcher->bootstrap(config => "t/config.pl");
 
     my @ids = map { $d->create_id } 1..10;
 

@@ -1,18 +1,16 @@
 package STF::API::Storage;
-use strict;
-use parent qw( STF::API::WithDBI );
+use Mouse;
 use Guard ();
 use STF::Constants qw(:storage STF_DEBUG STF_ENABLE_STORAGE_META);
-use Class::Accessor::Lite
-    new => 1,
-;
+
+with 'STF::API::WithDBI';
 
 my @META_KEYS = qw(used capacity notes);
 
 # XXX These queries to load meta info should, and can be optimized
-sub search {
-    my ($self, @args) = @_;
-    my $list = $self->SUPER::search(@args);
+around search => sub {
+    my ($next, $self, @args) = @_;
+    my $list = $self->$next(@args);
     if ( STF_ENABLE_STORAGE_META ) {
         my $meta_api = $self->get('API::StorageMeta');
         foreach my $object ( @$list ) {
@@ -21,11 +19,11 @@ sub search {
         }
     }
     return wantarray ? @$list : $list;
-}
+};
 
-sub lookup {
-    my ($self, $id) = @_;
-    my $object = $self->SUPER::lookup($id);
+around lookup => sub {
+    my ($next, $self, $id) = @_;
+    my $object = $self->$next($id);
     if ( STF_ENABLE_STORAGE_META ) {
         my ($meta) = $self->get('API::StorageMeta')->search({
             storage_id => $object->{id}
@@ -33,10 +31,10 @@ sub lookup {
         $object->{meta} = $meta;
     }
     return $object;
-}
+};
 
-sub create {
-    my ($self, $args) = @_;
+around create => sub {
+    my ($next, $self, $args) = @_;
 
     my %meta_args;
     if ( STF_ENABLE_STORAGE_META ) {
@@ -47,7 +45,7 @@ sub create {
         }
     }
 
-    my $rv = $self->SUPER::create($args);
+    my $rv = $self->$next($args);
 
     if ( STF_ENABLE_STORAGE_META ) {
         $self->get('API::StorageMeta')->create({
@@ -56,7 +54,7 @@ sub create {
         });
     }
     return $rv;
-}
+};
 
 sub update_meta {
     if ( STF_ENABLE_STORAGE_META ) {
@@ -201,5 +199,7 @@ sub find_and_retire {
             scalar @storages;
     }
 }
+
+no Mouse;
 
 1;

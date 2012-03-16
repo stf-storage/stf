@@ -1,5 +1,5 @@
 package STF::AdminWeb::Context;
-use strict;
+use Mouse;
 use Data::Page;
 use URI;
 use URI::Escape;
@@ -9,34 +9,41 @@ use URI::_server;
 use URI::_generic;
 use URI::_query;
 use Plack::Request;
-use Class::Accessor::Lite
-    rw => [ qw(
-        container
-        finished
-        match
-        request
-        stash
-    ) ]
-;
 
-sub new {
+with 'STF::Trait::WithContainer';
+
+has finished => (
+    is => 'rw',
+    default => 0,
+);
+
+has stash => (
+    is => 'rw',
+    default => sub { +{} }
+);
+
+has match => (
+    is => 'rw',
+);
+
+has request => (
+    is => 'rw',
+    required => 1,
+);
+
+has response => (
+    is => 'rw',
+    lazy => 1,
+    default => sub { $_[0]->request->new_response(200) },
+);
+
+sub BUILDARGS {
     my ($class, %args) = @_;
-    bless {
-        %args,
-        request => Plack::Request->new( delete $args{env} ),
-        stash => {},
-        finished => 0,
-    }, $class;
-}
 
-sub get {
-    my ($self, $name) = @_;
-    $self->container->get($name);
-}
-
-sub response {
-    my $self = shift;
-    $self->{response} ||= $self->request->new_response(200);
+    if (my $env = delete $args{env}) {
+        $args{request} = Plack::Request->new( $env );
+    }
+    return \%args;
 }
 
 sub redirect {

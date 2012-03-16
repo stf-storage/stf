@@ -1,23 +1,96 @@
 package STF::Worker::Drone;
-use strict;
-use Class::Load ();
+use Mouse;
+
 use File::Spec;
-use File::Temp qw(tempdir);
+use File::Temp ();
 use Getopt::Long ();
 use Parallel::Prefork;
 use Parallel::Scoreboard;
 use STF::Context;
-use Class::Accessor::Lite
-    rw => [ qw(
-        context
-        pid_file
-        process_manager
-        scoreboard
-        scoreboard_dir
-        spawn_interval
-        workers
-    ) ]
-;
+
+has context => (
+    is => 'rw',
+    required => 1,
+);
+
+has pid_file => (
+    is => 'rw',
+);
+
+has process_manager => (
+    is => 'rw',
+    required => 1,
+    lazy => 1,
+    builder => sub {
+        my $self = shift;
+        Parallel::Prefork->new({
+            max_workers     => $self->max_workers,
+            spawn_interval  => $self->spawn_interval,
+            trap_signals    => {
+                map { ($_ => 'TERM') } qw(TERM INT HUP)
+            }
+        });
+    }
+);
+    
+has scoreboard_dir => (
+    is => 'rw',
+    lazy => 1,
+    default => sub {
+        my $sbdir = File::Temp::tempdir( CLEANUP => 1 );
+        if (! -e $sbdir ) {
+            if (! File::Path::make_path( $sbdir ) || ! -d $sbdir ) {
+                Carp::confess("Failed to create score board dir $sbdir: $!");
+            }
+        }
+        return $sbdir;
+    }
+);
+
+has scoreboard => (
+    is => 'rw',
+    lazy => 1,
+    default => sub {
+        my $self = shift;
+        return Parallel::Scoreboard->new(
+            base_dir => $self->scoreboard_dir(),
+        );
+    }
+);
+
+has spawn_interval => (
+    is => 'rw',
+    default => 1
+);
+
+has workers => (
+    is => 'rw',
+    default => sub {
+        my %workers = (
+            Replicate     => 8,
+            DeleteBucket  => 4,
+            DeleteObject  => 4,
+            ObjectHealth  => 1,
+            RepairObject  => 1,
+            RecoverCrash  => 1,
+            RetireStorage => 1,
+        );
+        return \%workers,
+    },
+    trigger => sub {
+        my ($self, $new_hash) = @_;
+        my %alias = (
+            Usage => 'UpdateUsage',
+            Retire => 'RetireStorage',
+            Crash => 'RecoverCrash',
+        );
+        while ( my ($k, $v) = each %alias ) {
+            if (exists $new_hash->{$k}) {
+                $new_hash->{$v} = delete $new_hash->{$k};
+            }
+        }
+    }
+);
 
 sub bootstrap {
     my $class = shift;
@@ -33,7 +106,6 @@ sub bootstrap {
     my $context = STF::Context->bootstrap;
     $class->new(
         context => $context,
-        interval => 5,
         %{ $context->get('config')->{ 'Worker::Drone' } },
     );
 }
@@ -95,53 +167,22 @@ sub cleanup {
     }
 }
 
-sub prepare {
-    my $self = shift;
-
-    if (! $self->scoreboard ) {
-        my $sbdir = $self->scoreboard_dir  || tempdir( CLEANUP => 1 );
-        if (! -e $sbdir ) {
-            if (! File::Path::make_path( $sbdir ) || ! -d $sbdir ) {
-                Carp::confess("Failed to create score board dir $sbdir: $!");
-            }
-        }
-
-        $self->scoreboard(
-            Parallel::Scoreboard->new(
-                base_dir => $sbdir
-            )
-        );
-    }
-
-    if (! $self->process_manager) {
-        my $pp = Parallel::Prefork->new({
-            max_workers     => $self->max_workers,
-            spawn_interval  => $self->spawn_interval,
-            trap_signals    => {
-                map { ($_ => 'TERM') } qw(TERM INT HUP)
-            }
-        });
-        $self->process_manager( $pp );
-    }
-
-    if ( my $pid_file = $self->pid_file ) {
-        open my $fh, '>', $pid_file or
-            "Could not open PID file $pid_file for writing: $!";
-        print $fh $$;
-        close $fh;
-    }
-}
-
 sub run {
     my $self = shift;
 
-    $self->prepare;
+    if ( my $pid_file = $self->pid_file ) {
+        open my $fh, '>', $pid_file or
+            die "Could not open PID file $pid_file for writing: $!";
+        print $fh $$;
+        close $fh;
+    }
 
+    my $scoreboard = $self->scoreboard; # load to initialize;
     my $pp = $self->process_manager();
     while ( $pp->signal_received !~ /^(?:TERM|INT)$/ ) {
         $pp->start and next;
         eval {
-            $self->start_worker( $self->get_worker );
+            $self->start_worker( $self->get_worker() );
         };
         if ($@) {
             warn "Failed to start worker ($$): $@";
@@ -161,8 +202,8 @@ sub start_worker {
         $klass = "STF::Worker::$klass";
     }
 
-    Class::Load::load_class($klass)
-        if ! Class::Load::is_class_loaded($klass);
+    Mouse::Util::load_class($klass)
+        if ! Mouse::Util::is_class_loaded($klass);
 
     print STDERR "Spawning $klass ($$)\n";
 
@@ -191,7 +232,8 @@ sub get_worker {
 
     my $workers = $self->workers;
     for my $worker( keys %$workers ) {
-        if ( $running{$worker} < $workers->{$worker} ) {
+        my $n = $running{$worker} || 0;
+        if ( $n < $workers->{$worker} ) {
             $scoreboard->update( $worker );
             return $worker;
         }
@@ -199,5 +241,7 @@ sub get_worker {
 
     die "Could not find a suitable worker!";
 }
+
+no Mouse;
 
 1;

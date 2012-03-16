@@ -1,4 +1,5 @@
 use strict;
+use Carp::Always;
 use Cwd ();
 use Digest::MD5 qw(md5_hex);
 use Test::More;

@@ -1,7 +1,8 @@
 package STF::AdminWeb::Controller::Object;
-use strict;
-use parent qw(STF::AdminWeb::Controller);
+use Mouse;
 use JSON ();
+
+exrtends 'STF::AdminWeb::Controller';
 
 sub view_public_name {
     my ($self, $c) = @_;
@@ -82,5 +83,7 @@ sub delete {
 
     $response->body(JSON::encode_json({ message => "object deleted" }));
 }
+
+no Mouse;
 
 1;

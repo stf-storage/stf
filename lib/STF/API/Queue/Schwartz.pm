@@ -1,25 +1,30 @@
 package STF::API::Queue::Schwartz;
-use strict;
-use parent qw(STF::Trait::WithDBI);
+use Mouse;
 use STF::Constants qw(STF_DEBUG);
 use TheSchwartz;
-use Class::Accessor::Lite new => 1;
+
+with qw(STF::Trait::WithDBI);
+
+has ability_map => (
+    is => 'rw',
+    lazy => 1,
+    builder => 'build_ability_map',
+);
+
+sub build_ability_map {
+    return {
+        replicate     => "STF::Worker::Replicate::Proxy",
+        delete_object => "STF::Worker::DeleteObject::Proxy",
+        delete_bucket => "STF::Worker::DeleteBucket::Proxy",
+        repair_object => "STF::Worker::RepairObject::Proxy",
+        object_health => "STF::Worker::ObjectHealth::Proxy",
+    };
+}
 
 sub get_ability {
     my ($self, $func) = @_;
 
-    my $map = $self->{abilities};
-    if (! $map ) {
-        # XXX need to specify the proxy names
-        $self->{abilities} = $map = {
-            replicate     => "STF::Worker::Replicate::Proxy",
-            delete_object => "STF::Worker::DeleteObject::Proxy",
-            delete_bucket => "STF::Worker::DeleteBucket::Proxy",
-            repair_object => "STF::Worker::RepairObject::Proxy",
-            object_health => "STF::Worker::ObjectHealth::Proxy",
-        };
-    }
-    $map->{ $func };
+    $self->ability_map->{$func};
 }
 
 sub get_client {
@@ -54,6 +59,8 @@ sub enqueue {
     }
     $client->insert( $ability, $object_id );
 }
+
+no Mouse;
 
 1;
 

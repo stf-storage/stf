@@ -1,8 +1,8 @@
 package STF::API::Bucket;
-use strict;
-use parent qw( STF::API::WithDBI );
-use Class::Accessor::Lite new => 1;
+use Mouse;
 use STF::Constants qw(STF_DEBUG);
+
+with 'STF::API::WithDBI';
 
 sub lookup_by_name {
     my ($self, $bucket_name) = @_;
@@ -117,5 +117,6 @@ EOSQL
     $dbh->do( "DELETE FROM deleted_bucket WHERE id = ?", undef, $id );
 }
 
+no Mouse;
 
 1;

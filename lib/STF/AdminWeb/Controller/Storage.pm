@@ -1,10 +1,11 @@
 package STF::AdminWeb::Controller::Storage;
-use strict;
-use parent qw(STF::AdminWeb::Controller);
+use Mouse;
 use STF::Utils;
 use STF::Constants qw(
     STF_ENABLE_STORAGE_META
 );
+
+extends 'STF::AdminWeb::Controller';
 
 sub load_storage {
     my ($self, $c) = @_;
@@ -142,5 +143,7 @@ sub delete_post {
         $self->fillinform( $c, $params );
     }
 }
+
+no Mouse;
 
 1;

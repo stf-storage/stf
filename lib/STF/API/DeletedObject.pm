@@ -1,6 +1,8 @@
 package STF::API::DeletedObject;
-use strict;
-use parent qw( STF::API::WithDBI );
-use Class::Accessor::Lite new => 1;
+use Mouse;
+
+with 'STF::API::WithDBI';
+
+no Mouse;
 
 1;
