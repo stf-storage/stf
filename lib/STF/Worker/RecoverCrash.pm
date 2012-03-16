@@ -6,6 +6,10 @@ use STF::Utils ();
 extends 'STF::Worker::Base';
 with 'STF::Trait::WithContainer';
 
+has '+interval' => (
+    default => 5 * 60 * 1_000_000
+);
+
 sub work_once {
     my $self = shift;
 
