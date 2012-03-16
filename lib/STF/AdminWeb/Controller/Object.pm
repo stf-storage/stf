@@ -2,7 +2,7 @@ package STF::AdminWeb::Controller::Object;
 use Mouse;
 use JSON ();
 
-exrtends 'STF::AdminWeb::Controller';
+extends 'STF::AdminWeb::Controller';
 
 sub view_public_name {
     my ($self, $c) = @_;
