@@ -46,6 +46,7 @@ has host_id => (
 
 has min_consistency => (
     is => 'ro',
+    default => 2,
 );
 
 has mutex => (
