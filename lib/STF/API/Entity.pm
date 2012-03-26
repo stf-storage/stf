@@ -12,6 +12,10 @@ has max_num_replica => (
     is => 'rw',
 );
 
+has min_num_replica => (
+    is => 'rw'
+);
+
 sub search_with_url {
     my ($self, $where, $opts) = @_;
 
@@ -148,23 +152,31 @@ EOSQL
             return (); # no replication
         }
 
+        my $num_replica = $object->{num_replica};
+        my $min_num_replica = $self->min_num_replica;
+        if (defined $min_num_replica && $num_replica < $min_num_replica) {
+            $num_replica = $min_num_replica;
+        }
 
-        if ( $object->{num_replica} <= $count ) {
+        if ( $num_replica <= $count ) {
             if ( STF_DEBUG ) {
                 printf STDERR
                     "[ Replicate] Object %s wants %d, but there are already %d entities\n",
-                    $object_id, $object->{num_replica}, $count
+                    $object_id, $num_replica, $count
                 ;
             }
             return (); # no replication
         }
-        $replicas = $object->{num_replica} - $count;
+        $replicas = $num_replica - $count;
     }
         
     # Select the storages. 
     if (!defined $replicas || $replicas <= 0) {
         $replicas = 1;
     }
+
+
+
     if ( STF_DEBUG ) {
         print STDERR "[ Replicate] Object $object_id will be replicated $replicas times\n";
     }

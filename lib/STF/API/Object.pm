@@ -26,6 +26,10 @@ has max_num_replica => (
     is => 'rw',
 );
 
+has min_num_replica => (
+    is => 'rw',
+);
+
 sub lookup_meta {
     if ( STF_ENABLE_OBJECT_META ) {
         my ($self, $object_id) = @_;
@@ -408,6 +412,11 @@ sub repair {
 
     my $have = scalar @$intact;
     my $need = $object->{num_replica};
+    my $min_num_replica = $self->min_num_replica;
+    if (defined $min_num_replica && $need < $min_num_replica) {
+        $need = $min_num_replica;
+    }
+
     my $max_num_replica = $self->max_num_replica;
     if ( defined $max_num_replica && $max_num_replica <= $have ) {
         if ( STF_DEBUG ) {
