@@ -298,6 +298,16 @@ EOSQL
     my $ok_count = 0;
     foreach my $storage ( @$storages ) {
         my $uri = sprintf "%s/%s", $storage->{uri}, $object->{internal_name};
+
+        # Handle the case where the destination already exists. If the
+        # storage allows us to overwrite it then fine, but if it doesn't
+        # we need to delete it
+        if ( STF_DEBUG ) {
+            printf STDERR "[ Replicate] + Sending DELETE %s (storage = %s)\n",
+                $uri, $storage->{id};
+        }
+        eval { $furl->delete($uri) };
+
         if ( STF_DEBUG ) {
             printf STDERR "[ Replicate] + Sending PUT %s (storage = %s)\n",
                 $uri, $storage->{id};
