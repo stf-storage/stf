@@ -106,7 +106,7 @@ sub move_entities {
     my $dbh = $self->dbh;
 
     my ($max) = $dbh->selectrow_array( <<EOSQL, undef, $storage_id );
-        SELECT MAX(object_id) FROM entity FORCE INDEX (PRIMARY)
+        SELECT MAX(e.object_id) FROM entity e FORCE INDEX (PRIMARY)
             WHERE e.storage_id = ?
 EOSQL
 
