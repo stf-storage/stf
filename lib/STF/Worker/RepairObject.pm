@@ -59,22 +59,24 @@ sub work_once {
         my $memd = $self->get( 'Memcached' );
         my $timeout = time() + 3600;
         my @objects = $object_api->find_suspicious_neighbors( $object_id, $self->breadth );
-        foreach my $neighbor ( @objects ) {
-            my $key  = join '.', 'repair', 'queued', $neighbor->{id};
-            my $skip = $memd->get( $key );
 
+        my %keys = map {
+            (join('.', 'repair', 'queued', $_->{id}), $_)
+        } @objects;
+
+        my $h = $memd->get_multi( keys %keys );
+        my @to_get = grep { ! $h->{$_} } keys %keys;
+        foreach my $memd_key ( @to_get ) {
+            my $neighbor = $keys{ $memd_key };
+            my $key  = join '.', 'repair', 'queued', $neighbor->{id};
             if ( STF_DEBUG ) {
-                printf STDERR "[    Repair] %s object health check for %s\n",
-                    ($skip ? "SKIP" : "Enqueue"),
+                printf STDERR "[    Repair] Enqueue object health check for %s\n",
                     $neighbor->{id}
                 ;
             }
-
-            next if $skip;
-
-            $memd->set( $key, time(), $timeout );
             $queue_api->enqueue( object_health => $neighbor->{id} );
         }
+        $memd->set_multi( map { [ $_ => 1, 3 * 60 * 60 ] } @to_get );
     };
     if ($@) {
         Carp::confess("Failed to repair $object_id: $@");
