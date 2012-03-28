@@ -104,13 +104,19 @@ sub move_entities {
     my ($self, $storage_id) = @_;
 
     my $dbh = $self->dbh;
+
+    my ($max) = $dbh->selectrow_array( <<EOSQL, undef, $storage_id );
+        SELECT MAX(object_id) FROM entity FORCE INDEX (PRIMARY)
+            WHERE e.storage_id = ?
+EOSQL
+
     my $sth = $dbh->prepare( <<EOSQL );
         SELECT e.object_id FROM entity e FORCE INDEX (PRIMARY)
-            WHERE e.storage_id = ? AND e.object_id > ? LIMIT ?
+            WHERE e.storage_id = ? AND e.object_id < ? LIMIT ?
 EOSQL
     my $limit = 10_000;
     my $processed = 0;
-    my $object_id = 0;
+    my $object_id = $max + 1;
     my $queue_api = $self->get( 'API::Queue');
 
     my $size = $queue_api->size( 'repair_object' );
