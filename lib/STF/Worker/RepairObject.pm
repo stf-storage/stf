@@ -36,7 +36,7 @@ sub work_once {
         if ( STF_DEBUG ) {
             printf STDERR "[    Repair] Repaired object %s (%d items).\n",
                 $object_id,
-                $n
+                defined $n ? $n : 0,
             ;
         }
         if ( !defined $n || $n <= 0 ) {
