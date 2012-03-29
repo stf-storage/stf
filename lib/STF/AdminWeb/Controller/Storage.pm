@@ -44,25 +44,24 @@ sub entities {
     my ($self, $c) = @_;
 
     my $storage_id = $c->match->{storage_id};
-
     my $storage = $self->load_storage($c);
 
-    my $limit = 100;
-    my $pager = $c->pager( $limit );
-    my @entities = $c->get('API::Entity')->search_with_url(
-        { storage_id => $storage_id },
-        {
-            offset   => $pager->skipped,
-            limit    => $pager->entries_per_page + 1,
-        }
+    my %query = (
+        storage_id => $storage_id,
     );
-    if ( @entities > $limit ) {
-        $pager->total_entries( $limit * $pager->current_page + 1 );
-        pop @entities;
+    if (my $object_id = $c->request->param('since')) {
+        $query{object_id} = { '>', $object_id };
     }
 
+    my $limit = 100;
+    my @entities = $c->get('API::Entity')->search_with_url(
+        \%query,
+        {
+            limit    => $limit,
+        }
+    );
+
     my $stash = $c->stash;
-    $stash->{pager} = $pager;
     $stash->{entities} = \@entities;
 }
 
