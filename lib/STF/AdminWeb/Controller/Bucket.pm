@@ -4,18 +4,6 @@ use JSON ();
 
 extends 'STF::AdminWeb::Controller';
 
-sub num_objects {
-    my ($self, $c) = @_;
-    my $num = $c->get('API::Object')->count({
-        bucket_id => $c->match->{bucket_id},
-    });
-
-    my $res = $c->response;
-    $res->content_type('application/json');
-    $res->body( JSON::encode_json( { objects => $num } ) );
-    $c->finished(1);
-}
-
 sub delete {
     my ($self, $c) = @_;
     my $bucket_id = $c->match->{bucket_id};

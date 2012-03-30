@@ -8,39 +8,17 @@
   <tr>
     <th>[% loc('Bucket ID') %]</th>
     <th>[% loc('Bucket Name') %]</th>
-    <th>[% loc('Objects') %]</th>
   </tr>
   [% FOREACH bucket IN buckets %]
   <tr>
     <td class="digit"><a href="/bucket/[% bucket.id %]">[% bucket.id %]</a></td>
     <td>[% bucket.name %]</td>
-    <td class="digit num-objects" id="num-objects-[% bucket.id %]"><a href="[% c.uri_for('/bucket', bucket.id) %]"><img src="[% c.uri_for('/static/images/ajax-loader.gif') %]" /></a></td>
   </tr>
   [% END %]
 <tr>
     <td>[% paginate(c.uri_for('/bucket/list'), pager) %]</td>
 </tr>
 </table>
-
-<script type="text/javascript">
-<!--
-    $(document).ready(function() {
-        $('.num-objects').each(function() {
-            var idStr = this.id.replace(/^num-objects-/, '');
-            var url = '[% c.uri_for('/ajax/bucket/') %]' + idStr + '/num_objects.json';
-            var id = this.id;
-            $.ajax({
-                url: url,
-                type: "POST",
-                dataType: "json",
-                success: function(json) {
-                    $('#' + id + ' a').text( json.objects );
-                }
-            });
-        });
-    });
-//-->
-</script>
 
 [% END %]
 
