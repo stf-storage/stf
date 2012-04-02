@@ -397,15 +397,34 @@ sub repair {
             object_id => $object_id
         } );
 
+
         # Attempt to remove actual bad entities
         foreach my $broken ( @$broken ) {
+            my $cache_key = [ "storage", $broken->{id}, "http_accessible" ];
+            my $st        = $self->cache_get( $cache_key );
+            if ( defined $st && $st == -1 ) {
+                printf STDERR "[    Repair] storage %s is knwon to be broken. Skipping delete request\n", $broken->{uri};
+                next;
+            }
+
             # Timeout fast!
             local $furl->{timeout} = 5;
             my $url = join "/", $broken->{uri}, $object->{internal_name};
             if (STF_DEBUG) {
                 printf STDERR "[    Repair] Deleting broken entity %s for object %s\n", $url, $object_id;
             }
-            eval { $furl->delete( $url ) };
+            eval {
+                my (undef, $code, $msg) = $furl->delete( $url );
+
+                # XXX Remember which hosts would respond to HTTP
+                # This is here to speed up the recovery process
+                if ( HTTP::Status::is_error($code) ) {
+                    # XXX This error code is probably not portable.
+                    if ( $msg =~ /Failed to send HTTP request: Broken pipe/ ) {
+                        $self->cache_set( $cache_key, -1, 5 * 60 );
+                    }
+                }
+            };
         }
 
     }
