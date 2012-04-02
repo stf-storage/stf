@@ -420,7 +420,7 @@ sub repair {
                 # This is here to speed up the recovery process
                 if ( HTTP::Status::is_error($code) ) {
                     # XXX This error code is probably not portable.
-                    if ( $msg =~ /Failed to send HTTP request: Broken pipe/ ) {
+                    if ( $msg =~ /(?:Cannot connect to|Failed to send HTTP request: Broken pipe)/ ) {
                         $self->cache_set( $cache_key, -1, 5 * 60 );
                     }
                 }
