@@ -403,7 +403,7 @@ sub repair {
             my $cache_key = [ "storage", $broken->{id}, "http_accessible" ];
             my $st        = $self->cache_get( @$cache_key );
             if ( defined $st && $st == -1 ) {
-                printf STDERR "[    Repair] storage %s is knwon to be broken. Skipping delete request\n", $broken->{uri};
+                printf STDERR "[    Repair] storage %s is known to be broken. Skipping delete request\n", $broken->{uri};
                 next;
             }
 
