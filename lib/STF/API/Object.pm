@@ -620,8 +620,13 @@ EOSQL
         ];
 
         if ( STF_DEBUG ) {
-            print STDERR "[Get Entity] Backend storage candidates:\n",
-                map { "[Get Entity] + ($_->[0]: $_-[1])\n" } @$storages;
+            print STDERR "[Get Entity] Backend storage candidates:\n";
+            foreach my $storage ( @$storages ) {
+                printf STDERR "[Get Entity] + [%s] %s\n",
+                    $storage->[0],
+                    $storage->[1]
+                ;
+            }
         }
 
         $self->cache_set( $cache_key, $storages, $self->cache_expires );
