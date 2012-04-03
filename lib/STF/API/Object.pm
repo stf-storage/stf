@@ -568,6 +568,7 @@ sub get_any_valid_entity_url {
     #       $storage_id, $storage_uri ],
     #       ...
     #   ]
+    my $repair = 0;
     my $cache_key = [ storages_for => $object_id ];
     my $storages = $self->cache_get( @$cache_key );
     if ($storages) {
@@ -580,7 +581,9 @@ sub get_any_valid_entity_url {
         # If *any* of the storages fail, we should re-compute
         foreach my $storage_id ( @storage_ids ) {
             if (! $lookup->{ $storage_id } ) {
+                # Invalidate the cached entry, and set the repair flag
                 undef $storages;
+                $repair++;
                 last;
             }
         }
@@ -643,7 +646,6 @@ EOSQL
     #
     # So that check is off. Let ObjectHealth worker handle it once
     # in a while.
-    my $repair = 0;
 
     # Send successive HEAD requests
     my $fastest;
