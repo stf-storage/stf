@@ -621,7 +621,7 @@ EOSQL
 
         if ( STF_DEBUG ) {
             print STDERR "[Get Entity] Backend storage candidates:\n",
-                map { "[Get Entity] + $_\n" } @$storages;
+                map { "[Get Entity] + ($_->[0]: $_-[1])\n" } @$storages;
         }
 
         $self->cache_set( $cache_key, $storages, $self->cache_expires );
