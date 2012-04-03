@@ -75,24 +75,33 @@ sub delete_for_object_id {
             next;
         }
 
-        my $uri = join '/', $storage->{uri}, $deleted->{internal_name};
+        if ( STF_DEBUG ) {
+            printf STDERR "[DeleteObject] + Deleting logical entity for %s on %s\n",
+                $object_id,
+                $storage->{id},
+            ;
+        }
+        $self->delete( {
+            object_id => $object_id,
+            storage_id => $storage->{id}
+        } );
 
+        my $uri = join '/', $storage->{uri}, $deleted->{internal_name};
         if ( STF_DEBUG ) {
             print STDERR "[DeleteObject] + Sending DELETE $uri\n";
         }
-        # Send requests to the backend.
-        my (undef, $code) = $furl->delete( $uri );
-        if ($code ne '204') {
-            $self->update(
-                { storage_id => $storage->{id}, object_id => $object_id },
-                { status => ENTITY_INACTIVE },
-            );
-        } else {
-            $self->delete( {
-                object_id => $object_id,
-                storage_id => $storage->{id}
-            } );
+
+        if ( $storage->{mode} != STORAGE_MODE_READ_WRITE ) {
+            if ( STF_DEBUG ) {
+                printf STDERR "[DeleteObject] storage %s is known to be broken. Skipping delete request\n",
+                    $storage->{uri}
+                ;
+            }
+            next;
         }
+
+        # Send requests to the backend.
+        $furl->delete( $uri );
     }
 
     $delobj_api->delete( $object_id );
