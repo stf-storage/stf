@@ -101,7 +101,7 @@ EOSQL
 
 
 sub move_entities {
-    my ($self, $storage_id) = @_;
+    my ($self, $storage_id, $check_cb) = @_;
 
     my $dbh = $self->dbh;
 
@@ -120,6 +120,10 @@ EOSQL
 
     my $size = $queue_api->size( 'repair_object' );
     while ( 1 ) {
+        if ( ! $check_cb->() ) {
+            last;
+        }
+
         my $rv = $sth->execute( $storage_id, $object_id, $limit );
         last if $rv <= 0;
         $sth->bind_columns( \($object_id ) );
@@ -178,7 +182,10 @@ sub retire {
         $self->update( $storage_id, { mode => STORAGE_MODE_RETIRE } );
     };
 
-    my $processed = $self->move_entities( $storage_id );
+    my $processed = $self->move_entities( $storage_id, sub {
+        my $now = $self->lookup( $storage_id );
+        return $now->{mode} == STORAGE_MODE_MIGRATE_NOW;
+    } );
 
     $guard->cancel;
 

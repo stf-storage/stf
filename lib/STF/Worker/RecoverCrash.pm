@@ -45,7 +45,10 @@ sub work_once {
             local $SIG{INT}  = $sig->("INT");
             local $SIG{QUIT} = $sig->("QUIT");
             local $SIG{TERM} = $sig->("TERM");
-            my $processed = $api->move_entities( $storage_id );
+            my $processed = $api->move_entities( $storage_id, sub {
+                my $now = $api->lookup( $storage_id );
+                return $now->{mode} == STORAGE_MODE_CRASH_RECOVER_NOW;
+            } );
 
             $guard->cancel;
             if (STF_DEBUG) {
