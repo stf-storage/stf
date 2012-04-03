@@ -15,6 +15,12 @@ sub cache_key {
     join '.', @keys;
 }
 
+sub cache_get_multi {
+    my ($self, @keys) = @_;
+    my $ret = $self->get('Memcached')->get_multi( @keys );
+    return $ret;
+}
+
 sub cache_get {
     my ($self, @keys) = @_;
     my $key = $self->cache_key(@keys);

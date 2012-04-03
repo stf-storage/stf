@@ -543,6 +543,8 @@ sub get_any_valid_entity_url {
         return;
     }
 
+    my $object = $self->lookup( $object_id );
+
     # XXX We have to do this before we check the entities, because in real-life
     # applications many of the requests come with an IMS header -- which 
     # short circuits from this method, and never allows us to reach this
@@ -556,13 +558,35 @@ sub get_any_valid_entity_url {
         eval { $self->get('API::Queue')->enqueue( object_health => $object_id ) };
     }
 
+    # We cache
+    #   "storages_for.$object_id => {
+    #       $storage_id, $storage_uri ],
+    #       $storage_id, $storage_uri ],
+    #       $storage_id, $storage_uri ],
+    #       ...
+    #   ]
+    my $cache_key = [ storages_for => $object_id ];
+    my $storages = $self->cache_get( @$cache_key );
+    if ($storages) {
+        # Got storages, but we need to validate that they are indeed
+        # readable, and that the uris match
+        my @storage_ids = grep { $_->[0] } @$storages;
+        my $storage_api = $self->get('API::Storage');
+        my $lookup      = $storage_api->lookup_multi( @storage_ids );
 
+        # If *any* of the storages fail, we should re-compute
+        foreach my $storage_id ( @storage_ids ) {
+            if (! $lookup->{ $storage_id } ) {
+                undef $storages;
+                last;
+            }
+        }
+    } 
 
-    my $entities = $self->cache_get( 'entities_for', $object_id );
-    if (! $entities) {
+    if (! $storages) {
         my $dbh = $self->dbh('DB::Master');
         my $sth = $dbh->prepare(<<EOSQL);
-            SELECT s.uri, o.internal_name
+            SELECT s.id, s.uri
             FROM object o JOIN entity e ON o.id = e.object_id
                           JOIN storage s ON s.id = e.storage_id 
             WHERE
@@ -574,29 +598,31 @@ EOSQL
 
         my $rv = $sth->execute($object_id, STORAGE_MODE_READ_ONLY, STORAGE_MODE_READ_WRITE);
 
-        my ($uri, $internal_name);
-        $sth->bind_columns(\($uri, $internal_name));
+        my ($storage_id, $uri);
+        $sth->bind_columns(\($storage_id, $uri));
 
-        $entities = [];
+        my %storages;
         while ( $sth->fetchrow_arrayref ) {
-            push @$entities, "$uri/$internal_name";
+            $storages{$storage_id} = $uri;
         }
         $sth->finish;
 
         my %h = map {
-            ( $_ => Digest::MurmurHash::murmur_hash($_) )
-        } @$entities;
-        $entities = [ sort { $h{$a} <=> $h{$b} } keys %h ];
+            ( $_ => Digest::MurmurHash::murmur_hash("$storages{$_}/$object->{internal_name}") )
+        } keys %storages;
+        $storages = [
+            map  { [ $_, $storages{$_} ] } 
+            sort { $h{$a} <=> $h{$b} }
+            keys %h
+        ];
 
         if ( STF_DEBUG ) {
-            print STDERR "[Get Entity] Backend entity Candidates:\n",
-                map { "[Get Entity] + $_\n" } @$entities;
+            print STDERR "[Get Entity] Backend storage candidates:\n",
+                map { "[Get Entity] + $_\n" } @$storages;
         }
 
-        $self->cache_set( [ entities_for => $object_id ], $entities, $self->cache_expires );
+        $self->cache_set( $cache_key, $storages, $self->cache_expires );
     }
-
-    my $object = $self->lookup( $object_id );
 
     # XXX repair shouldn't be triggered by entities < num_replica
     #
@@ -619,13 +645,14 @@ EOSQL
         $headers = [ 'If-Modified-Since' => $if_modified_since ];
     }
 
-    foreach my $entity ( @$entities ) {
-        my (undef, $code) = $furl->head( $entity, $headers );
+    foreach my $storage ( @$storages ) {
+        my $url = "$storage->[1]/$object->{internal_name}";
+        my (undef, $code) = $furl->head( $url, $headers );
         if ( HTTP::Status::is_success( $code ) ) {
             if ( STF_DEBUG ) {
-                print STDERR "[Get Entity] + HEAD $entity OK\n";
+                print STDERR "[Get Entity] + HEAD $url OK\n";
             }
-            $fastest = $entity;
+            $fastest = $url;
             last;
         } elsif ( HTTP::Status::HTTP_NOT_MODIFIED() == $code ) {
             # XXX if this is was not modified, then short circuit
@@ -637,7 +664,7 @@ EOSQL
             STF::Dispatcher::PSGI::HTTPException->throw( 304, [], [] );
         } else {
             if ( STF_DEBUG ) {
-                print STDERR "[Get Entity] + HEAD $entity failed: $code\n";
+                print STDERR "[Get Entity] + HEAD $url failed: $code\n";
             }
             $repair++;
         }
@@ -653,7 +680,7 @@ EOSQL
         eval { $self->get('API::Queue')->enqueue( repair_object => $object_id ) };
 
         # Also, kill the cache
-        eval { $self->cache_delete( 'entities_for', $object_id ) };
+        eval { $self->cache_delete( @$cache_key ) };
     }
 
     if ( STF_DEBUG ) {

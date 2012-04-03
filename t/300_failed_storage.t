@@ -56,22 +56,14 @@ my $code = sub {
 EOSQL
     ok $object;
 
+    my $cache_key  = [ 'storages_for', $object->{id} ];
     my $object_api = $context->container->get('API::Object');
-    my $entities = $object_api->cache_get( 'entities_for', $object->{id} );
-    my %h = map {
-        ( $_ => Digest::MurmurHash::murmur_hash($_) )
-    } @$entities;
+    my $storages   = $object_api->cache_get( @$cache_key );
+    $storages->[0]->[1] =~ s{^(http://[^/]+):\d+}{$1:99999999};
 
-    my ($first) = sort { $h{$a} <=> $h{$b} } keys %h;
-    for my $i ( 0 .. $#{$entities} ) {
-        if ( $first eq $entities->[$i] ) {
-            $entities->[$i] =~ s{^(http://[^/]+):\d+}{$1:99999999};
-        }
-    }
-
-    $object_api->cache_set( [ 'entities_for', $object->{id} ], $entities, 180 );
-    if ( ! ok $object_api->cache_get( 'entities_for', $object->{id} ), "sanity check" ) {
-        diag "CACHE SET FOR entities_for.$object->{id} failed?!";
+    $object_api->cache_set( $cache_key, $storages, 180 );
+    if ( ! ok $object_api->cache_get( @$cache_key ), "sanity check" ) {
+        diag "CACHE SET FOR storages_for.$object->{id} failed?!";
     }
 
     $res = $cb->(
@@ -88,9 +80,9 @@ EOSQL
         diag $res->as_string;
     }
 
-    $entities = $object_api->cache_get( 'entities_for', $object->{id} );
-    if ( ! unlike $entities->[0], qr{:99999999}, "entities[0] shouldn't contain the broken entity" ) {
-        diag explain $entities;
+    $storages = $object_api->cache_get( @$cache_key );
+    if ( ! unlike $storages->[0]->[1], qr{:99999999}, "entities[0] shouldn't contain the broken entity" ) {
+        diag explain $storages;
     }
 };
 

@@ -49,6 +49,25 @@ sub lookup {
     return $obj;
 }
 
+sub lookup_multi {
+    my ($self, @ids) = @_;
+
+    my %keys = map {
+        ( $self->cache_key($self->table => $_) => $_ )
+    } @ids;
+    my $cached = $self->cache_get_multi(keys %keys);
+    my %result;
+    foreach my $key (keys %keys) {
+        my $value = $cached->{$key};
+        if (defined $value) {
+            $result{ $keys{$key} } = $value;
+        } else {
+            $result{ $keys{$key} } = $self->lookup( $keys{$key} );
+        }
+    }
+    return \%result;
+}
+
 sub search {
     my ($self, $where, $opts) = @_;
     my ($sql, @binds) = $self->sql_maker->select( $self->table, [ '*' ], $where, $opts );
