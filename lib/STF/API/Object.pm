@@ -397,13 +397,16 @@ sub repair {
             object_id => $object_id
         } );
 
-
         # Attempt to remove actual bad entities
         foreach my $broken ( @$broken ) {
             my $cache_key = [ "storage", $broken->{id}, "http_accessible" ];
             my $st        = $self->cache_get( @$cache_key );
-            if ( defined $st && $st == -1 ) {
-                printf STDERR "[    Repair] storage %s is known to be broken. Skipping delete request\n", $broken->{uri};
+            if ( ( defined $st && $st == -1 ) ||
+                 $broken->{mode} != STORAGE_MODE_READ_WRITE
+            ) {
+                if ( STF_DEBUG) {
+                    printf STDERR "[    Repair] storage %s is known to be broken. Skipping delete request\n", $broken->{uri};
+                }
                 next;
             }
 
