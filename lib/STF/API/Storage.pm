@@ -169,49 +169,4 @@ EOSQL
     return $processed;
 }
 
-sub retire {
-    my ($self, $storage_id) = @_;
-    if ( STF_DEBUG ) {
-        printf STDERR "[    Retire] Retiring storage %s\n",
-            $storage_id
-        ;
-    }
-    $self->update( $storage_id, { mode => STORAGE_MODE_MIGRATE_NOW } );
-
-    my $guard = Guard::guard {
-        $self->update( $storage_id, { mode => STORAGE_MODE_RETIRE } );
-    };
-
-    my $processed = $self->move_entities( $storage_id, sub {
-        my $now = $self->lookup( $storage_id );
-        return $now->{mode} == STORAGE_MODE_MIGRATE_NOW;
-    } );
-
-    $guard->cancel;
-
-    if (STF_DEBUG) {
-        printf STDERR "[    Retire] Storage %d, processed %d rows\n",
-            $storage_id, $processed;
-    }
-    $self->update( $storage_id => { mode => STORAGE_MODE_MIGRATED } );
-}
-
-sub find_and_retire {
-    my $self = shift;
-
-    my $dbh = $self->dbh;
-
-    my @storages = $self->search( { mode => STORAGE_MODE_RETIRE } );
-    foreach my $storage ( @storages ) {
-        $self->retire( $storage->{id} );
-    }
-
-    if (STF_DEBUG) {
-        printf STDERR "[    Retire] Retired %d storages\n",
-            scalar @storages;
-    }
-}
-
-no Mouse;
-
 1;
