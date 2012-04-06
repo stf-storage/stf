@@ -1,5 +1,4 @@
 use strict;
-use Carp::Always;
 use Test::More;
 use Plack::Test;
 use HTTP::Request::Common qw(GET PUT);
