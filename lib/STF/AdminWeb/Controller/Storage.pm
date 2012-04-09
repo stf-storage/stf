@@ -28,7 +28,7 @@ sub list {
         {
             limit    => $pager->entries_per_page + 1,
             offset   => $pager->skipped,
-            order_by => { 'created_at' => 'DESC' },
+            order_by => { 'id' => 'DESC' },
         }
     );
     if ( @storages > $limit ) {
