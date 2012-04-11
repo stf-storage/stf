@@ -501,10 +501,12 @@ sub repair {
                 storages => $broken
             } );
         };
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] Failed to remove object: %s\n",
-                $@
-            ;
+        if ( my $e = $@ ) {
+            if ( STF_DEBUG ) {
+                printf STDERR "[    Repair] Failed to remove object: %s\n",
+                    $e
+                ;
+            }
         }
     }
 
