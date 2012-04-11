@@ -132,19 +132,19 @@ EOSQL
 }
 
 sub find_suspicious_neighbors {
-    my ($self, $object_id, $breadth) = @_;
+    my ($self, $args) = @_;
+
+    my $object_id = $args->{object_id} or die "XXX no object_id";
+    my $storages  = $args->{storages}  or die "XXX no storages";
+    my $breadth   = $args->{breadth} || 0;
 
     if ($breadth <= 0) {
         $breadth = 10;
     }
 
-    my @entities = $self->get('API::Entity')->search({
-        object_id => $object_id
-    });
-
     my %objects;
     my $dbh = $self->dbh;
-    foreach my $storage_id ( map { $_->{storage_id} } @entities ) {
+    foreach my $storage_id ( @$storages ) {
         # find neighbors in this storage
         my $before = $dbh->selectall_arrayref( <<EOSQL, undef, $storage_id, $object_id );
             SELECT e.object_id FROM entity e FORCE INDEX (PRIMARY)
@@ -375,6 +375,19 @@ sub repair {
         return;
     }
 
+    # entities that are intact may be in the /wrong/ location. check for 
+    # their cluster id
+    my $cluster_api = $self->get( 'API::StorageCluster' );
+    my $cluster = $cluster_api->load_for_object( $object->{id}, 1 );
+    if (! $cluster) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[    Repair] Could not load cluster for object %s, bailing out of repair\n",
+                $object_id
+            ;
+        }
+        return;
+    }
+
     my $furl = $self->get('Furl');
     my @entities = $entity_api->search( { object_id => $object_id } );
     my ($intact, $broken) = $self->check_health( $object_id );
@@ -385,53 +398,6 @@ sub repair {
         return;
     }
 
-    if ( @$broken ) {
-        if (STF_DEBUG) {
-            printf STDERR "[    Repair] Removing broken entities for $object_id in\n";
-            foreach my $storage (@$broken) {
-                print STDERR "[    Repair] + @{[ $storage->{uri} || '(null)' ]} (id = $storage->{id})\n";
-            }
-        }
-        $entity_api->delete( {
-            storage_id => [ -in => map { $_->{id} } @$broken ],
-            object_id => $object_id
-        } );
-
-        # Attempt to remove actual bad entities
-        foreach my $broken ( @$broken ) {
-            my $cache_key = [ "storage", $broken->{id}, "http_accessible" ];
-            my $st        = $self->cache_get( @$cache_key );
-            if ( ( defined $st && $st == -1 ) ||
-                 $broken->{mode} != STORAGE_MODE_READ_WRITE
-            ) {
-                if ( STF_DEBUG) {
-                    printf STDERR "[    Repair] storage %s is known to be broken. Skipping delete request\n", $broken->{uri};
-                }
-                next;
-            }
-
-            # Timeout fast!
-            local $furl->{timeout} = 5;
-            my $url = join "/", $broken->{uri}, $object->{internal_name};
-            if (STF_DEBUG) {
-                printf STDERR "[    Repair] Deleting broken entity %s for object %s\n", $url, $object_id;
-            }
-            eval {
-                my (undef, $code, $msg) = $furl->delete( $url );
-
-                # XXX Remember which hosts would respond to HTTP
-                # This is here to speed up the recovery process
-                if ( HTTP::Status::is_error($code) ) {
-                    # XXX This error code is probably not portable.
-                    if ( $msg =~ /(?:Cannot connect to|Failed to send HTTP request: Broken pipe)/ ) {
-                        $self->cache_set( $cache_key, -1, 5 * 60 );
-                    }
-                }
-            };
-        }
-
-    }
-
     my $have = scalar @$intact;
     my $need = $object->{num_replica};
     my $min_num_replica = $self->min_num_replica;
@@ -440,6 +406,7 @@ sub repair {
     }
 
     my $max_num_replica = $self->max_num_replica;
+    my @return;
     if ( defined $max_num_replica && $max_num_replica <= $have ) {
         if ( STF_DEBUG ) {
             printf STDERR "[    Repair] No need to repair %s (need %d, have %d, system max replica %d)\n",
@@ -451,7 +418,6 @@ sub repair {
         }
 
         # Return the number of object fixed... which is nothing
-        return 0;
     } elsif ($need <= $have) {
         if (STF_DEBUG) {
             printf STDERR "[    Repair] No need to repair %s (need %d, have %d)\n",
@@ -462,7 +428,6 @@ sub repair {
         }
 
         # Return the number of object fixed... which is nothing
-        return 0;
     } else {
         my $n;
         if ( defined $max_num_replica ) {
@@ -526,8 +491,24 @@ sub repair {
         }
 
         # Return the number of object fixed... which is $replicated
-        return $replicated;
+        @return = ($replicated, $broken);
     }
+
+    if ( @$broken ) {
+        eval { 
+            $self->get('API::Entity')->remove_from( {
+                object   => $object,
+                storages => $broken
+            } );
+        };
+        if ( STF_DEBUG ) {
+            printf STDERR "[    Repair] Failed to remove object: %s\n",
+                $@
+            ;
+        }
+    }
+
+    return @return;
 }
 
 sub get_any_valid_entity_url {

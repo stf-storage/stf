@@ -32,7 +32,7 @@ sub work_once {
         my $queue_api = $self->get('API::Queue');
 
         # returns the number of repaired entities.
-        my $n = $object_api->repair( $object_id );
+        my ($n, $broken) = $object_api->repair( $object_id );
         if ( STF_DEBUG ) {
             printf STDERR "[    Repair] Repaired object %s (%d items).\n",
                 $object_id,
@@ -47,6 +47,10 @@ sub work_once {
             return;
         }
 
+        if (! $broken || ! @$broken) {
+            return;
+        }
+
         if ( STF_DEBUG ) {
             printf STDERR "[    Repair] Going to enqueue neighbors to object health queue (%s)\n",
                 $object_id
@@ -58,7 +62,16 @@ sub work_once {
 
         my $memd = $self->get( 'Memcached' );
         my $timeout = time() + 3600;
-        my @objects = $object_api->find_suspicious_neighbors( $object_id, $self->breadth );
+
+        # Only look for objects that are in the REPAIRED storage.
+        # This is in $broken. It is possible that we have $n > 0 and
+        # @$broken == 0, because we might have just had an object
+        # that had too few replicas
+        my @objects = $object_api->find_suspicious_neighbors( {
+            object_id => $object_id,
+            storages  => [ map { $_->{id} } @$broken ],
+            breadth   => $self->breadth
+        });
 
         my %keys = map {
             (join('.', 'repair', 'queued', $_->{id}), $_)

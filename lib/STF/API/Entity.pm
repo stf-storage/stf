@@ -123,14 +123,14 @@ sub store {
     # storage allows us to overwrite it then fine, but if it doesn't
     # we need to delete it
     if ( STF_DEBUG ) {
-        printf STDERR "[ Replicate] + Sending DELETE %s (storage = %s)\n",
-            $uri, $storage->{id};
+        printf STDERR "[ Replicate] + Sending DELETE %s (storage = %s, cluster = %s)\n",
+            $uri, $storage->{id}, $storage->{cluster_id};
     }
     eval { $furl->delete($uri) };
 
     if ( STF_DEBUG ) {
-        printf STDERR "[ Replicate] + Sending PUT %s (storage = %s)\n",
-            $uri, $storage->{id};
+        printf STDERR "[ Replicate] + Sending PUT %s (storage = %s, cluster = %s)\n",
+            $uri, $storage->{id}, $storage->{cluster_id};
     }
 
     if ( Scalar::Util::openhandle( $content ) ) {
@@ -186,6 +186,62 @@ EOSQL
     }
     return 1;
 } 
+
+sub remove_from {
+    my ($self, $args) = @_;
+
+    my $object = $args->{object} or die "XXX no object";
+    my $storages = $args->{storages} or die "XXX no storages";
+
+    if (STF_DEBUG) {
+        printf STDERR "[    Repair] Removing broken entities for %s in \n",
+            $object->{id}
+        ;
+        foreach my $storage (@$storages) {
+            print STDERR "[    Repair] + @{[ $storage->{uri} || '(null)' ]} (id = $storage->{id})\n";
+        }
+    }
+
+    $self->delete( {
+        storage_id => [ -in => map { $_->{id} } @$storages ],
+        object_id => $object->{id}
+    } );
+
+    # Timeout fast!
+    my $furl = $self->get('Furl');
+    local $furl->{timeout} = 5;
+
+    # Attempt to remove actual bad entities
+    foreach my $broken ( @$storages ) {
+        my $cache_key = [ "storage", $broken->{id}, "http_accessible" ];
+        my $st        = $self->cache_get( @$cache_key );
+        if ( ( defined $st && $st == -1 ) ||
+             $broken->{mode} != STORAGE_MODE_READ_WRITE
+        ) {
+            if ( STF_DEBUG) {
+                printf STDERR "[    Repair] storage %s is known to be broken. Skipping delete request\n", $broken->{uri};
+            }
+            next;
+        }
+
+        my $url = join "/", $broken->{uri}, $object->{internal_name};
+        if (STF_DEBUG) {
+            printf STDERR "[    Repair] Deleting broken entity %s for object %s\n", $url, $object->{id};
+        }
+        eval {
+            my (undef, $code, $msg) = $furl->delete( $url );
+
+            # XXX Remember which hosts would respond to HTTP
+            # This is here to speed up the recovery process
+            if ( HTTP::Status::is_error($code) ) {
+                # XXX This error code is probably not portable.
+                if ( $msg =~ /(?:Cannot connect to|Failed to send HTTP request: Broken pipe)/ ) {
+                    $self->cache_set( $cache_key, -1, 5 * 60 );
+                }
+            }
+        };
+    }
+}
 
 sub replicate {
     my ($self, $args) = @_;
@@ -349,30 +405,18 @@ EOSQL
         }
     }
 
-    my $cluster    = $cluster_api->load_for_object( $object );
+    # Second argument forces creationg of a new cluster row if it doesn't
+    # already exist.
+    my $cluster = $cluster_api->load_for_object( $object->{id}, 1 );
     if (! $cluster) {
-        $cluster = $cluster_api->calculate_for_object( $object );
-        if (! $cluster) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[ Replicate] No cluster defined for objec %s, and could not any load cluster for it\n",
-                    $object->{id}
-                ;
-            }
-            return;
-        }
-
-        $cluster_api->register_for_object( {
-            cluster => $cluster,
-            object  => $object,
-        } );
         if ( STF_DEBUG ) {
-            printf STDERR "[ Replicate] No cluster defined for object %s yet. Created mapping for cluster %d\n",
-                $object->{id},
-                $cluster->{id},
-            ;
+            printf STDERR "[ Replicate] No cluster defined for object %s, and could not any load cluster for it\n",
+                    $object_id
+                ;
         }
+        return;
     }
-
+    
     if ( STF_DEBUG ) {
         printf STDERR "[ Replicate] Using cluster %s for object %s\n",
             $cluster->{id},
