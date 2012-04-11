@@ -107,6 +107,86 @@ sub delete_for_object_id {
     $delobj_api->delete( $object_id );
 }
 
+# Stores 1 entity for given object + storage. Also creates an entry in the 
+# database. This code is will break if you use it in event-based code
+sub store {
+    my ($self, $args) = @_;
+
+    my $storage = $args->{storage} or die "XXX no storage";
+    my $object  = $args->{object}  or die "XXX no object";
+    my $content = $args->{content} or die "XXX no content";
+    my $furl    = $self->get('Furl');
+
+    my $uri = sprintf "%s/%s", $storage->{uri}, $object->{internal_name};
+
+    # Handle the case where the destination already exists. If the
+    # storage allows us to overwrite it then fine, but if it doesn't
+    # we need to delete it
+    if ( STF_DEBUG ) {
+        printf STDERR "[ Replicate] + Sending DELETE %s (storage = %s)\n",
+            $uri, $storage->{id};
+    }
+    eval { $furl->delete($uri) };
+
+    if ( STF_DEBUG ) {
+        printf STDERR "[ Replicate] + Sending PUT %s (storage = %s)\n",
+            $uri, $storage->{id};
+    }
+
+    if ( Scalar::Util::openhandle( $content ) ) {
+        seek( $content, 0, 0 );
+    }
+
+    my $put_guard;
+    if ( STF_TIMER ) {
+        $put_guard = STF::Utils::timer_guard("STF::API::Entity::replicate [PUT]");
+    }
+
+    my @hdrs = (
+        'Content-Length'         => $object->{size},
+        'X-STF-Object-Timestamp' => $object->{created_at},
+    );
+
+    my (undef, $code, undef, $rhdrs, $body) = eval {
+        $furl->put($uri, \@hdrs, $content);
+    };
+    if ($@) {
+        $body = $@;
+        $code = 500;
+    }
+
+    my $ok = HTTP::Status::is_success($code);
+    if ( STF_DEBUG ) {
+        printf STDERR "[ Replicate] PUT %s was %s\n", $uri, ($ok ? "OK" : "FAIL");
+    }
+
+    if ( !$ok ) {
+        require Data::Dumper;
+        print STDERR 
+            "[ Replicate] Request to replicate to $uri failed:\n",
+            "[ Replicate] code    = $code\n",
+            "[ Replicate] headers = ", Data::Dumper::Dumper($rhdrs),
+            "[ Replicate] ===\n$body\n===\n",
+        ;
+
+        return;
+    }
+
+    # PUT was successful. Now write this to the database
+    eval {
+        my $store_sth = $self->get('DB::Master')->prepare( <<EOSQL );
+            INSERT
+                INTO entity (object_id, storage_id, status, created_at)
+                VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()))
+EOSQL
+        $store_sth->execute( $object->{id}, $storage->{id}, ENTITY_ACTIVE );
+    };
+    if ($@) {
+        die "Failed to write new entity in database: $@";
+    }
+    return 1;
+} 
+
 sub replicate {
     my ($self, $args) = @_;
 
@@ -184,8 +264,6 @@ EOSQL
         $replicas = 1;
     }
 
-
-
     if ( STF_DEBUG ) {
         print STDERR "[ Replicate] Object $object_id will be replicated $replicas times\n";
     }
@@ -244,6 +322,7 @@ EOSQL
             if ( STF_DEBUG ) {
                 printf STDERR "[ Replicate] Fetching %s as replica source\n", $uri;
             }
+
             my (undef, $code, undef, $hdrs, $x_content) = $furl->get( $uri );
             if ( $code ne '200' ) {
                 next;
@@ -284,12 +363,6 @@ EOSQL
         }
     }
 
-    my @hdrs = (
-        'Content-Length' => $object->{size},
-        'X-STF-Object-Timestamp' => $object->{created_at},
-#        'Content-Type'   => $req->content_type || 'text/plain',
-    );
-
     if (STF_DEBUG) {
         printf STDERR "[ Replicate] Creating entities in the backend storages\n";
     }
@@ -299,66 +372,16 @@ EOSQL
         $store_timer = STF::Utils::timer_guard( "replicate [store all]" );
     }
 
-    my $store_sth = $dbh->prepare( <<EOSQL );
-        INSERT
-            INTO entity (object_id, storage_id, status, created_at)
-            VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()))
-EOSQL
     my $ok_count = 0;
     foreach my $storage ( @$storages ) {
-        my $uri = sprintf "%s/%s", $storage->{uri}, $object->{internal_name};
+        my $ok = $self->store( {
+            object => $object,
+            storage => $storage,
+            content => $content,
+        } );
 
-        # Handle the case where the destination already exists. If the
-        # storage allows us to overwrite it then fine, but if it doesn't
-        # we need to delete it
-        if ( STF_DEBUG ) {
-            printf STDERR "[ Replicate] + Sending DELETE %s (storage = %s)\n",
-                $uri, $storage->{id};
-        }
-        eval { $furl->delete($uri) };
-
-        if ( STF_DEBUG ) {
-            printf STDERR "[ Replicate] + Sending PUT %s (storage = %s)\n",
-                $uri, $storage->{id};
-        }
-
-        my $req_content = $content;
-        if ( Scalar::Util::openhandle( $content ) && $content->can('filename') ) {
-            open my $xfh, '<', $content->filename
-                or die sprintf "Failed to open %s", $content->filename;
-            $req_content = $xfh;
-        }
-
-        my $put_guard;
-        if ( STF_TIMER ) {
-            $put_guard = STF::Utils::timer_guard("STF::API::Entity::replicate [PUT]");
-        }
-
-        my (undef, $code, undef, $rhdrs, $body) = eval {
-            $furl->put($uri, \@hdrs, $req_content);
-        };
-        if ($@) {
-            $body = $@;
-            $code = 500;
-        }
-
-        my $ok = HTTP::Status::is_success($code);
-        if ( $ok ) {
+        if ($ok) {
             $ok_count++;
-            # PUT was successful. Now write this to the database
-            $store_sth->execute( $object_id, $storage->{id}, ENTITY_ACTIVE );
-        } else {
-            require Data::Dumper;
-            print STDERR 
-                "[ Replicate] Request to replicate to $uri failed:\n",
-                "[ Replicate] code    = $code\n",
-                "[ Replicate] headers = ", Data::Dumper::Dumper($rhdrs),
-                "[ Replicate] ===\n$body\n===\n",
-            ;
-        }
-
-        if ( STF_DEBUG ) {
-            printf STDERR "[ Replicate] PUT %s was %s\n", $uri, ($ok ? "OK" : "FAIL");
         }
 
         last if $ok_count >= $replicas;
