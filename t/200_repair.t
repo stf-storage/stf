@@ -65,6 +65,32 @@ EOSQL
             WHERE b.name = ? AND o.name = ?
 EOSQL
 
+
+    { # Ideally we need to check that nothing happened here (none of
+      # these need repair), but I haven't done it here. TODO
+        my %objects = map { ($_->{id} => 1) } @$entities;
+        my $work = 0;
+        foreach my $object_id ( keys %objects ) {
+            $work++;
+            $container->get( 'API::Queue' )->enqueue( repair_object => $object_id );
+        }
+
+        eval {
+            local $SIG{ALRM} = sub { die "RepairObject timeout" };
+            alarm(5);
+            my $worker = STF::Worker::RepairObject->new(
+                container => $context->container,
+                max_works_per_child => $work,
+                breadth => 2,
+            );
+            $worker->work;
+        };
+        if ($@) {
+            fail "Error running RepairObject worker: $@";
+        }
+        alarm(0);
+    }
+
     # XXX Since we're doing consistent hashing underneath, we need to
     # delete the FIRST entity in order to be *sure* that repair++ is
     # called in the background
@@ -196,9 +222,9 @@ EOSQL
     ok $object_health_queue_size_after < $object_health_queue_size, "queue size has not increased (before=$object_health_queue_size, after=$object_health_queue_size_after)";
 
     note "alright, it worked for the most normal case of storages crashing. Howabout corrupted files?";
+    my ($broken_file) = sort { rand } glob $pattern;
     {
-        my ($file) = sort { rand } glob $pattern;
-        open my $fh, '>', $file;
+        open my $fh, '>', $broken_file;
         print $fh "garbage!";
         close $fh;
     }
@@ -225,6 +251,11 @@ EOSQL
     }
     alarm(0);
 
+    {
+        open my $fh, '<', $broken_file;
+        my $content = do { local $/; <$fh> };
+        isnt $content, "garbage!", "Object should be fixed";
+    }
     note "At this point, the object is fixed.";
 
     { # check files
@@ -244,6 +275,73 @@ EOSQL
         is scalar @$entities, 2, "Should be 2 entities";
     }
 
+    # XXX Need to test case when entities are intact, but are in the
+    # wrong cluster.
+    {
+        my $dbh      = $container->get( 'DB::Master' );
+        my $clusters = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} } );
+            SELECT * FROM storage_cluster
+EOSQL
+        my %shiftmap;
+        foreach my $i (0.. (scalar(@$clusters) - 1)) {
+            $shiftmap{ $clusters->[$i]->{id} } = $clusters->[$i - 1]->{id};
+        }
+
+        my $storage_api = $container->get('API::Storage');
+        my @storages    = $storage_api->search({});
+        foreach my $storage ( @storages ) {
+            note "Mapping $storage->{id} from $storage->{cluster_id} to $shiftmap{ $storage->{cluster_id} } to swap";
+            $storage_api->update( $storage->{id}, {
+                cluster_id => $shiftmap{ $storage->{cluster_id} }
+            } );
+        }
+
+        # now we should have mismatch between which cluster the object thinks
+        # it is stored
+
+        my $work = 0;
+        my %objects = map { ($_->{id} => 1) } @$entities;
+        foreach my $object_id ( keys %objects ) {
+            my $map = $dbh->selectrow_hashref( <<EOSQL, undef, $object_id );
+                SELECT * FROM object_cluster_map WHERE object_id = ?
+EOSQL
+            my $cluster_id = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id );
+                SELECT s.cluster_id FROM storage s JOIN entity e ON
+                    s.id = e.storage_id
+                    WHERE e.object_id = ?
+EOSQL
+            isnt $cluster_id->[0]->{cluster_id}, $map->{cluster_id}, "we have a mismatch";
+            $work++;
+            $container->get( 'API::Queue' )->enqueue( repair_object => $object_id );
+        }
+
+        eval {
+            local $SIG{ALRM} = sub { die "RepairObject timeout" };
+            alarm(5);
+            my $worker = STF::Worker::RepairObject->new(
+                container => $context->container,
+                max_works_per_child => $work,
+                breadth => 2,
+            );
+            $worker->work;
+        };
+        if ($@) {
+            fail "Error running RepairObject worker: $@";
+        }
+        alarm(0);
+
+        foreach my $object_id ( keys %objects ) {
+            my $map = $dbh->selectrow_hashref( <<EOSQL, undef, $object_id );
+                SELECT * FROM object_cluster_map WHERE object_id = ?
+EOSQL
+            my ($cluster_id) = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id );
+                SELECT s.cluster_id FROM storage s JOIN entity e ON
+                    s.id = e.storage_id
+                    WHERE e.object_id = ?
+EOSQL
+            is $cluster_id->[0]->{cluster_id}, $map->{cluster_id}, "we DON'T have a mismatch";
+        }
+    }
 };
 my $app = require "t/dispatcher.psgi";
 test_psgi 

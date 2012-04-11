@@ -71,7 +71,12 @@ BEGIN {
         STORAGE_MODE_MIGRATED => 4,
         # These are only used to denote that an automatic migration
         # is happening
-        
+
+        STORAGE_MODE_SPARE => 10,
+        # Denotes that the storage is a spare for the registered cluster.
+        # Writes are performed, but reads do not happen. Upon a failure
+        # you can either replace the broken storage with this one, or
+        # use this to restore the broken storage.
     );
     $constants{ SERIAL_BITS  } = (64 - $constants{HOST_ID_BITS} - $constants{TIME_BITS});
     $constants{ TIME_SHIFT   } = $constants{HOST_ID_BITS} + $constants{SERIAL_BITS};

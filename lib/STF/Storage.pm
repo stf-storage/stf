@@ -31,6 +31,8 @@ sub to_app {
 sub process {
     my ($self, $env) = @_;
 
+printf STDERR " *  * * * * *  * * * process\n";
+
     my $method = $env->{REQUEST_METHOD};
 
     if (my $fileapp = $self->fileapp) {
@@ -141,7 +143,7 @@ sub delete_object {
 
     if (! -f $dest) {
         if ( STF_DEBUG ) {
-            printf STDERR " - File does not exist: $dest\n";
+            printf STDERR "[   Backend] File does not exist, return 404: $dest\n";
         }
         return $req->new_response(404, [], []);
     }

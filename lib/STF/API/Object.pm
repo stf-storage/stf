@@ -268,58 +268,55 @@ sub check_health {
             print STDERR "[    Health] Going to check $url\n";
         }
 
-        my $is_success;
-        if (STF_ENABLE_OBJECT_META && $object_meta ) {
+        my $fh = File::Temp->new( UNLINK => 1 );
+        my (undef, $code) = eval {
+            $furl->request(
+                url => $url,
+                method => "GET",
+                write_file => $fh,
+            );
+        };
+        if ($@) {
+            print STDERR "[    Health] HTTP request raised an exception: $@\n";
+            # Make sure this becomes an error
+            $code = 500;
+        }
+        my $is_success = HTTP::Status::is_success( $code );
+        if (STF_DEBUG) {
+            printf STDERR "[    Health] GET %s was %s (%d)\n",
+                $url, ($is_success ? "OK" : "FAIL"), $code;
+        }
+
+        $fh->flush;
+        $fh->seek(0, 0);
+        my $size = (stat($fh))[7];
+        if ( $size != $object->{size} ) {
+            $is_success = 0;
+            if ( STF_DEBUG ) {
+                printf STDERR "[    Health] Object %s sizes do not match (got %d, expected %d)\n",
+                    $object->{id},
+                    $size,
+                    $object->{size}
+                ;
+            }
+        }
+
+        if (STF_ENABLE_OBJECT_META && $object_meta && $is_success) {
             # XXX If the object wasn't created with meta info (which can
             # happen), then we shouldn't run all this
             my $hash = Digest::MD5->new;
-            my (undef, $code) = eval {
-                $furl->request(
-                    url => $url,
-                    method => "GET",
-                    write_code => sub {
-                        my ($st, $msg, $hdrs, $partial) = @_;
-                        return unless HTTP::Status::is_success( $st );
-                        $hash->add( $partial );
-                    }
-                );
-            };
-            if ($@) {
-                print STDERR "[    Health] HTTP request raised an exception: $@\n";
-                # Make sure this becomes an error
-                $code = 500;
-            }
-            my $code_ok = HTTP::Status::is_success( $code );
-            if (STF_DEBUG) {
-                printf STDERR "[    Health] GET %s was %s (%d)\n",
-                    $url, ($code_ok ? "OK" : "FAIL"), $code;
-            }
-
             my $hash_ok = 0;
-            if ($code_ok) {
-                my $expected = $object_meta->{hash};
-                my $actual   = $hash->hexdigest();
-                $hash_ok = $expected eq $actual;
-                if (STF_DEBUG) {
-                    printf STDERR "[    Health] MD5 hashes for %s %s (DB = %s, actual = %s)\n",
-                        $url, ( $hash_ok ? "OK" : "FAIL"), $expected, $actual
-                    ;
-                }
+            $hash->addfile( $fh );
+            my $expected = $object_meta->{hash};
+            my $actual   = $hash->hexdigest();
+            $hash_ok = $expected eq $actual;
+            if (STF_DEBUG) {
+                printf STDERR "[    Health] MD5 hashes for %s %s (DB = %s, actual = %s)\n",
+                    $url, ( $hash_ok ? "OK" : "FAIL"), $expected, $actual
+                ;
             }
 
-            $is_success = $code_ok && $hash_ok;
-        } else { # we don't have object meta, and thus no hash
-            my (undef, $code) = eval { $furl->head( $url ) };
-            if ($@) {
-                print STDERR "[    Health] HTTP request raised an exception: $@\n";
-                # Make sure this becomes an error
-                $code = 500;
-            }
-            $is_success = HTTP::Status::is_success( $code );
-            if (STF_DEBUG) {
-                printf STDERR "[    Health] HEAD %s was %s (%d)\n",
-                    $url, ($is_success ? "OK" : "FAIL"), $code;
-            }
+            $is_success = $hash_ok;
         }
 
         if ($is_success) {
@@ -398,6 +395,35 @@ sub repair {
         return;
     }
 
+    # check cluster_id
+    my $cluster = $cluster_api->load_for_object( $object_id );
+    my $cluster_mismatch = 0;
+    foreach my $storage ( @$intact ) {
+        if ( $storage->{cluster_id} != $cluster->{id} ) {
+            if ( STF_DEBUG ) {
+                printf STDERR "[    Repair] Cluster ID mismatch for object %s on storage %s (expected %s, got %s)\n",
+                    $object_id,
+                    $storage->{id},
+                    $cluster->{id},
+                    $storage->{cluster_id}
+                ;
+            }
+            $cluster_mismatch++;
+        }
+    }
+
+    if ($cluster_mismatch > 0) {
+        my $replicated = $entity_api->replicate( {
+            object_id => $object_id,
+            replicas  => $cluster_mismatch,
+        } );
+        if ($replicated <= 0) {
+            if ( STF_DEBUG ) {
+                printf STDERR "[    Repair] PANIC: Forced replication for cluster ID mismatch failed. This is wrong, but proceeding with regular repair\n";
+            }
+        }
+    }
+
     my $have = scalar @$intact;
     my $need = $object->{num_replica};
     my $min_num_replica = $self->min_num_replica;
@@ -407,7 +433,7 @@ sub repair {
 
     my $max_num_replica = $self->max_num_replica;
     my @return;
-    if ( defined $max_num_replica && $max_num_replica <= $have ) {
+    if ( ! $cluster_mismatch && defined $max_num_replica && $max_num_replica <= $have ) {
         if ( STF_DEBUG ) {
             printf STDERR "[    Repair] No need to repair %s (need %d, have %d, system max replica %d)\n",
                 $object_id,
@@ -418,7 +444,7 @@ sub repair {
         }
 
         # Return the number of object fixed... which is nothing
-    } elsif ($need <= $have) {
+    } elsif (! $cluster_mismatch && $need <= $have) {
         if (STF_DEBUG) {
             printf STDERR "[    Repair] No need to repair %s (need %d, have %d)\n",
                 $object_id,
@@ -430,6 +456,12 @@ sub repair {
         # Return the number of object fixed... which is nothing
     } else {
         my $n;
+
+        if ($cluster_mismatch > 0) {
+            $n = $cluster_mismatch;
+            $have -= $cluster_mismatch;
+        }
+
         if ( defined $max_num_replica ) {
             $n = (($max_num_replica > $need) ? $need : $max_num_replica) - $have;
         } else {
@@ -455,17 +487,15 @@ sub repair {
                 next;
             }
 
-            my $ref_url = join "/", $storage->{uri}, $object->{internal_name};
-            if (STF_DEBUG) {
-                printf STDERR "[    Repair] Using content from %s for %s\n",
-                    $ref_url, $object_id,
-                ;
-            }
-            (undef, $code, undef, undef, $content) = $furl->get( $ref_url );
-            if (HTTP::Status::is_success( $code )) {
+            $content = $entity_api->fetch_content({
+                object => $object,
+                storage => $storage,
+            });
+
+            if ( defined $content ) {
                 last;
             } else {
-                print STDERR "semi-PANIC: failed to retrieve supposedly good url $ref_url: $code\n";
+                print STDERR "semi-PANIC: failed to retrieve supposedly good url $storage->{uri}/$object->{internal_name}\n";
                 $content = undef;
                 next;
             }

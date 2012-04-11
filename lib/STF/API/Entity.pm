@@ -126,7 +126,12 @@ sub store {
         printf STDERR "[ Replicate] + Sending DELETE %s (storage = %s, cluster = %s)\n",
             $uri, $storage->{id}, $storage->{cluster_id};
     }
-    eval { $furl->delete($uri) };
+    eval {
+        my (undef, $code) = $furl->delete($uri);
+        if ( STF_DEBUG ) {
+            printf STDERR "[ Replicate]   DELETE was $code (harmless)\n";
+        }
+    };
 
     if ( STF_DEBUG ) {
         printf STDERR "[ Replicate] + Sending PUT %s (storage = %s, cluster = %s)\n",
@@ -134,6 +139,9 @@ sub store {
     }
 
     if ( Scalar::Util::openhandle( $content ) ) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[ Replicate] Content is a file handle. Seeking to position 0 to make sure\n";
+        }
         seek( $content, 0, 0 );
     }
 
@@ -331,7 +339,7 @@ EOSQL
 
     if ( ! $content && $input ) {
         if ( STF_DEBUG ) {
-            printf STDERR "[ Replicate] content is null, reading from input\n";
+            printf STDERR "[ Replicate] Content is null, reading from input\n";
         }
 
         my $read_timer;
@@ -342,7 +350,8 @@ EOSQL
         my ($buf, $ret);
         my $size = $object->{size};
         my $sofar = 0;
-        $content = '';
+
+        my $fh = File::Temp->new( UNLINK => 1 );
         READCONTENT: while ( $sofar < $size ) {
             $ret = read( $input, $buf, $size );
             if ( not defined $ret ) {
@@ -350,9 +359,11 @@ EOSQL
             } elsif ( $ret == 0 ) { # EOF
                 last READCONTENT;
             }
-            $content .= $buf;
+            print $fh $buf;
             $sofar += $ret;
         }
+        $fh->flush;
+        $content = $fh;
     }
 
     if (! $content && $object ) {
@@ -375,24 +386,12 @@ EOSQL
             return;
         }
 
-        my $furl = $self->get('Furl');
         foreach my $storage ( @$storages ) {
-            my $uri = join "/", $storage->{uri}, $object->{internal_name};
-            if ( STF_DEBUG ) {
-                printf STDERR "[ Replicate] Fetching %s as replica source\n", $uri;
-            }
-
-            my (undef, $code, undef, $hdrs, $x_content) = $furl->get( $uri );
-            if ( $code ne '200' ) {
-                next;
-            }
-
-            # success
-            if ( STF_DEBUG ) {
-                printf STDERR "[ Replicate] Success, going to use content from %s\n", $uri;
-            }
-            $content = $x_content;
-            last;
+            $content = $self->fetch_content( {
+                object => $object,
+                storage => $storage,
+            } );
+            last if $content;
         }
 
         if ( ! $content ) {
@@ -452,7 +451,7 @@ EOSQL
     my $ok_count = 0;
     foreach my $storage ( @$storages ) {
         my $ok = $self->store( {
-            object => $object,
+            object  => $object,
             storage => $storage,
             content => $content,
         } );
@@ -473,6 +472,52 @@ EOSQL
     }
 
     return $ok_count;
+}
+
+sub fetch_content {
+    my ( $self, $args ) = @_;
+
+    my $object = $args->{object} or die "XXX no object";
+    my $storage = $args->{storage} or die "XXX no object";
+
+    my $furl = $self->get('Furl');
+    my $uri = join "/", $storage->{uri}, $object->{internal_name};
+    if ( STF_DEBUG ) {
+        printf STDERR "[ Replicate] Fetching %s as replica source\n", $uri;
+    }
+
+    my $fh = File::Temp->new( UNLINK => 1 );
+    my (undef, $code, undef, $hdrs) = $furl->request(
+        method     => 'GET',
+        url        => $uri,
+        write_file => $fh,
+    );
+
+    if ( $code ne '200' ) {
+        $fh->close;
+        return;
+    }
+
+    # success
+    if ( STF_DEBUG ) {
+        printf STDERR "[ Replicate] Success, going to use content from %s\n", $uri;
+    }
+
+    $fh->flush;
+
+    my $size = (stat($fh))[7];
+    if ( $object->{size} != $size ) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[ Replicate] Fetched content size for object %s does not match registered size?! (got %d, expected %d)\n",
+                $object->{id},
+                $size,
+                $object->{size}
+            ;
+        }
+        $fh->close;
+        return;
+    }
+    return $fh;
 }
 
 no Mouse;

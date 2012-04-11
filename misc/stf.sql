@@ -1,8 +1,7 @@
 
 CREATE TABLE storage_cluster (
     id INT NOT NULL PRIMARY KEY,
-    mode TINYINT NOT NULL DEFAULT 1,
-    replica_of INT DEFAULT NULL
+    mode TINYINT NOT NULL DEFAULT 1
 ) ENGINE=InnoDB;
 
 
