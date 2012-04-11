@@ -3,9 +3,14 @@ use Cwd ();
 use Digest::MD5 qw(md5_hex);
 use Test::More;
 use Plack::Test;
+use Guard ();
 use HTTP::Request::Common qw(PUT HEAD GET DELETE POST);
 use HTTP::Date;
-use STF::Constants qw(STF_ENABLE_OBJECT_META);
+use STF::Constants qw(
+    STF_ENABLE_OBJECT_META 
+    STORAGE_CLUSTER_MODE_READ_ONLY STORAGE_CLUSTER_MODE_READ_WRITE
+    STORAGE_MODE_TEMPORARILY_DOWN STORAGE_MODE_READ_WRITE
+);
 use STF::Test qw(clear_queue);
 
 use_ok "STF::Context";
@@ -178,6 +183,45 @@ EOSQL
         }
     }
 
+    {
+        # check proper clustering: basically make a storage not writable,
+        # and then make sure that repeated writes to STF keeps writing to
+        # the cluster that's alive
+
+        my $cluster_api = $context->container->get('API::StorageCluster');
+        my $storage_api = $context->container->get('API::Storage');
+        my @storages    = $storage_api->search();
+        my $broken      = $storages[ rand @storages ];
+
+        $storage_api->update( $broken->{id}, { mode => STORAGE_MODE_TEMPORARILY_DOWN });
+        $cluster_api->update( $broken->{cluster_id}, { mode => STORAGE_CLUSTER_MODE_READ_ONLY } );
+       my $guard = Guard::guard(sub {
+            $cluster_api->update( $broken->{cluster_id}, { mode => STORAGE_CLUSTER_MODE_READ_WRITE } );
+            $storage_api->update( $broken->{id}, { mode => STORAGE_MODE_READ_WRITE } );
+        } );
+
+        my $dbh = $context->container->get('DB::Master');
+        my @objects = map { $random_string->() } 1..30;
+        foreach my $a_object_name ( @objects ) {
+            $res = $cb->( PUT "http://127.0.0.1/$bucket_name/$a_object_name", "Content-Type" => "text/plain", Content => $create_data->(1) );
+
+            if (! ok $res->is_success, "PUT while a storage is down is successful") {
+                diag $res->as_string;
+            }
+            my $clusters = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, $bucket_name, $a_object_name );
+                SELECT s.cluster_id
+                    FROM storage s
+                        JOIN entity e ON s.id = e.storage_id
+                        JOIN object o ON o.id = e.object_id
+                        JOIN bucket b ON b.id = o.bucket_id
+                    WHERE b.name = ? AND o.name = ?
+EOSQL
+            my @match = grep { $_->{cluster_id} == $broken->{cluster_id} } @$clusters;
+            ok !@match, "object $bucket_name/$a_object_name does not belong to cluster $broken->{cluster_id}";
+        }
+    }
+
+    clear_queue();
     note "POST /$bucket_name/$object_name";
     $res = $cb->(
         POST "http://127.0.0.1/$bucket_name/$object_name",

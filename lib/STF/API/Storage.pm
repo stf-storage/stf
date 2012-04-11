@@ -56,6 +56,22 @@ around create => sub {
     return $rv;
 };
 
+sub load_writable_for {
+    my ($self, $args) = @_;
+
+    my $cluster = $args->{cluster} or die "XXX no cluster";
+    my $object  = $args->{object}  or die "XXX no object";
+    my $dbh = $self->dbh;
+    my $storages = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, STORAGE_MODE_READ_WRITE, $cluster->{id}, $object->{id});
+        SELECT s.id, s.uri FROM storage s
+            WHERE s.mode = ? AND s.cluster_id = ? AND s.id NOT IN
+                (SELECT storage_id FROM entity WHERE object_id = ?)
+        ORDER BY rand()
+EOSQL
+
+    return $storages;
+}
+
 sub update_meta {
     if ( STF_ENABLE_STORAGE_META ) {
         my ($self, $storage_id, $args) = @_;

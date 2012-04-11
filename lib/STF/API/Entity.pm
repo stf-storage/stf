@@ -204,7 +204,10 @@ sub replicate {
     }
     my $dbh = $self->dbh;
 
-    my $object = $self->get('API::Object')->lookup( $object_id );
+    my $cluster_api = $self->get('API::StorageCluster');
+    my $storage_api = $self->get('API::Storage');
+    my $object_api = $self->get('API::Object');
+    my $object = $object_api->lookup( $object_id );
     if (! $object) {
         if ( STF_DEBUG ) {
             printf STDERR 
@@ -346,11 +349,41 @@ EOSQL
         }
     }
 
-    my $storages = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, STORAGE_MODE_READ_WRITE, $object_id);
-        SELECT s.id, s.uri FROM storage s
-            WHERE s.mode = ? AND s.id NOT IN (SELECT storage_id FROM entity WHERE object_id = ?)
-        ORDER BY rand() LIMIT @{[ $replicas * 2 ]}
-EOSQL
+    my $cluster    = $cluster_api->load_for_object( $object );
+    if (! $cluster) {
+        $cluster = $cluster_api->calculate_for_object( $object );
+        if (! $cluster) {
+            if ( STF_DEBUG ) {
+                printf STDERR "[ Replicate] No cluster defined for objec %s, and could not any load cluster for it\n",
+                    $object->{id}
+                ;
+            }
+            return;
+        }
+
+        $cluster_api->register_for_object( {
+            cluster => $cluster,
+            object  => $object,
+        } );
+        if ( STF_DEBUG ) {
+            printf STDERR "[ Replicate] No cluster defined for object %s yet. Created mapping for cluster %d\n",
+                $object->{id},
+                $cluster->{id},
+            ;
+        }
+    }
+
+    if ( STF_DEBUG ) {
+        printf STDERR "[ Replicate] Using cluster %s for object %s\n",
+            $cluster->{id},
+            $object->{id},
+        ;
+    }
+
+    my $storages   = $storage_api->load_writable_for({
+        object  => $object,
+        cluster => $cluster,
+    } );
     if (@$storages < $replicas) {
         if ( STF_DEBUG ) {
             printf STDERR "[ Replicate] Wanted %d storages, but found %d\n", $replicas, scalar @$storages;

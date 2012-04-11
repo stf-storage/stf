@@ -8,6 +8,7 @@ use STF::API::DeletedObject;
 use STF::API::Entity;
 use STF::API::Object;
 use STF::API::Storage;
+use STF::API::StorageCluster;
 use STF::Constants qw(STF_ENABLE_STORAGE_META STF_ENABLE_OBJECT_META);
 BEGIN {
     if ( STF_ENABLE_STORAGE_META ) {
@@ -55,7 +56,7 @@ register 'API::Object' => sub {
     );
 };
 
-my @api_names = qw(API::Bucket API::Entity API::DeletedObject API::Storage);
+my @api_names = qw(API::Bucket API::Entity API::DeletedObject API::Storage API::StorageCluster);
 if ( STF_ENABLE_STORAGE_META ) {
     push @api_names, 'API::StorageMeta';
 }

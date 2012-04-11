@@ -1,10 +1,19 @@
 
+CREATE TABLE storage_cluster (
+    id INT NOT NULL PRIMARY KEY,
+    mode TINYINT NOT NULL DEFAULT 1,
+    replica_of INT DEFAULT NULL
+) ENGINE=InnoDB;
+
+
 CREATE TABLE storage (
        id INT NOT NULL PRIMARY KEY,
+       cluster_id INT,
        uri VARCHAR(100) NOT NULL,
        mode TINYINT NOT NULL DEFAULT 1,
        created_at INT NOT NULL,
        updated_at TIMESTAMP,
+       FOREIGN KEY(cluster_id) REFERENCES storage_cluster (id) ON DELETE SET NULL,
        UNIQUE KEY(uri),
        KEY(mode)
 ) ENGINE=InnoDB;
@@ -55,6 +64,15 @@ CREATE TABLE object (
        updated_at TIMESTAMP,
        UNIQUE KEY(bucket_id, name),
        UNIQUE KEY(internal_name)
+) ENGINE=InnoDB;
+
+/* object_cluster_map 
+    maps objects to clusters
+*/
+CREATE TABLE object_cluster_map (
+    object_id BIGINT NOT NULL PRIMARY KEY,
+    cluster_id INT NOT NULL,
+    KEY (cluster_id)
 ) ENGINE=InnoDB;
 
 /* object_meta - same caveats as storage_meta applies */

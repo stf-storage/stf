@@ -42,8 +42,8 @@ sub load {
         return;
     }
 
-    my $max = $ENV{STF_STORAGE_COUNT} || 3;
-    for my $i (1..3) {
+    my $max = $ENV{STF_STORAGE_COUNT} || 6;
+    for my $i (1..$max) {
         push @STF_STORAGES, Test::TCP->new( code => sub {
             my $port = shift;
 
@@ -66,9 +66,24 @@ sub load {
     # install these storages
     my $dbh = DBI->connect( $ENV{TEST_STF_DSN}, undef,  undef, { RaiseError => 1 } );
     $dbh->do( "DELETE FROM storage" );
+    $dbh->do( "DELETE FROM storage_cluster" );
+
+    my $num_clusters = $max % 3 == 0 ? $max / 3 : int($max/3) + 1;
+    for my $i ( 1.. $num_clusters ) {
+        diag "Registering cluster $i";
+        $dbh->do( "INSERT INTO storage_cluster (id, mode) VALUES (?, 1)", undef, $i );
+    }
+
     my $id = 1;
+    my $cluster_id = 1;
     foreach my $storage (split /,/, $ENV{STF_STORAGE_URLS}) {
-        $dbh->do( "INSERT INTO storage (id, uri, mode, created_at) VALUES ( ?, ?, 1, UNIX_TIMESTAMP(NOW()))", undef, $id++, $storage );
+        diag "Registering storage $id for cluster $cluster_id";
+        $dbh->do( "INSERT INTO storage (id, cluster_id, uri, mode, created_at) VALUES ( ?, ?, ?, 1, UNIX_TIMESTAMP(NOW()))", undef, $id, $cluster_id, $storage );
+        if ( $id % 3 == 0 ) {
+            $cluster_id++;
+        }
+        $id++;
+
     }
 }
 
