@@ -220,7 +220,7 @@ sub remove_from {
     }
 
     $self->delete( {
-        storage_id => [ -in => map { $_->{id} } @$storages ],
+        storage_id => { in => [ map { $_->{id} } @$storages ] },
         object_id => $object->{id}
     } );
 
