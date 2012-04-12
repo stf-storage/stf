@@ -72,24 +72,9 @@ has workers => (
             DeleteObject  => 4,
             ObjectHealth  => 1,
             RepairObject  => 1,
-            RecoverCrash  => 1,
-            RetireStorage => 1,
         );
         return \%workers,
     },
-    trigger => sub {
-        my ($self, $new_hash) = @_;
-        my %alias = (
-            Usage => 'UpdateUsage',
-            Retire => 'RetireStorage',
-            Crash => 'RecoverCrash',
-        );
-        while ( my ($k, $v) = each %alias ) {
-            if (exists $new_hash->{$k}) {
-                $new_hash->{$v} = delete $new_hash->{$k};
-            }
-        }
-    }
 );
 
 sub bootstrap {

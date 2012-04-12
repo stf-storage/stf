@@ -62,9 +62,9 @@ sub load_writable_for {
     my $cluster = $args->{cluster} or die "XXX no cluster";
     my $object  = $args->{object}  or die "XXX no object";
     my $dbh = $self->dbh;
-    my $storages = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, STORAGE_MODE_READ_WRITE, $cluster->{id}, $object->{id});
-        SELECT s.id, s.uri, s.cluster_id FROM storage s
-            WHERE s.mode = ? AND s.cluster_id = ? AND s.id NOT IN
+    my $storages = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, STORAGE_MODE_READ_WRITE, STORAGE_MODE_SPARE, $cluster->{id}, $object->{id});
+        SELECT s.* FROM storage s
+            WHERE s.mode in( ?, ?) AND s.cluster_id = ? AND s.id NOT IN
                 (SELECT storage_id FROM entity WHERE object_id = ?)
         ORDER BY rand()
 EOSQL
@@ -114,7 +114,6 @@ EOSQL
     $self->lookup( $storage_id ); # for cache
     return $used;
 }
-
 
 sub move_entities {
     my ($self, $storage_id, $check_cb) = @_;

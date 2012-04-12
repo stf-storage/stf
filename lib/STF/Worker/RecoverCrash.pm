@@ -1,3 +1,37 @@
+# XXX  WARNING WARNING WARNING
+# This worker is no longer useful in the new clustered scheme.
+#
+# In the new clustered scheme, this is how you recover from a crash:
+#
+# Prerequisite:
+#   You have at least 2 clusters, each with at least 3 nodes
+#
+# 1. Mark the failed storage as DOWN
+#    - The cluster will automatically be marked as READ_ONLY
+#      (XXX This is not implemented yet)
+#    - During this time, your storage cluster is running in degraded
+#      mode. Reads can happen, but writes will not go to this cluster.
+#      (XXX This is not implemented yet)
+#
+# 2. Replace, fix, do whatever you need to do with the failed storage
+#
+# 3. Once the storage is fixed, mark another storage in the same 
+#    cluster as DOWN
+#    - Don't worry, you still have 1 storage, and it's being served READ ONLY
+#
+# 4. Use rsync or whatever to copy the data from the storage marked down
+#    at step 3 to the fixed storage.
+#
+# 5. Once the data is back in sync, mark the failed storage as READ ONLY,
+#    the rsync source as READ WRITE and keep an eye out on the machine status
+#    - The cluster should still be READ ONLY
+#    - This extra step is to make sure that the recovered storage isn't
+#      corrupted or something
+#
+# 6. Put all the storages back in READ WRITE mode
+#    - The cluster should automatically be marked as READ_WRITE
+#      (XXX This is not implemented yet)
+
 package STF::Worker::RecoverCrash;
 use Mouse;
 use STF::Constants qw(:storage STF_DEBUG);

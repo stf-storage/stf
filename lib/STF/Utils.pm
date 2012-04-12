@@ -32,8 +32,8 @@ sub human_readable_size {
         $unit = $u;
     } 
     return sprintf '%.1f%s', $val, $unit;
-}   
-    
+}
+
 sub as_bytes {
     my $v = shift;
     if ($v =~ s/TB?$//i) {

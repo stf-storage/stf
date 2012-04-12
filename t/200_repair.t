@@ -55,9 +55,19 @@ EOSQL
         );
     }
 
+    {
+        my $guard = $container->new_scope();
+        my $worker = STF::Worker::Replicate->new(
+            container => $container,
+            max_works_per_child => 21,
+        );
+        $worker->work;
+    }
+
     my $guard    = $container->new_scope();
     my $dbh      = $container->get( 'DB::Master' );
-    my $entities = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $bucket, "test" );
+
+    my $entities_before = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $bucket, "test" );
         SELECT o.id, s.uri, o.internal_name
             FROM object o JOIN bucket b ON b.id = o.bucket_id
                           JOIN entity e ON o.id = e.object_id
@@ -65,10 +75,9 @@ EOSQL
             WHERE b.name = ? AND o.name = ?
 EOSQL
 
-
     { # Ideally we need to check that nothing happened here (none of
       # these need repair), but I haven't done it here. TODO
-        my %objects = map { ($_->{id} => 1) } @$entities;
+        my %objects = map { ($_->{id} => 1) } @$entities_before;
         my $work = 0;
         foreach my $object_id ( keys %objects ) {
             $work++;
@@ -91,6 +100,16 @@ EOSQL
         alarm(0);
     }
 
+    my $entities_after = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $bucket, "test" );
+        SELECT o.id, s.uri, o.internal_name
+            FROM object o JOIN bucket b ON b.id = o.bucket_id
+                          JOIN entity e ON o.id = e.object_id
+                          JOIN storage s ON s.id = e.storage_id 
+            WHERE b.name = ? AND o.name = ?
+EOSQL
+
+    is scalar @$entities_after, scalar @$entities_before, "no repair happend";
+
     # XXX Since we're doing consistent hashing underneath, we need to
     # delete the FIRST entity in order to be *sure* that repair++ is
     # called in the background
@@ -100,17 +119,28 @@ EOSQL
             uri => $uri,
             hash => Digest::MurmurHash::murmur_hash($uri),
         } )
-    } @$entities;
+    } @$entities_after;
 
     my $furl = $container->get('Furl');
-    my ($target)= map { $entities{$_} } sort { $entities{$a}->{hash} <=> $entities{$b}->{hash} } keys %entities;
+    my @sorted = 
+        map { $entities{$_} }
+        sort { $entities{$a}->{hash} <=> $entities{$b}->{hash} }
+        keys %entities
+    ;
 
-    $furl->delete( $target->{uri} );
-
+    my $target = $sorted[0];
     my $pattern = "t/store*/$target->{internal_name}";
+
+
+    my @before;
     {
+        @before = glob( $pattern );
+
+        note "Deleting $target->{uri} from storage to mimic a corrupt entity";
+        $furl->delete( $target->{uri} );
+
         my @files = glob( $pattern );
-        is scalar @files, 1, "Should be 1 files";
+        is scalar @files, scalar @before - 1, "Should be " . scalar @before - 1 . " files (got " . scalar @files . ")";
     }
 
     # Keep requesting until the queue contains at least one repair_object
@@ -161,7 +191,7 @@ EOSQL
 
     { # check files
         my @files = glob( $pattern );
-        is scalar @files, 2, "Should be 2 files in $pattern";
+        is scalar @files, scalar @before, "Should be " . scalar @before . " files in $pattern";
     }
 
     { # check entities
@@ -173,7 +203,7 @@ EOSQL
                               JOIN storage s ON s.id = e.storage_id 
                 WHERE b.name = ? AND o.name = ?
 EOSQL
-        is scalar @$entities, 2, "Should be 2 entities";
+        is scalar @$entities, scalar @before, "Should be " . scalar @before . " entities";
     }
 
     note "Now we should check out if the object health worker received any inputs";
@@ -219,7 +249,7 @@ EOSQL
 EOSQL
     }
 
-    ok $object_health_queue_size_after < $object_health_queue_size, "queue size has not increased (before=$object_health_queue_size, after=$object_health_queue_size_after)";
+    ok $object_health_queue_size_after <= $object_health_queue_size, "queue size has not increased (before=$object_health_queue_size, after=$object_health_queue_size_after)";
 
     note "alright, it worked for the most normal case of storages crashing. Howabout corrupted files?";
     my ($broken_file) = sort { rand } glob $pattern;
@@ -260,7 +290,7 @@ EOSQL
 
     { # check files
         my @files = glob( $pattern );
-        is scalar @files, 2, "Should be 2 files in $pattern";
+        is scalar @files, scalar @before, "Should be " . scalar @before . " files in $pattern";
     }
 
     { # check entities
@@ -272,7 +302,7 @@ EOSQL
                               JOIN storage s ON s.id = e.storage_id 
                 WHERE b.name = ? AND o.name = ?
 EOSQL
-        is scalar @$entities, 2, "Should be 2 entities";
+        is scalar @$entities, scalar @before, "Should be " . scalar @before . " entities";
     }
 
     # XXX Need to test case when entities are intact, but are in the
@@ -300,7 +330,7 @@ EOSQL
         # it is stored
 
         my $work = 0;
-        my %objects = map { ($_->{id} => 1) } @$entities;
+        my %objects = map { ($_->{id} => 1) } @$entities_after;
         foreach my $object_id ( keys %objects ) {
             my $map = $dbh->selectrow_hashref( <<EOSQL, undef, $object_id );
                 SELECT * FROM object_cluster_map WHERE object_id = ?
@@ -334,12 +364,14 @@ EOSQL
             my $map = $dbh->selectrow_hashref( <<EOSQL, undef, $object_id );
                 SELECT * FROM object_cluster_map WHERE object_id = ?
 EOSQL
-            my ($cluster_id) = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id );
+            my $cluster_id_list = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id );
                 SELECT s.cluster_id FROM storage s JOIN entity e ON
                     s.id = e.storage_id
                     WHERE e.object_id = ?
 EOSQL
-            is $cluster_id->[0]->{cluster_id}, $map->{cluster_id}, "we DON'T have a mismatch";
+            foreach my $cluster_id (@$cluster_id_list) {
+                is $cluster_id->{cluster_id}, $map->{cluster_id}, "we DON'T have a mismatch";
+            }
         }
     }
 };

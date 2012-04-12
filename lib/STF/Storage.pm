@@ -31,8 +31,6 @@ sub to_app {
 sub process {
     my ($self, $env) = @_;
 
-printf STDERR " *  * * * * *  * * * process\n";
-
     my $method = $env->{REQUEST_METHOD};
 
     if (my $fileapp = $self->fileapp) {

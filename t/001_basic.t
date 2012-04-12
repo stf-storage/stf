@@ -91,7 +91,7 @@ my $code = sub {
                 JOIN bucket b ON o.bucket_id = b.id
                 WHERE b.name = ? AND o.name = ?
 EOSQL
-        ok $object, "found object matchin $bucket_name + $object_name";
+        ok $object, "found object matching $bucket_name + $object_name";
 
         if ( STF_ENABLE_OBJECT_META ) {
             my $meta = $dbh->selectrow_hashref( <<EOSQL, undef, $object->{id} );
@@ -99,16 +99,23 @@ EOSQL
 EOSQL
             is $meta->{hash}, $content_hash, "content has is properly stoerd";
         }
-    }
 
-    {
-        my $guard = $context->container->new_scope();
-        my $dbh = $context->container->get('DB::Queue');
-        my $worker = STF::Worker::Replicate->new(
-            container => $context->container,
-            max_works_per_child => 1,
-        );
-        $worker->work;
+        my $cluster = $context->container->get('API::StorageCluster')->load_for_object( $object->{id} );
+        note "object $object->{id} is in cluster $cluster->{id}";
+
+        my ($storage_count) = $dbh->selectrow_array(<<EOSQL, undef, $cluster->{id});
+            SELECT COUNT(*) FROM storage WHERE cluster_id = ?
+EOSQL
+
+        {
+            my $guard = $context->container->new_scope();
+            my $dbh = $context->container->get('DB::Queue');
+            my $worker = STF::Worker::Replicate->new(
+                container => $context->container,
+                max_works_per_child => 1,
+            );
+            $worker->work;
+        }
 
         # Check that we have exactly 2 entities
         my $dbh = $context->container->get('DB::Master');
@@ -118,7 +125,7 @@ EOSQL
                 JOIN bucket b ON o.bucket_id = b.id
                 WHERE b.name = ? AND o.name = ?
 EOSQL
-        is $e_count, 2, "After replication, there are exactly 2 entities created by the worker";
+        is $e_count, $storage_count, "After replication, there are exactly $storage_count entities created by the worker";
     }
 
     # GET / HEAD multiple times to make sure no stupid caching errors exist

@@ -1,5 +1,8 @@
 use strict;
 use Test::More;
+BEGIN {
+    plan skip_all => "This test is not really relevant anymore, as the crash recover worker is no longer needed";
+}
 use Plack::Test;
 use HTTP::Request::Common qw(PUT);
 use STF::Test qw(clear_queue);

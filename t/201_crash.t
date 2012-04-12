@@ -1,5 +1,9 @@
 use strict;
 use Test::More;
+BEGIN {
+    plan skip_all => "This test is not really relevant anymore, as the crash recover worker is no longer needed";
+}
+
 use Plack::Test;
 use HTTP::Request::Common qw(PUT DELETE);
 use STF::Test qw(clear_queue);
@@ -12,6 +16,10 @@ use_ok "STF::Worker::RepairObject";
 use_ok "STF::Worker::Replicate";
 
 clear_queue;
+my $random_string = sub {
+    my @chars = ('a'..'z');
+    join "", map { $chars[ rand @chars ] } 1..($_[0] || 8);
+};
 
 my $code = sub {
     my $cb = shift;
@@ -40,15 +48,27 @@ EOSQL
         }
     }
 
-    my $bucket = "crash";
-    my $content = join ".", $$, time(), {}, rand();
+    my $bucket_name = $random_string->();
+    my $object_name = $random_string->(32);
+    my $content     = $random_string->(128);
 
-    $cb->( PUT "http://127.0.0.1/$bucket" );
-    $cb->( PUT "http://127.0.0.1/$bucket/test",
+    $cb->( PUT "http://127.0.0.1/$bucket_name" );
+    $cb->( PUT "http://127.0.0.1/$bucket_name/$object_name",
         "X-Replication-Count" => 2,
         "Content-Type"        => "text/plain",
         "Content"             => $content,
     );
+
+    # find me the bucket and the object
+    my $bucket    = $container->get('API::Bucket')->lookup_by_name( $bucket_name );
+    my $object_id = $container->get('API::Object')->find_object_id({
+        bucket_id => $bucket->{id},
+        object_name => $object_name,
+    });
+    my $object = $container->get('API::Object')->lookup( $object_id );
+    my $cluster = $container->get('API::StorageCluster')->load_for_object( $object->{id} );
+
+diag explain $cluster;
 
     {
         my $worker = STF::Worker::Replicate->new(
@@ -103,12 +123,16 @@ EOSQL
     }
 
     # check that entity count is back
-    my $entities = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $bucket, "test" );
+    my $entities = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $bucket_name, $object_name );
         SELECT e.* FROM entity e JOIN object o ON e.object_id  = o.id
                                  JOIN bucket b ON o.bucket_id  = b.id
             WHERE b.name = ? AND o.name = ?
 EOSQL
-    is scalar @$entities, 2, "Should be 2 entities";
+    my ($storage_count) = $dbh->selectrow_array( <<EOSQL, undef, $cluster->{id} );
+        SELECT COUNT(*) FROM storage WHERE cluster_id = ?
+EOSQL
+
+    is scalar @$entities, $storage_count, "Should be $storage_count entities";
     foreach my $entity (@$entities) {
         isnt $entity->{storage_id}, $crashed->{id}, "entities are not in the crashed storage";
     }

@@ -9,6 +9,7 @@ use STF::Constants qw(
     STORAGE_MODE_TEMPORARILY_DOWN
     STORAGE_MODE_READ_ONLY
     STORAGE_MODE_READ_WRITE
+    STORAGE_MODE_SPARE
 );
 use STF::Dispatcher::PSGI::HTTPException;
 
@@ -372,8 +373,6 @@ sub repair {
         return;
     }
 
-    # entities that are intact may be in the /wrong/ location. check for 
-    # their cluster id
     my $cluster_api = $self->get( 'API::StorageCluster' );
     my $cluster = $cluster_api->load_for_object( $object->{id}, 1 );
     if (! $cluster) {
@@ -385,162 +384,149 @@ sub repair {
         return;
     }
 
-    my $furl = $self->get('Furl');
-    my @entities = $entity_api->search( { object_id => $object_id } );
-    my ($intact, $broken) = $self->check_health( $object_id );
+    # XXX select all entities from our EXPECTED cluster.
+    # if anything in there is broken, then attempt to load a good content
+    # from any entity that looks like worth it (even if it's from a different
+    # cluster).
+    # once we have a good content, we should write to 
 
-    if (! @$intact) {
-        printf STDERR "[    Repair] No entities available, object %s is COMPLETELY BROKEN\n", $object_id;
-        $self->update( $object_id => { status => OBJECT_INACTIVE } );
+    my $storage_api = $self->get( 'API::Storage' );
+    my @in_cluster = $storage_api->search( {
+        cluster_id => $cluster->{id}
+    });
+
+    my (@broken, $master_content);
+    foreach my $storage ( @in_cluster ) {
+        my $content;
+
+        if ( $storage->{mode} == STORAGE_MODE_READ_ONLY ||
+            $storage->{mode} == STORAGE_MODE_READ_WRITE ||
+            $storage->{mode} == STORAGE_MODE_SPARE )
+        {
+            $content = $entity_api->fetch_content({
+                object  => $object,
+                storage => $storage
+            });
+        }
+
+        if (! $content) { # eek
+            push @broken, $storage;
+        } elsif ( ! $master_content ) {
+            $master_content = $content;
+        }
+    }
+
+    if (! $master_content) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[    Repair] No content for %s could be fetched from storages in cluster %s. Falling back to reading from ANY source\n",
+                $object->{id},
+                $cluster->{id},
+            ;
+        }
+
+        # Last resort. See if we can fetch from other sources
+        $master_content = $entity_api->fetch_content_from_any({
+            object => $object,
+        });
+    }
+
+    if (! $master_content) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[    Repair] PANIC: No content for %s could be fetched!! Cannot proceed with repair.\n",
+                $object->{id}
+            ;
+        }
         return;
     }
 
-    # check cluster_id
-    my $cluster = $cluster_api->load_for_object( $object_id );
-    my $cluster_mismatch = 0;
-    foreach my $storage ( @$intact ) {
-        if ( $storage->{cluster_id} != $cluster->{id} ) {
+    my $repaired = 0;
+    if (@broken) { # we got something broken
+        # write to all broken storages
+        foreach my $storage ( @broken ) {
             if ( STF_DEBUG ) {
-                printf STDERR "[    Repair] Cluster ID mismatch for object %s on storage %s (expected %s, got %s)\n",
-                    $object_id,
+                printf STDERR "[    Repair] Repairing object %s on storage %s (%s)\n",
+                    $object->{id},
                     $storage->{id},
-                    $cluster->{id},
-                    $storage->{cluster_id}
+                    "$storage->{uri}/$object->{internal_name}"
                 ;
             }
-            $cluster_mismatch++;
-        }
-    }
 
-    if ($cluster_mismatch > 0) {
-        my $replicated = $entity_api->replicate( {
-            object_id => $object_id,
-            replicas  => $cluster_mismatch,
-        } );
-        if ($replicated <= 0) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[    Repair] PANIC: Forced replication for cluster ID mismatch failed. This is wrong, but proceeding with regular repair\n";
-            }
-        }
-    }
-
-    my $have = scalar @$intact;
-    my $need = $object->{num_replica};
-    my $min_num_replica = $self->min_num_replica;
-    if (defined $min_num_replica && $need < $min_num_replica) {
-        $need = $min_num_replica;
-    }
-
-    my $max_num_replica = $self->max_num_replica;
-    my @return;
-    if ( ! $cluster_mismatch && defined $max_num_replica && $max_num_replica <= $have ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] No need to repair %s (need %d, have %d, system max replica %d)\n",
-                $object_id,
-                $need,
-                $have,
-                $max_num_replica,
-            ;
-        }
-
-        # Return the number of object fixed... which is nothing
-    } elsif (! $cluster_mismatch && $need <= $have) {
-        if (STF_DEBUG) {
-            printf STDERR "[    Repair] No need to repair %s (need %d, have %d)\n",
-                $object_id,
-                $need,
-                $have,
-            ;
-        }
-
-        # Return the number of object fixed... which is nothing
-    } else {
-        my $n;
-
-        if ($cluster_mismatch > 0) {
-            $n = $cluster_mismatch;
-            $have -= $cluster_mismatch;
-        }
-
-        if ( defined $max_num_replica ) {
-            $n = (($max_num_replica > $need) ? $need : $max_num_replica) - $have;
-        } else {
-            $n = $need - $have;
-        }
-
-        if (STF_DEBUG) {
-            printf STDERR "[    Repair] Going to replicate %s %d times\n",
-                $object_id,
-                $n,
-            ;
-        }
-
-        # Try very hard to get a good copy
-        my ($code, $content);
-        foreach my $storage ( @$intact ) {
-            if ( $storage->{mode} != STORAGE_MODE_READ_ONLY && $storage->{mode} != STORAGE_MODE_READ_WRITE ) {
-                if ( STF_DEBUG ) {
-                    printf STDERR "[    Repair] Skipping storage %d as it's not readable",
-                        $storage->{id}
-                    ;
-                }
-                next;
-            }
-
-            $content = $entity_api->fetch_content({
-                object => $object,
+            my $ok = $entity_api->store({
                 storage => $storage,
+                object  => $object,
+                content => $master_content,
             });
-
-            if ( defined $content ) {
-                last;
-            } else {
-                print STDERR "semi-PANIC: failed to retrieve supposedly good url $storage->{uri}/$object->{internal_name}\n";
-                $content = undef;
-                next;
-            }
-        }
-
-        if (! $content) {
-            print STDERR "PANIC: Could not load a single good content from any storage! Can't repair $object_id...\n";
-            return 0;
-        }
-
-        my $replicated = $entity_api->replicate( {
-            object_id => $object_id,
-            content   => $content,
-            replicas  => $n,
-        } );
-
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] Object %s wanted %d, replicated %d times\n",
-                $object_id,
-                $n,
-                $replicated,
-            ;
-        }
-
-        # Return the number of object fixed... which is $replicated
-        @return = ($replicated, $broken);
-    }
-
-    if ( @$broken ) {
-        eval { 
-            $self->get('API::Entity')->remove_from( {
-                object   => $object,
-                storages => $broken
-            } );
-        };
-        if ( my $e = $@ ) {
             if ( STF_DEBUG ) {
-                printf STDERR "[    Repair] Failed to remove object: %s\n",
-                    $e
+                printf STDERR "[    Repair] STORE object %s to storage %s (mode = %s) was %s\n",
+                    $object->{id},
+                    $storage->{id},
+                    $storage->{mode}, # XXX make it human-readable
+                    $ok ? "OK" : "FAIL"
                 ;
             }
+            if ( $ok ) {
+                $repaired++;
+            }
         }
+
+        if (@broken < $repaired) {
+            # yikes, if we got here, that means we were able to get
+            # some content out of the system, but we were not able to
+            # properly store all copies. We shouldn't go to the next
+            # step, which is to delete all entities that are NOT in
+            # the expected cluster
+
+            if ( STF_DEBUG ) {
+                printf STDERR "[    Repair] Stored %d entities, but we started with %d broken entities, this is suspicious...\n",
+                    $repaired,
+                    scalar @broken
+                ;
+            }
+            return;
+        }
+
+        # if we got here, cool, we should be at least as good as
+        # the previous state
     }
 
-    return @return;
+    # before doing deletes, make sure that we have at least 2 entities
+    # otherwise we shouldn't be performing deletes
+    my @entities = $entity_api->search({
+        storage_id => { in => [ map { $_->{id} } @in_cluster ] }
+    } );
+    if (@entities < 2) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[    Repair] PANIC: We only have %d entities in cluster %s, AFTER attempting to repair!! (%d storages in cluster). Do you have enough storages in cluster (at least 2, recommend 3)? Is your storage having hardware issues?\n",
+                scalar @entities,
+                $cluster->{id},
+                scalar @in_cluster,
+            ;
+        }
+        return;
+    }
+
+    # now check if we have entities outside of our cluster.
+    my @not_in_cluster = $entity_api->search({
+        object_id => $object->{id},
+        storage_id => { 'not in' => [ map { $_->{id} } @in_cluster ] }
+    });
+    if (@not_in_cluster > 0) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[    Repair] Found storages in different cluster(s), deleting from %s\n",
+                join ", ", map { $_->{storage_id} } @not_in_cluster;
+        }
+        $entity_api->remove_from({
+            object => $object,
+            storages => [ 
+                grep { defined $_ }
+                map { $storage_api->lookup( $_->{storage_id} ) }
+                    @not_in_cluster
+            ]
+        });
+    }
+    $repaired += scalar @not_in_cluster;
+
+    return wantarray ? ( $repaired, [ @broken, @not_in_cluster ] ) : $repaired;
 }
 
 sub get_any_valid_entity_url {

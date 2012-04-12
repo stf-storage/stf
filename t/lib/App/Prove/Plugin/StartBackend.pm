@@ -42,7 +42,7 @@ sub load {
         return;
     }
 
-    my $max = $ENV{STF_STORAGE_COUNT} || 6;
+    my $max = $ENV{STF_STORAGE_COUNT} ||= 6;
     for my $i (1..$max) {
         push @STF_STORAGES, Test::TCP->new( code => sub {
             my $port = shift;
@@ -75,6 +75,7 @@ sub load {
         diag "Registering cluster $i";
         $dbh->do( "INSERT INTO storage_cluster (id, mode) VALUES (?, 1)", undef, $i );
     }
+    $ENV{STF_STORAGE_CLUSTERS} = $num_clusters;
 
     my $id = 1;
     my $cluster_id = 1;
@@ -85,8 +86,8 @@ sub load {
             $cluster_id++;
         }
         $id++;
-
     }
+    
 }
 
 sub start_storage {
