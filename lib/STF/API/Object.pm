@@ -492,6 +492,7 @@ sub repair {
     # before doing deletes, make sure that we have at least 2 entities
     # otherwise we shouldn't be performing deletes
     my @entities = $entity_api->search({
+        object_id => $object->{id},
         storage_id => { in => [ map { $_->{id} } @in_cluster ] }
     } );
     if (@entities < 2) {
