@@ -1,9 +1,9 @@
-
 CREATE TABLE storage_cluster (
     id INT NOT NULL PRIMARY KEY,
-    mode TINYINT NOT NULL DEFAULT 1
+    name VARCHAR(128),
+    mode TINYINT NOT NULL DEFAULT 1,
+    KEY (mode)
 ) ENGINE=InnoDB;
-
 
 CREATE TABLE storage (
        id INT NOT NULL PRIMARY KEY,
@@ -71,6 +71,8 @@ CREATE TABLE object (
 CREATE TABLE object_cluster_map (
     object_id BIGINT NOT NULL PRIMARY KEY,
     cluster_id INT NOT NULL,
+    FOREIGN KEY (object_id) REFERENCES object (id) ON DELETE CASCADE,
+    FOREIGN KEY (cluster_id) REFERENCES storage_cluster (id) ON DELETE CASCADE,
     KEY (cluster_id)
 ) ENGINE=InnoDB;
 
