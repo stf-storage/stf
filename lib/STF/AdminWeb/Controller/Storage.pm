@@ -9,7 +9,7 @@ extends 'STF::AdminWeb::Controller';
 
 sub load_storage {
     my ($self, $c) = @_;
-    my $storage_id = $c->match->{object_id};
+    my $storage_id = $c->match->{storage_id};
     my $storage = $c->get('API::Storage')->lookup( $storage_id );
     if (! $storage) {
         $c->res->status(404);
@@ -43,7 +43,7 @@ sub list {
 sub entities {
     my ($self, $c) = @_;
 
-    my $storage_id = $c->match->{object_id};
+    my $storage_id = $c->match->{storage_id};
     my $storage = $self->load_storage($c);
 
     my %query = (
