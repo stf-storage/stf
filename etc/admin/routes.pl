@@ -6,29 +6,42 @@ router {
         action     => 'list',
     };
 
-    connect qr{^/storage(?:/(?:list)?)?$} => {
-        controller => 'Storage',
-        action     => 'list',
-    };
+    my %namespace = (
+        Storage => 'storage',
+        Cluster => 'cluster'
+    );
 
-    connect '/storage/add' => {
-        controller => 'Storage',
-        action     => 'add',
-    }, { method => 'GET' };
-    connect '/storage/add' => {
-        controller => 'Storage',
-        action     => 'add_post',
-    }, { method => 'POST' };
+    while ( my ($controller, $namespace) = each %namespace ) {
+        connect qr{^/$namespace(?:/(?:list)?)?$} => {
+            controller => $controller,
+            action     => 'list',
+        };
 
-    foreach my $action (qw(edit)) {
-        connect "/storage/:storage_id/$action" => {
-            controller => 'Storage',
-            action     => $action,
+        connect "/$namespace/add" => {
+            controller => $controller,
+            action     => 'add',
         }, { method => 'GET' };
-        connect "/storage/:storage_id/$action" => {
-            controller => 'Storage',
-            action     => "${action}_post",
+
+        connect "/$namespace/add" => {
+            controller => $controller,
+            action     => 'add_post',
         }, { method => 'POST' };
+
+        connect "/$namespace/:object_id/delete" => {
+            controller => $namespace,
+            action     => 'delete_post',
+        }, { method => 'POST' };
+
+        foreach my $action (qw(edit)) {
+            connect "/$namespace/:object_id/$action" => {
+                controller => $controller,
+                action     => $action,
+            }, { method => 'GET' };
+            connect "/$namespace/:object_id/$action" => {
+                controller => $controller,
+                action     => "${action}_post",
+            }, { method => 'POST' };
+        }
     }
 
     foreach my $action (qw(entities)) {
@@ -37,11 +50,6 @@ router {
             action     => $action,
         };
     }
-
-    connect '/storage/:storage_id/delete' => {
-        controller => 'Storage',
-        action     => 'delete_post',
-    }, { method => 'POST' };
 
     connect qr{^/bucket(?:/(?:list)?)?$} => {
         controller => 'Bucket',
