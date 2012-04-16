@@ -84,6 +84,54 @@ sub delete {
     $response->body(JSON::encode_json({ message => "object deleted" }));
 }
 
+sub create {
+    my ($self, $c) = @_;
+
+    if (my $bucket_id = $c->request->param('bucket_id')) {
+        my $bucket = $c->get('API::Bucket')->lookup( $bucket_id );
+        $self->fillinform( $c, { 
+            map { ( "bucket_$_" => $bucket->{$_} ) } keys %$bucket
+        });
+    }
+}
+
+sub create_post {
+    my ($self, $c) = @_;
+
+    my $params = $c->request->parameters->as_hashref;
+    my $result = $self->validate( $c, object_create => $params );
+    if ($result->success) {
+        my $stf_uri = $c->get('API::Config')->load_variable('stf.global.public_uri');
+        my $valids = $result->valid;
+        my $bucket = $c->get('API::Bucket')->lookup_by_name( $valids->{bucket_name} );
+        my $object_name = $valids->{object_name};
+        my $upload = $c->request->uploads->{content};
+        my $furl = $c->get('Furl');
+        my (undef, $code, $msg, $hdrs, $content) = $furl->put(
+            "$stf_uri/$bucket->{name}/$object_name",
+            [ "Content-Length" => $upload->size ],
+            $upload->path
+        );
+        if ( $code ne 201 ) {
+            my $res = $c->response;
+            $res->content_type('text/plain');
+            $res->body( "Failed to create object at $stf_uri/$bucket->{name}/$object_name ($code)" );
+            $c->finished(1);
+            return;
+        }
+
+        my $object_id = $c->get('API::Object')->find_object_id({
+            bucket_id => $bucket->{id},
+            object_name => $object_name
+        });
+        $c->redirect( $c->uri_for('/object/show', $object_id) );
+        return;
+    }
+    $c->stash->{template} = 'object/create';
+}
+
+
+
 no Mouse;
 
 1;

@@ -131,8 +131,8 @@
     <td><a href="[% c.stf_uri( bucket, object) %]">[% c.stf_uri( bucket, object) %]</a></td>
 </tr>
 <tr>
-    <td>Bucket ID</td>
-    <td><a href="/bucket/[% bucket.id %]">[% bucket.id %]</a></td>
+    <td>Bucket</td>
+    <td><a href="/bucket/[% bucket.id %]">[% bucket.name %]</a></td>
 </tr>
 <tr>
     <td>Replicas</td>

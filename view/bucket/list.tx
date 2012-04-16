@@ -4,6 +4,13 @@
     <button type="submit" class="btn">[% loc('Find Bucket') %]</button>
 </form>
 
+<div class="well">
+    <div class="pull-right">
+        <a class="btn btn-small" href="[% c.uri_for( "/bucket/add" ) %]"><i class="icon-plus"></i></a>
+    </div>
+    <h1>Buckets</h1>
+</div>
+
 <table class="table table-striped table-bordered table-condensed">
   <tr>
     <th>[% loc('Bucket ID') %]</th>
@@ -11,12 +18,12 @@
   </tr>
   [% FOREACH bucket IN buckets %]
   <tr>
-    <td class="digit"><a href="/bucket/[% bucket.id %]">[% bucket.id %]</a></td>
+    <td class="digit"><a href="/bucket/show/[% bucket.id %]">[% bucket.id %]</a></td>
     <td>[% bucket.name %]</td>
   </tr>
   [% END %]
 <tr>
-    <td>[% paginate(c.uri_for('/bucket/list'), pager) %]</td>
+    <td colspan="2">[% paginate(c.uri_for('/bucket/list'), pager) %]</td>
 </tr>
 </table>
 

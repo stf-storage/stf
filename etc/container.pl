@@ -4,6 +4,7 @@ use String::Urandom;
 use Cache::Memcached::Fast;
 use Class::Load ();
 use STF::API::Bucket;
+use STF::API::Config;
 use STF::API::DeletedObject;
 use STF::API::Entity;
 use STF::API::Object;
@@ -56,7 +57,7 @@ register 'API::Object' => sub {
     );
 };
 
-my @api_names = qw(API::Bucket API::Entity API::DeletedObject API::Storage API::StorageCluster);
+my @api_names = qw(API::Bucket API::Config API::Entity API::DeletedObject API::Storage API::StorageCluster);
 if ( STF_ENABLE_STORAGE_META ) {
     push @api_names, 'API::StorageMeta';
 }

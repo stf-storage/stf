@@ -109,6 +109,22 @@ return +{
     },
     cluster_delete => {
         required => [qw(id)],
+    },
+    bucket_add => {
+        required => [qw(name)],
+        constraint_methods => {
+            name => {
+                name => 'duplicate',
+                constraint_method => sub {
+                    my( $dfv, $name ) = @_;
+                    my $row = $dfv->container->get('API::Bucket')->lookup_by_name( $name );
+                    return !$row;
+                },
+            }
+        }
+    },
+    object_create => {
+        required => [qw(bucket_name object_name )]
     }
 };
 

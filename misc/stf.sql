@@ -1,3 +1,8 @@
+CREATE TABLE config (
+    varname VARCHAR(127) NOT NULL PRIMARY KEY,
+    varvalue TEXT
+) ENGINE=InnoDB;
+
 CREATE TABLE storage_cluster (
     id INT NOT NULL PRIMARY KEY,
     name VARCHAR(128),

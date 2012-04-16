@@ -2,8 +2,8 @@ use Router::Simple::Declare;
 
 router {
     connect '/' => {
-        controller => 'Storage',
-        action     => 'list',
+        controller => 'Global',
+        action     => 'index',
     };
 
     my %namespace = (
@@ -60,12 +60,21 @@ router {
         };
     }
 
+    connect "/bucket/add" => {
+        controller => 'Bucket',
+        action     => 'add',
+    }, { method => 'GET' };
+    connect "/bucket/add" => {
+        controller => 'Bucket',
+        action     => 'add_post',
+    }, { method => 'POST' };
+
     connect qr{^/bucket(?:/(?:list)?)?$} => {
         controller => 'Bucket',
         action     => 'list',
     };
 
-    connect '/bucket/:bucket_id' => {
+    connect '/bucket/show/:bucket_id' => {
         controller => 'Bucket',
         action     => 'view',
     };
@@ -83,12 +92,21 @@ router {
         }, { method => "POST" };
     }
 
-    connect qr{^/object/([^/]+)/([\w\/%+._-]+)$} => {
+    connect '/object/create' => {
+        controller => 'Object',
+        action     => 'create',
+    }, { method => "GET" };
+    connect '/object/create' => {
+        controller => 'Object',
+        action     => 'create_post',
+    }, { method => "POST" };
+
+    connect qr{^/object/show/([^/]+)/([\w\/%+._-]+)$} => {
         controller => 'Object',
         action => 'view_public_name',
     };
 
-    connect '/object/:object_id' => {
+    connect '/object/show/:object_id' => {
         controller => 'Object',
         action     => 'view',
     };

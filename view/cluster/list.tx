@@ -1,0 +1,88 @@
+[% WRAPPER 'layout.tx' %]
+
+[% INCLUDE "cluster/heading.tx" %]
+
+[% FOREACH cluster IN clusters %]
+<div class="stf-cluster-detail">
+    <legend>
+        <div>
+            <a href="/cluster/[% cluster.id %]/edit">[% cluster.name || 'Cluster ' _ cluster.id %]</a> (ID: [% cluster.id %])
+        </div>
+    </legend>
+
+    <div class="row">
+        <div class="span1">Status</div>
+        <div class="span8">
+            <table class="table table-striped table-bordered table-condensed">
+            <thead>
+                <tr>
+                    <td>ID</td>
+                    <td>Name</td>
+                    <td>Mode</td>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>[% cluster.id %]</td>
+                    <td>[% cluster.name || 'Cluster ' _ cluster.id %]</td>
+                    <td>[% mode_str(cluster.mode) %]</td>
+                </tr>
+            </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="span1">Storages</div>
+        <div class="span8">
+    <table class="table table-striped table-bordered table-condensed">
+    <thead>
+        <tr>
+            <td>ID</td>
+            <td>URI</td>
+            <td>Mode</td>
+            <td>&nbsp;</td>
+        </tr>
+    </thead>
+    <tbody>
+[% IF (cluster.storages.size() > 0) %]
+[% FOREACH storage IN cluster.storages %]
+        <tr>
+            <td>[% storage.id %]</td>
+            <td>[% storage.uri %]</td>
+            <td>[% mode_str(storage.mode) %]</td>
+            <td>
+                <a class="btn btn-info btn-mini" href="[% c.uri_for( "/storage", storage.id, "edit" ) %]">edit</a>
+            </td>
+        </tr>
+[% END %]
+[% ELSE %]
+        <tr><td colspan="4">No storages in this cluster</td></tr>
+[% END %]
+    </tbody>
+    </table>
+    </div><!-- span -->
+    </div><!-- row -->
+</div>
+[% END %]
+
+<div id="stf-add-storage-to-cluster-modal" class="modal fade" data-toggle="modal"></div>
+<script type="text/javascript">
+<!--
+    $(document).ready( function() {
+        $( "a.stf-add-storage-to-cluster-btn" ).each( function(i, e) {
+            var btn = $(e);
+            btn.click( function() {
+                var id = btn.attr('data-cluster-id');
+                var modal_id = "#stf-add-storage-to-cluster-modal";
+                $(modal_id).load( "/cluster/storage/unclustered", { "id": id });
+                $(modal_id).modal("show");
+                return false;
+            } );
+        } );
+    });
+-->
+</script>
+
+[% END %]
+
