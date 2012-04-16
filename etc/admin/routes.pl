@@ -54,7 +54,7 @@ router {
     }
 
     foreach my $action (qw(entities)) {
-        connect "/storage/:storage_id/$action" => {
+        connect "/storage/:object_id/$action" => {
             controller => 'Storage',
             action     => $action,
         };
