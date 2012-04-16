@@ -58,7 +58,11 @@
     <td style="width: 50px;"><a href="[% c.uri_for('/storage', storage.id, 'edit') %]">[% storage.id %]</a></td>
     <td>[% storage.uri %]</td>
     <td class="digit">[% mode_str(storage.mode) %]</td>
-    <td class="digit">[% storage.cluster_id || '(free)' %]</td>
+    <td class="digit">
+        [% IF (! storage.cluster ) %](free)[% ELSE %]
+        <a href="/cluster/[% storage.cluster_id %]/edit">[% storage.cluster.name || 'Cluster ' _ storage.cluster_id %]</a>
+        [% END %]
+    </td>
 [% IF (const.STF_ENABLE_STORAGE_META) %]
     <td class="digit">[% storage.meta.capacity | human_readable%]</td>
     <td class="digit">[% storage.meta.used | human_readable%]</td>

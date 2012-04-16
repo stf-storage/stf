@@ -31,6 +31,13 @@ sub list {
             order_by => { 'id' => 'DESC' },
         }
     );
+    my $cluster_api = $c->get('API::StorageCluster');
+    foreach my $storage (@storages) {
+        if ($storage->{cluster_id}) {
+            $storage->{cluster} = $cluster_api->lookup( $storage->{cluster_id} );
+        }
+    }
+
     if ( @storages > $limit ) {
         $pager->total_entries( $limit * $pager->current_page + 1 );
         pop @storages;
@@ -82,6 +89,7 @@ sub add_post {
     } else {
         $c->stash->{template} = 'storage/add';
     }
+    $c->stash->{ clusters } = $c->get('API::StorageCluster')->search({});
 }
 
 sub edit {

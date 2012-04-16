@@ -89,7 +89,8 @@ return +{
         },
     },
     cluster_add => {
-        required => [qw(id name mode)],
+        required => [qw(id mode)],
+        optional => [qw(name)],
         constraint_methods => {
             id => {
                 name => 'duplicate',
@@ -101,6 +102,10 @@ return +{
             }
 
         },
+    },
+    cluster_edit => {
+        required => [qw(id mode)],
+        optional => [qw(name)],
     },
     cluster_delete => {
         required => [qw(id)],

@@ -92,6 +92,27 @@ sub edit {
     $self->fillinform( $c, $cluster );
 }
 
+sub edit_post {
+    my ($self, $c) = @_;
+    my $cluster = $self->load_cluster($c);
+
+    my $params = $c->request->parameters->as_hashref;
+    $params->{id} = $cluster->{id};
+    my $result = $self->validate( $c, cluster_edit => $params );
+    if ($result->success) {
+        my $valids = $result->valid;
+        my %meta;
+        delete $valids->{id};
+        my $api = $c->get('API::StorageCluster');
+        $api->update( $cluster->{id} => $valids );
+
+        $c->redirect( $c->uri_for( "/cluster/list", { done => 1 } ) );
+    } else {
+        $c->stash->{template} = 'cluster/edit';
+        $self->fillinform( $c, $params );
+    }
+}
+
 sub delete_post {
     my ($self, $c) = @_;
 
