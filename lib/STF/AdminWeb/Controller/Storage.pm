@@ -12,7 +12,7 @@ sub load_storage {
     my $storage_id = $c->match->{object_id};
     my $storage = $c->get('API::Storage')->lookup( $storage_id );
     if (! $storage) {
-        $c->res->status(404);
+        $c->response->status(404);
         $c->abort;
     }
     $c->stash->{storage} = $storage;
