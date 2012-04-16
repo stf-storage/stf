@@ -57,6 +57,9 @@ EOSQL
 sub calculate_for_object {
     my ($self, $object_id) = @_;
     my @clusters = $self->load_writable();
+    if (! @clusters) {
+        return;
+    }
     return $clusters[ Digest::MurmurHash::murmur_hash( $object_id ) % scalar @clusters ];
 }
 

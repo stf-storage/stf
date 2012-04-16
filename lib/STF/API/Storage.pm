@@ -115,6 +115,16 @@ EOSQL
     return $used;
 }
 
+around update => sub {
+    my ($next, $self, $id, $args) = @_;
+    my $rv = $self->$next($id, $args);
+    if (! ref $id ) {
+        my $storage = $self->lookup( $id );
+        $self->cache_delete( storage_cluster => $storage->{cluster_id} );
+    }
+    return $rv;
+};
+
 sub move_entities {
     my ($self, $storage_id, $check_cb) = @_;
 

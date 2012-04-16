@@ -203,8 +203,8 @@ EOSQL
         $storage_api->update( $broken->{id}, { mode => STORAGE_MODE_TEMPORARILY_DOWN });
         $cluster_api->update( $broken->{cluster_id}, { mode => STORAGE_CLUSTER_MODE_READ_ONLY } );
        my $guard = Guard::guard(sub {
-            $cluster_api->update( $broken->{cluster_id}, { mode => STORAGE_CLUSTER_MODE_READ_WRITE } );
             $storage_api->update( $broken->{id}, { mode => STORAGE_MODE_READ_WRITE } );
+            $cluster_api->update( $broken->{cluster_id}, { mode => STORAGE_CLUSTER_MODE_READ_WRITE } );
         } );
 
         my $dbh = $context->container->get('DB::Master');
@@ -387,6 +387,85 @@ EOSQL
     );
     if (! is $res->code, 404, "get after delete is 404" ) {
         diag $res->as_string;
+    }
+
+    # if the cluster is not in READ/WRITE mode, then we shouldn't be 
+    # writing to that cluster.
+    my $verify_cluster_is_not_written_to = sub {
+        my ($ro_cluster, $extra_message) = @_;
+
+        my $base = $random_string->(16);
+        $cb->( PUT "http://127.0.0.1/$base" );
+        for my $i (1..10) {
+            my $res = $cb->(
+                PUT "http://127.0.0.1/$base/$i",
+                    Content => $random_string->(512)
+            );
+
+            if ( ! ok $res->is_success, "PUT is success ($extra_message)" ) {
+                diag $res->as_string;
+            }
+        }
+
+        my $bucket = $context->container->get('API::Bucket')->lookup_by_name( $base );
+        my @objects = $context->container->get('API::Object')->search({
+            bucket_id => $bucket->{id},
+        });
+        my $cluster_api = $context->container->get('API::StorageCluster');
+        foreach my $object (@objects) {
+            my $cluster = $cluster_api->load_for_object( $object->{id} );
+            isnt $cluster->{id}, $ro_cluster->{id}, "writes are not happening to readonly cluster $ro_cluster->{id} ($extra_message)";
+        }
+    };
+
+    {
+        my $cluster_api = $context->container->get('API::StorageCluster');
+        my @clusters    = $cluster_api->search({}, { order_by => 'rand()' });
+        my $ro_cluster  = $clusters[0];
+
+        $cluster_api->update( $ro_cluster->{id}, {
+            mode => STORAGE_CLUSTER_MODE_READ_ONLY,
+        } );
+
+        my $guard = Guard::guard( sub {
+            $cluster_api->update( $ro_cluster->{id}, {
+                mode => STORAGE_CLUSTER_MODE_READ_WRITE,
+            } );
+        });
+
+        $verify_cluster_is_not_written_to->( $ro_cluster, "cluster disabled directly" );
+    }
+
+    { # check the trigger that makes the cluster read-only
+        my $cluster_api = $context->container->get('API::StorageCluster');
+        my @clusters    = $cluster_api->search({}, { order_by => 'rand()' });
+        my $ro_cluster  = $clusters[0];
+
+        my $storage_api = $context->container->get('API::Storage');
+        my @storages    = $storage_api->search(
+            {
+                cluster_id => $ro_cluster->{id},
+            },
+            {
+                order_by   => 'rand()'
+            }
+        );
+
+        my $ro_storage = $storages[0];
+        $storage_api->update( $ro_storage->{id}, {
+            mode => STORAGE_MODE_TEMPORARILY_DOWN,
+        } );
+
+        my $guard = Guard::guard( sub {
+            $storage_api->update( $ro_storage->{id}, {
+                mode => STORAGE_MODE_READ_WRITE,
+            } );
+            $cluster_api->update( $ro_cluster->{id}, {
+                mode => STORAGE_CLUSTER_MODE_READ_WRITE,
+            } );
+        });
+
+        $verify_cluster_is_not_written_to->( $ro_cluster, "cluster disabled via storage" );
     }
 
     note "DELETE /$bucket_name";
