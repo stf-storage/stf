@@ -104,12 +104,10 @@ CREATE TABLE entity (
 DELIMITER $$
 CREATE PROCEDURE stfVerifyClusterMode(x_cluster_id INT)
 BEGIN
-    DECLARE ready_count INT;
-    DECLARE total_count INT;
-    SELECT COUNT(*) INTO total_count FROM storage WHERE cluster_id = x_cluster_id;
-    SELECT COUNT(*) INTO ready_count FROM storage WHERE cluster_id = x_cluster_id AND MODE != 1;
+    DECLARE bad_count INT;
+    SELECT COUNT(*) INTO bad_count FROM storage WHERE cluster_id = x_cluster_id AND MODE != 1;
 
-    IF ( total_count != ready_count ) THEN
+    IF ( bad_count > 0 ) THEN
         UPDATE storage_cluster SET mode = 0 WHERE id = x_cluster_id;
     END IF;
 END
