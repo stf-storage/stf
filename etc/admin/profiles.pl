@@ -5,13 +5,13 @@ use Regexp::Common qw(URI);
 return +{
     storage_add => {
         required => [qw(id uri mode)],
-        optional => [qw(meta_used meta_notes meta_capacity)],
-        defaults => {
-            used => 0,
-        },
+        optional => [qw(meta_used meta_notes meta_capacity cluster_id)],
         field_filters => {
             uri => sub {
                 my $uri = shift;
+                if ($uri !~ /^http:\/\//)  {
+                    $uri = "http://$uri";
+                }
                 $uri =~ s{/*$}{};
                 $uri;
             },
@@ -44,7 +44,7 @@ return +{
     },
     storage_edit => {
         required => [qw(id uri mode)],
-        optional => [qw(meta_used meta_notes meta_capacity )],
+        optional => [qw(meta_used meta_notes meta_capacity cluster_id)],
         field_filters => {
             uri => sub {
                 my $uri = shift;
@@ -88,6 +88,23 @@ return +{
             },
         },
     },
+    cluster_add => {
+        required => [qw(id name mode)],
+        constraint_methods => {
+            id => {
+                name => 'duplicate',
+                constraint_method => sub {
+                    my( $dfv, $id ) = @_;
+                    my $row = $dfv->container->get('API::StorageCluster')->lookup( $id );
+                    return !$row;
+                },
+            }
+
+        },
+    },
+    cluster_delete => {
+        required => [qw(id)],
+    }
 };
 
 

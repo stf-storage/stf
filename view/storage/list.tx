@@ -45,6 +45,7 @@
     <th>ID</th>
     <th>URI</th>
     <th>Mode</th>
+    <th>Cluster</th>
 [% IF (const.STF_ENABLE_STORAGE_META) %]
     <th>Capacity</th>
     <th>Used</th>
@@ -57,6 +58,7 @@
     <td style="width: 50px;"><a href="[% c.uri_for('/storage', storage.id, 'edit') %]">[% storage.id %]</a></td>
     <td>[% storage.uri %]</td>
     <td class="digit">[% mode_str(storage.mode) %]</td>
+    <td class="digit">[% storage.cluster_id || '(free)' %]</td>
 [% IF (const.STF_ENABLE_STORAGE_META) %]
     <td class="digit">[% storage.meta.capacity | human_readable%]</td>
     <td class="digit">[% storage.meta.used | human_readable%]</td>
@@ -71,7 +73,7 @@
   </tr>
   [% END %]
 <tr>
-    <td colspan="[% IF (const.STF_ENABLE_STORAGE_META) %]7[% ELSE %]4[% END %]">
+    <td colspan="[% IF (const.STF_ENABLE_STORAGE_META) %]8[% ELSE %]5[% END %]">
         [% paginate( c.uri_for('/storage/list'), pager ) %]
     </td>
 </tr>

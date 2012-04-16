@@ -17,3 +17,8 @@ CREATE TABLE object_cluster_map (
     FOREIGN KEY (cluster_id) REFERENCES storage_cluster (id) ON DELETE CASCADE,
     KEY (cluster_id)
 ) ENGINE=InnoDB;
+
+CREATE PROCEDURE 
+CREATE TRIGGER 
+
+

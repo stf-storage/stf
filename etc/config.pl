@@ -52,6 +52,7 @@ use Carp ();
         ],
         module => [
             'STF::Xslate::Utils',
+            'Data::Dumper::Concise',
         ],
         suffix => '.tx',
         syntax => 'TTerse',
