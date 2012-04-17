@@ -66,7 +66,6 @@ sub entities {
             JOIN bucket b on b.id = o.bucket_id
             JOIN entity e on o.id = e.object_id
         WHERE e.storage_id = ? AND object_id > ? 
-        ORDER BY e.object_id ASC
         LIMIT $limit
 EOSQL
 
