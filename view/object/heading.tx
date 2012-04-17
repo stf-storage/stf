@@ -1,0 +1,123 @@
+<div class="well">
+    <h2>Object [% object.id %]</h2>
+
+    <button id="stf-object-edit-btn" class="btn btn-info btn-mini"><i class="icon-pencil icon-white"></i> Edit</button>
+    <button id="stf-object-repair-btn" class="btn btn-warning btn-mini"><i class="icon-adjust icon-white"></i> Repair</button>
+    <button id="stf-object-delete-btn" class="btn btn-danger btn-mini"><i class="icon-trash icon-white"></i> Delete</button>
+</div>
+
+<div class="modal fade" data-toggle="modal" id="stf-object-delete-confirm">
+    <div class="modal-header">
+        <a class="close" data-dismiss="modal">x</a>
+        <h3>Delete object [% object.id %]</h3>
+    </div>
+    <div class="modal-body">
+        <div class="main">
+            <div class="alert alert-error">
+                <p>This will <em>DELETE</em> the object [% object.id %] <em>PERMANENTLY</em></p>
+                <p>YOU CAN NOT UNDO THIS ACTION!</p>
+            </div>
+            <p>Are you sure you want to do this?</p>
+        </div>
+        <div class="processing" style="display: none">
+            <img src="/static/images/ajax-loader.gif"> Processing...
+        </div>
+        <div class="error" style="display: none">
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#" class="btn btn-danger" data-dismiss="modal">Cancel</a>
+        <a href="#" class="btn btn-primary">Delete</a>
+    </div>
+</div>
+
+<div class="modal fade" data-toggle="modal" id="stf-object-repair-confirm">
+    <div class="modal-header">
+        <a class="close" data-dismiss="modal">x</a>
+        <h3>Repair object [% object.id %]</h3>
+    </div>
+    <div class="modal-body">
+        <div class="main">
+            <p>This will enqueue object [% object.id %] in the repair queue.</p>
+            <p>Are you sure you want to do this?</p>
+        </div>
+        <div class="processing" style="display: none">
+            <img src="/static/images/ajax-loader.gif"> Processing...
+        </div>
+        <div class="error" style="display: none">
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#" class="btn btn-danger" data-dismiss="modal">Cancel</a>
+        <a href="#" class="btn btn-primary">Repair</a>
+    </div>
+</div>
+
+<script type="text/javascript">
+<!--
+    $(document).ready( function() {
+        $("#stf-object-edit-btn").click(function() {
+            location.href = "/object/edit/[% object.id %]";
+            return false;
+        });
+        $("#stf-object-delete-btn").click(function() {
+            $("div.main", "#stf-object-delete-confirm div.modal-body").show();
+            $("div.processing", "#stf-object-delete-confirm div.modal-body").hide();
+            $("div.error", "#stf-object-delete-confirm div.modal-body").hide();
+            $("#stf-object-delete-confirm").modal("show");
+            return false;
+        } );
+        $("a.btn-primary", "#stf-object-delete-confirm").click(function() {
+            if ( ! confirm( "Are you sure you want to proceed DELETING this object?" ) ) {
+                $("#stf-object-delete-confirm").modal("hide");
+                return false;
+            }
+
+            $("div.main", "#stf-object-delete-confirm div.modal-body").hide();
+            $("div.processing", "#stf-object-delete-confirm div.modal-body").show();
+            $.ajax({
+                url: "/ajax/object/[% object.id %]/delete.json",
+                type: "POST",
+                error: function(xhr, st, err) {
+                    $("div.processing", "#stf-object-delete-confirm div.modal-body").hide();
+                    $("div.error", "#stf-object-delete-confirm div.modal-body")
+                        .text("Failed to enqueue object " + err).show();
+                },
+                success: function() {
+                    $("#stf-object-delete-confirm").modal("hide");
+                    setTimeout( function() {
+                        window.location.reload();
+                    }, 3000 );
+                }
+            });
+        } );
+        $("#stf-object-repair-btn").click(function() {
+            var cxt = $("#stf-object-repair-confirm div.modal-body");
+            $("div.main", cxt).show();
+            $("div.processing", cxt).hide();
+            $("div.error", cxt).hide();
+            $("#stf-object-repair-confirm").modal("show");
+            return false;
+        } );
+        $("a.btn-primary", "#stf-object-repair-confirm").click(function() {
+            var cxt = $("#stf-object-repair-confirm div.modal-body");
+            $("div.main", cxt).hide();
+            $("div.processing", cxt).show();
+            $.ajax({
+                url: "/ajax/object/[% object.id %]/repair.json",
+                type: "POST",
+                error: function(xhr, st, err) {
+                    $("div.processing", cxt).hide();
+                    $("div.error", cxt)
+                        .text("Failed to enqueue object " + err).show();
+                },
+                success: function() {
+                    $("#stf-object-repair-confirm").modal("hide");
+                }
+            });
+        } );
+    } );
+-->
+</script>
+
+

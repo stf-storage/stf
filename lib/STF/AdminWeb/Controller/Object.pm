@@ -4,6 +4,18 @@ use JSON ();
 
 extends 'STF::AdminWeb::Controller';
 
+sub load_object {
+    my ($self, $c, $object_id) = @_;
+
+    my $object = $c->get('API::Object')->lookup( $object_id );
+    if (! $object) {
+        $c->response->status(404);
+        $c->abort;
+    }
+    $c->stash->{object} = $object;
+    return $object;
+}
+
 sub view_public_name {
     my ($self, $c) = @_;
     my ($bucket_name, $object_name) = @{ $c->match->{splat} || [] };
@@ -19,6 +31,7 @@ sub view_public_name {
         bucket_id => $bucket->{id},
         object_name => $object_name
     } );
+    
     if (! $object_id) {
         my $response = $c->response;
         $response->status(404);
@@ -34,10 +47,11 @@ sub view {
     my ($self, $c) = @_;
 
     my $object_id = $c->match->{object_id};
-    my ($object) = $c->get('API::Object')->search_with_entity_info(
-        { id => $object_id },
-        { limit => 1 }
-    );
+    my $object = $self->load_object($c, $object_id);
+    if (! $object) {
+        return;
+    }
+
     my $bucket = $c->get('API::Bucket')->lookup( $object->{bucket_id} );
     $object->{cluster} = $c->get('API::StorageCluster')->load_for_object( $object->{id} );
 
@@ -133,7 +147,17 @@ sub create_post {
     $c->stash->{template} = 'object/create';
 }
 
+sub edit {
+    my ($self, $c) = @_;
+    my $object_id = $c->match->{object_id};
+    my $object = $self->load_object($c, $object_id);
+    if (! $object) {
+        return;
+    }
+}
 
+sub edit_post {
+}
 
 no Mouse;
 

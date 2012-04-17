@@ -1,0 +1,53 @@
+[% WRAPPER "layout.tx" %]
+
+[% INCLUDE "object/heading.tx" %]
+
+<form class="form-horizontal" method="post" action="[% c.uri_for('/object/edit', object.id) %]">
+[% error_msgs(result) %]
+<fieldset>
+    <legend>Edit Object</legend>
+    <div class="control-group">
+        <label class="control-label" for="id">ID</label>
+        <div class="controls">
+            <input name="id" type="text" class="input-xlarge" id="input-id" readonly="readonly">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label" for="internal_name">Internal Name</label>
+        <div class="controls">
+            <input name="internal_name" type="text" class="input-xlarge" id="input-internal_name">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label" for="num_replica">Replicas</label>
+        <div class="controls">
+            <input name="num_replica" type="text" class="input-xlarge" id="input-num_replica">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label" for="cluster_id">Cluster ID</label>
+        <div class="controls">
+            <select name="cluster_id">
+                <option value="">---</option>
+[% FOREACH cluster IN clusters %]
+                <option value="[% cluster.id %]">[% cluster.name || 'Cluster ' _ cluster.id %]</option>
+[% END %]
+            </select>
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label" for="status">Status</label>
+        <div class="controls">
+            <select name="status">
+                <option value="[% const.OBJECT_ACTIVE %]">Active</option>
+                <option value="[% const.OBJECT_INACTIVE %]">Inactive</option>
+            </select>
+        </div>
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary"><i class="icon-pencil icon-white"></i> Update</button>
+    </div>
+</fieldset>
+</form>
+
+[% END %]

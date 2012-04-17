@@ -97,14 +97,16 @@ router {
         }, { method => "POST" };
     }
 
-    connect '/object/create' => {
-        controller => 'Object',
-        action     => 'create',
-    }, { method => "GET" };
-    connect '/object/create' => {
-        controller => 'Object',
-        action     => 'create_post',
-    }, { method => "POST" };
+    foreach my $action ( qw(create edit) ) {
+        connect "/object/$action" => {
+            controller => 'Object',
+            action     => $action,
+        }, { method => "GET" };
+        connect "/object/$action" => {
+            controller => 'Object',
+            action     => "${action}_post",
+        }, { method => "POST" };
+    }
 
     connect qr{^/object/show/([^/]+)/([\w\/%+._-]+)$} => {
         controller => 'Object',
