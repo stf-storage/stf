@@ -15,7 +15,7 @@
     <div class="control-group">
         <label class="control-label" for="internal_name">Internal Name</label>
         <div class="controls">
-            <input name="internal_name" type="text" class="input-xlarge" id="input-internal_name">
+            <input name="internal_name" type="text" class="input-xlarge" id="input-internal_name" readonly="readonly">
         </div>
     </div>
     <div class="control-group">

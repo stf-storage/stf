@@ -154,6 +154,12 @@ sub edit {
     if (! $object) {
         return;
     }
+    $object->{cluster} = $c->get('API::StorageCluster')->load_for_object( $object->{id} );
+    $c->stash->{clusters} = $c->get('API::StorageCluster')->search({});
+    $self->fillinform( $c, {
+        %$object,
+        cluster_id => $object->{cluster}->{id},
+    });
 }
 
 sub edit_post {
