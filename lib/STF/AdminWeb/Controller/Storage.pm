@@ -60,6 +60,7 @@ sub entities {
             object_id => { '>' => $object_id },
         },
         {
+            order_by => 'object_id asc',
             limit => $limit
         }
     );
