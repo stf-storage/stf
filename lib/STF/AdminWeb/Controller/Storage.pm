@@ -55,27 +55,40 @@ sub entities {
     my $object_id = $c->request->param('since') || 0;
     my $limit = 100;
 
+    my @entities = $c->get('API::Entity')->search(
+        {
+            object_id => { '>' => $object_id },
+        },
+        {
+            limit => $limit
+        }
+    );
+
     my $sql = <<EOSQL;
         SELECT
-            e.object_id,
             CONCAT_WS( "/", b.name, o.name ) as object_url,
             o.internal_name,
-            o.status as object_status,
-            e.status as entity_status
+            o.status as object_status
         FROM object o
             JOIN bucket b on b.id = o.bucket_id
-            JOIN entity e on o.id = e.object_id
-        WHERE e.storage_id = ? AND object_id > ? 
-        LIMIT $limit
+        WHERE object_id = ?
 EOSQL
-
     my $dbh = $c->get('DB::Master');
     my $sth = $dbh->prepare( $sql );
-    $sth->execute( $storage_id, $object_id );
+    my ($object_url, $internal_name, $object_status);
+    foreach my $entity ( @entities ) {
+        $sth->execute( $entity->{object_id} );
+        $sth->bind_columns( \($object_url, $internal_name, $object_status) );
+        if ($sth->fetchrow_arrayref) {
+            $entity->{object_url} = $object_url;
+            $entity->{internal_name} = $internal_name;
+            $entity->{object_status} = $object_status;
+        }
+        $sth->finish;
+    }
 
     my $stash = $c->stash;
-    $stash->{entities} = $sth->fetchall_arrayref({});
-    $sth->finish;
+    $stash->{entities} = \@entities;
 }
 
 sub add {

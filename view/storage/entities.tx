@@ -19,7 +19,7 @@
     <td class="digit"><a href="[% c.uri_for('/object/show', entity.object_id) %]">[% entity.object_url %]</a></td>
     <td class="text"><a href="[% storage.uri %]/[% entity.internal_name %]">[% entity.internal_name %]</a></td>
     <td class="digit">[% IF (entity.object_status == const.OBJECT_ACTIVE) %]Active[% ELSE %]Inactive[% END %]</td>
-    <td class="digit">[% IF (entity.entity_status == const.OBJECT_ACTIVE) %]Active[% ELSE %]Inactive[% END %]</td>
+    <td class="digit">[% IF (entity.status == const.OBJECT_ACTIVE) %]Active[% ELSE %]Inactive[% END %]</td>
 </tr>
 [% SET last_entity = entity %]
 [% END %]
