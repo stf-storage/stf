@@ -125,6 +125,10 @@ return +{
     },
     object_create => {
         required => [qw(bucket_name object_name )]
+    },
+    object_edit => {
+        required => [qw(id num_replica status)],
+        optional => [qw(cluster_id)],
     }
 };
 
