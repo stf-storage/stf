@@ -72,7 +72,7 @@ sub entities {
             o.status as object_status
         FROM object o
             JOIN bucket b on b.id = o.bucket_id
-        WHERE object_id = ?
+        WHERE o.id = ?
 EOSQL
     my $dbh = $c->get('DB::Master');
     my $sth = $dbh->prepare( $sql );
