@@ -15,9 +15,13 @@
 [% SET last_entity = '' %]
 [% FOREACH entity IN entities %]
 <tr>
-    <td class="digit">[% entity.object_id %]</td>
-    <td class="digit"><a href="[% c.uri_for('/object/show', entity.object_id) %]">[% entity.object_url %]</a></td>
-    <td class="text"><a href="[% storage.uri %]/[% entity.internal_name %]">[% entity.internal_name %]</a></td>
+    <td class="digit"><a href="[% c.uri_for('/object/show', entity.object_id) %]">[% entity.object_id %]</a></td>
+    <td class="digit">
+        [% IF (entity.object_url) %]<a href="[% c.uri_for('/object/show', entity.object_id) %]">[% entity.object_url %]</a>[% ELSE %]N/A[% END %]
+    </td>
+    <td class="text">
+        [% IF (entity.internal_name) %]<a href="[% storage.uri %]/[% entity.internal_name %]">[% entity.internal_name %]</a>[% ELSE %]N/A[% END %]
+    </td>
     <td class="digit">[% IF (entity.object_status == const.OBJECT_ACTIVE) %]Active[% ELSE %]Inactive[% END %]</td>
     <td class="digit">[% IF (entity.status == const.OBJECT_ACTIVE) %]Active[% ELSE %]Inactive[% END %]</td>
 </tr>
