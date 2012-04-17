@@ -135,6 +135,10 @@
     <td><a href="/bucket/[% bucket.id %]">[% bucket.name %]</a></td>
 </tr>
 <tr>
+    <td>Cluster</td>
+    <td><a href="[% c.uri_for("/cluster/show", object.cluster.id) %]">[% object.cluster.id %]</a></td>
+</tr>
+<tr>
     <td>Replicas</td>
     <td>[% object.num_replica %]</td>
 </tr>

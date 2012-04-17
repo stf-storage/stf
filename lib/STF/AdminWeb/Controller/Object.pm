@@ -39,6 +39,7 @@ sub view {
         { limit => 1 }
     );
     my $bucket = $c->get('API::Bucket')->lookup( $object->{bucket_id} );
+    $object->{cluster} = $c->get('API::StorageClsuter')->load_for_object( $object->{id} );
 
     my $limit = 100;
     my $pager = $c->pager($limit);
