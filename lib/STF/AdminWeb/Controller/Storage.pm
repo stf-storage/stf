@@ -52,24 +52,28 @@ sub entities {
 
     my $storage_id = $c->match->{object_id};
     my $storage = $self->load_storage($c);
-
-    my %query = (
-        storage_id => $storage_id,
-    );
-    if (my $object_id = $c->request->param('since')) {
-        $query{object_id} = { '>', $object_id };
-    }
-
+    my $object_id = $c->request->param('since') || 0;
     my $limit = 100;
-    my @entities = $c->get('API::Entity')->search_with_url(
-        \%query,
-        {
-            limit    => $limit,
-        }
-    );
+
+    my $sql = <<EOSQL;
+        SELECT
+            e.object_id,
+            CONCAT_WS( "/", b.name, o.name ) as object_url,
+            o.status as object_status,
+            e.status as entity_status
+        FROM object o
+            JOIN bucket b on b.id = o.bucket_id
+            JOIN entity e on o.id = e.object_id
+        WHERE e.storage_id = ? AND object_id > ? LIMIT $limit
+EOSQL
+
+    my $dbh = $c->get('DB::Master');
+    my $sth = $dbh->prepare( $sql );
+    $sth->execute( $storage_id, $object_id );
 
     my $stash = $c->stash;
-    $stash->{entities} = \@entities;
+    $stash->{entities} = $sth->fetchall_arrayref({});
+    $sth->finish;
 }
 
 sub add {
