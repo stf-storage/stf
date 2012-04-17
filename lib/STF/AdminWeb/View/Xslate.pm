@@ -38,6 +38,7 @@ sub BUILDARGS {
     if (my $suffix = delete $args{suffix}) {
         $parsed{suffix} = $suffix;
     }
+    delete $args{app};
     $parsed{xslate} = Text::Xslate->new(%args);
 
     return \%parsed;
