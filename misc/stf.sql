@@ -109,10 +109,10 @@ CREATE TABLE entity (
 DELIMITER $$
 CREATE PROCEDURE stfVerifyClusterMode(x_cluster_id INT)
 BEGIN
-    DECLARE bad_count INT;
-    SELECT COUNT(*) INTO bad_count FROM storage WHERE cluster_id = x_cluster_id AND MODE != 1;
+    DECLARE good_count INT;
+    SELECT COUNT(*) INTO good_count FROM storage WHERE cluster_id = x_cluster_id AND MODE = 1;
 
-    IF ( bad_count > 0 ) THEN
+    IF ( good_count < 3 ) THEN
         UPDATE storage_cluster SET mode = 0 WHERE id = x_cluster_id;
     END IF;
 END

@@ -2,10 +2,10 @@
 
 [% INCLUDE "cluster/heading.tx" %]
 
-<form class="form-horizontal" method="post" action="[% c.uri_for('/cluster', cluster.id, 'edit') %]">
+<form class="form-horizontal" method="post" action="[% c.uri_for('/cluster/edit', cluster.id) %]">
 [% error_msgs(result) %]
 <fieldset>
-    <legend>Edit Storage</legend>
+    <legend>Edit Cluster</legend>
     <div class="control-group">
         <label class="control-label" for="id">ID</label>
         <div class="controls">
@@ -40,7 +40,7 @@
     </div>
     <div class="form-actions">
         <button type="submit" class="btn btn-primary"><i class="icon-pencil icon-white"></i> Update</button>
-        <button type="button" class="btn btn-danger" onClick="javascript: if(confirm('Are you sure you want to delete this cluster?')) { this.form.action='[% c.uri_for('/cluster', cluster.id, 'delete') %]'; this.form.submit(); } else { return false; }"><i class="icon-trash icon-white"></i> Delete</button>
+        <button type="button" class="btn btn-danger" onClick="javascript: if(confirm('Are you sure you want to delete this cluster?')) { this.form.action='[% c.uri_for('/cluster/delete', cluster.id) %]'; this.form.submit(); } else { return false; }"><i class="icon-trash icon-white"></i> Delete</button>
     </div>
 </fieldset>
 </form>

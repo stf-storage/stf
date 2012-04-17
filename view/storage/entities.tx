@@ -11,7 +11,7 @@
 [% SET last_entity = '' %]
 [% FOREACH entity IN entities %]
 <tr>
-    <td class="digit"><a href="[% c.uri_for('/object', entity.object_id) %]">[% entity.object_id %]</a></td>
+    <td class="digit"><a href="[% c.uri_for('/object/show', entity.object_id) %]">[% entity.object_id %]</a></td>
     <td class="text"><a href="[% entity.url %]">[% entity.url %]</a></td>
     <td class="digit">[% entity.status %]</td>
 </tr>
@@ -20,7 +20,7 @@
 [% IF (last_entity) %]
 <tr>
     <td colspan="3">
-        <a href="/storage/[% storage.id %]/entities?since=[% last_entity.object_id %]">Next</a>
+        <a href="[% c.uri_for("/storage/entities", storage.id, { since => last_entity.object_id } ) %]">Next</a>
     </td>
 </tr>
 [% END %]

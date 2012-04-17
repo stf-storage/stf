@@ -26,6 +26,11 @@ router {
             action     => 'list',
         };
 
+        connect "/$namespace/show/:object_id" => {
+            controller => $controller,
+            action     => 'view',
+        };
+
         connect "/$namespace/add" => {
             controller => $controller,
             action     => 'add',
@@ -36,17 +41,17 @@ router {
             action     => 'add_post',
         }, { method => 'POST' };
 
-        connect "/$namespace/:object_id/delete" => {
+        connect "/$namespace/delete/:object_id" => {
             controller => $controller,
             action     => 'delete_post',
         }, { method => 'POST' };
 
         foreach my $action (qw(edit)) {
-            connect "/$namespace/:object_id/$action" => {
+            connect "/$namespace/$action/:object_id" => {
                 controller => $controller,
                 action     => $action,
             }, { method => 'GET' };
-            connect "/$namespace/:object_id/$action" => {
+            connect "/$namespace/$action/:object_id" => {
                 controller => $controller,
                 action     => "${action}_post",
             }, { method => 'POST' };
@@ -54,7 +59,7 @@ router {
     }
 
     foreach my $action (qw(entities)) {
-        connect "/storage/:object_id/$action" => {
+        connect "/storage/$action/:object_id" => {
             controller => 'Storage',
             action     => $action,
         };

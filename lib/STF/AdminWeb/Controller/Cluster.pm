@@ -15,6 +15,17 @@ sub load_cluster {
     return $cluster;
 }
 
+sub view {
+    my ($self, $c) = @_;
+    if (! $self->load_cluster($c) ) {
+        return;
+    }
+    my $cluster = $c->stash->{cluster};
+    my $storage_api = $c->get('API::Storage');
+    my @storages = $storage_api->search({ cluster_id => $cluster->{id} });
+    $cluster->{storages} = \@storages;
+}
+
 sub add {}
 sub add_post {
     my ($self, $c) = @_;
