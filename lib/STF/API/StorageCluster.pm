@@ -12,7 +12,7 @@ sub register_for_object {
 
     my $dbh = $self->dbh;
     $dbh->do( <<EOSQL, undef, $object_id, $cluster_id );
-        INSERT INTO object_cluster_map (object_id, cluster_id) VALUES (?, ?)
+        REPLACE INTO object_cluster_map (object_id, cluster_id) VALUES (?, ?)
 EOSQL
 }
 

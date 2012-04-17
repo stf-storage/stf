@@ -1,12 +1,14 @@
 package STF::AdminWeb::Controller::Object;
 use Mouse;
 use JSON ();
+use STF::Constants qw(STF_ENABLE_OBJECT_META);
 
 extends 'STF::AdminWeb::Controller';
 
 sub load_object {
     my ($self, $c, $object_id) = @_;
 
+    $object_id ||= $c->match->{object_id};
     my $object = $c->get('API::Object')->lookup( $object_id );
     if (! $object) {
         $c->response->status(404);
@@ -46,8 +48,7 @@ sub view_public_name {
 sub view {
     my ($self, $c) = @_;
 
-    my $object_id = $c->match->{object_id};
-    my $object = $self->load_object($c, $object_id);
+    my $object = $self->load_object($c);
     if (! $object) {
         return;
     }
@@ -73,8 +74,11 @@ sub view {
 sub repair {
     my ($self, $c) = @_;
 
-    my $object_id = $c->match->{object_id};
-    $c->get('API::Queue')->enqueue(repair_object => $object_id);
+    my $object = $self->load_object( $c );
+    if (! $object) {
+        return;
+    }
+    $c->get('API::Queue')->enqueue(repair_object => $object->{id});
 
     my $response = $c->response;
     $response->code( 200 );
@@ -86,10 +90,13 @@ sub repair {
 
 sub delete {
     my ($self, $c) = @_;
-    my $object_id = $c->match->{object_id};
+    my $object = $self->load_object( $c );
+    if (! $object) {
+        return;
+    }
 
-    $c->get('API::Object')->mark_for_delete( $object_id );
-    $c->get('API::Queue')->enqueue( delete_object => $object_id );
+    $c->get('API::Object')->mark_for_delete( $object->{id} );
+    $c->get('API::Queue')->enqueue( delete_object => $object->{id} );
 
     my $response = $c->response;
     $response->code( 200 );
@@ -163,6 +170,43 @@ sub edit {
 }
 
 sub edit_post {
+    my ($self, $c) = @_;
+    my $object = $self->load_object($c);
+
+    my $params = $c->request->parameters->as_hashref;
+    $params->{id} = $object->{id};
+    my $result = $self->validate( $c, object_edit => $params );
+    if ($result->success) {
+        my $valids = $result->valid;
+        my %meta;
+        delete $valids->{id};
+
+        my $cluster_id = delete $valids->{cluster_id};
+        if ( $cluster_id ) {
+            $c->get('API::StorageCluster')->register_for_object({
+                object_id => $object->{id},
+                cluster_id => $cluster_id
+            });
+        }
+
+        if ( STF_ENABLE_OBJECT_META ) {
+            foreach my $k ( keys %$valids ) {
+                next if ( (my $sk = $k) !~ s/^meta_// );
+
+                $meta{$sk} = delete $valids->{$k};
+            }
+        }
+        my $api = $c->get('API::Object');
+        $api->update( $object->{id} => $valids );
+        if ( STF_ENABLE_OBJECT_META ) {
+            $api->update_meta( $object->{id}, \%meta );
+        }
+
+        $c->redirect( $c->uri_for( "/object/show", $object->{id} ) );
+    } else {
+        $c->stash->{template} = 'object/edit';
+        $self->fillinform( $c, $params );
+    }
 }
 
 no Mouse;
