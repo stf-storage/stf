@@ -98,11 +98,12 @@ router {
     }
 
     foreach my $action ( qw(create edit) ) {
-        connect "/object/$action" => {
+        my $path = ($action eq 'create') ? "/object/$action" : "/object/$action/:object_id";
+        connect $path => {
             controller => 'Object',
             action     => $action,
         }, { method => "GET" };
-        connect "/object/$action" => {
+        connect $path => {
             controller => 'Object',
             action     => "${action}_post",
         }, { method => "POST" };
