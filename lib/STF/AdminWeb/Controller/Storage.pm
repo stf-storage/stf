@@ -58,6 +58,7 @@ sub entities {
     my @entities = $c->get('API::Entity')->search(
         {
             object_id => { '>' => $object_id },
+            storage_id => $storage_id,
         },
         {
             order_by => 'object_id asc',
