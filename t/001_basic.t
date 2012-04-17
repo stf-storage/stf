@@ -36,6 +36,17 @@ my $create_data = sub {
     return ($content, $md5->hexdigest);
 };
 
+my $get_entity_count = sub {
+    my ($dbh, $bucket_name, $object_name) = @_;
+    my ($e_count) = $dbh->selectrow_array( <<EOSQL, undef, $bucket_name, $object_name);
+        SELECT count(*) FROM entity e
+            JOIN object o ON e.object_id = o.id 
+            JOIN bucket b ON o.bucket_id = b.id
+            WHERE b.name = ? AND o.name = ?
+EOSQL
+    return $e_count;
+};
+
 my $code = sub {
     my ($chunks, $cb) = @_;
     my $res;
@@ -103,6 +114,10 @@ EOSQL
         my $cluster = $context->container->get('API::StorageCluster')->load_for_object( $object->{id} );
         note "object $object->{id} is in cluster $cluster->{id}";
 
+        # Make sure that only a double write (entity = 2) happend before
+        # the replication worker arrives
+        is $get_entity_count->( $dbh, $bucket_name, $object_name ), 2, "We have exactly 2 entities";
+
         my ($storage_count) = $dbh->selectrow_array(<<EOSQL, undef, $cluster->{id});
             SELECT COUNT(*) FROM storage WHERE cluster_id = ?
 EOSQL
@@ -117,15 +132,8 @@ EOSQL
             $worker->work;
         }
 
-        # Check that we have exactly 2 entities
-        my $dbh = $context->container->get('DB::Master');
-        my ($e_count) = $dbh->selectrow_array( <<EOSQL, undef, $bucket_name, $object_name);
-            SELECT count(*) FROM entity e
-                JOIN object o ON e.object_id = o.id 
-                JOIN bucket b ON o.bucket_id = b.id
-                WHERE b.name = ? AND o.name = ?
-EOSQL
-        is $e_count, $storage_count, "After replication, there are exactly $storage_count entities created by the worker";
+        # Check that we have exactly $storage_count entities
+        is $get_entity_count->($dbh, $bucket_name, $object_name), $storage_count, "After replication, there are exactly $storage_count entities created by the worker";
     }
 
     # GET / HEAD multiple times to make sure no stupid caching errors exist
