@@ -199,7 +199,9 @@ sub edit_post {
         my $api = $c->get('API::Object');
         $api->update( $object->{id} => $valids );
         if ( STF_ENABLE_OBJECT_META ) {
-            $api->update_meta( $object->{id}, \%meta );
+            if ( keys %meta > 0 ) {
+                $api->update_meta( $object->{id}, \%meta );
+            }
         }
 
         $c->redirect( $c->uri_for( "/object/show", $object->{id} ) );
