@@ -59,11 +59,13 @@ sub entities {
         SELECT
             e.object_id,
             CONCAT_WS( "/", b.name, o.name ) as object_url,
+            CONCAT_WS( "/", s.uri, o.internal_name ) as url,
             o.status as object_status,
             e.status as entity_status
         FROM object o
             JOIN bucket b on b.id = o.bucket_id
             JOIN entity e on o.id = e.object_id
+            JOIN storage s on s.id = e.storage_id
         WHERE e.storage_id = ? AND object_id > ? LIMIT $limit
 EOSQL
 
