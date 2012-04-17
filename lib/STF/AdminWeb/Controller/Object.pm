@@ -99,18 +99,20 @@ sub create_post {
     my ($self, $c) = @_;
 
     my $params = $c->request->parameters->as_hashref;
+    my $upload = $c->request->uploads->{content};
     my $result = $self->validate( $c, object_create => $params );
-    if ($result->success) {
+    if ($result->success && $upload) {
         my $stf_uri = $c->get('API::Config')->load_variable('stf.global.public_uri');
         my $valids = $result->valid;
         my $bucket = $c->get('API::Bucket')->lookup_by_name( $valids->{bucket_name} );
         my $object_name = $valids->{object_name};
-        my $upload = $c->request->uploads->{content};
+        open my $fh, '<', $upload->path;
+
         my $furl = $c->get('Furl');
         my (undef, $code, $msg, $hdrs, $content) = $furl->put(
             "$stf_uri/$bucket->{name}/$object_name",
             [ "Content-Length" => $upload->size ],
-            $upload->path
+            $fh,
         );
         if ( $code ne 201 ) {
             my $res = $c->response;
