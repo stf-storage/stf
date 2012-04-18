@@ -1,7 +1,27 @@
 <div class="well">
-    <div class="pull-right">
-        <a class="btn btn-small" href="[% c.uri_for( "/storage/add" ) %]"><i class="icon-plus"></i></a>
-    </div>
-    <h2>Storages</h2>
+    <h2>Storages[% IF (storage) %] [% storage.id %][% END %]</h2>
+
+    <button id="stf-storage-create-btn" class="btn btn-success btn-mini"><i class="icon-plus icon-white"></i> Create</button>
+[% IF (storage) %]
+    <button id="stf-storage-edit-btn" class="btn btn-info btn-mini"><i class="icon-pencil icon-white"></i> Edit</button>
+[% END %]
 </div>
+
+<script type="text/javascript">
+<!--
+    $(document).ready( function() {
+        $("#stf-object-create-btn").click(function() {
+            location.href = "/storage/add";
+            return false;
+        });
+[% IF (storage) %]
+        $("#stf-object-edit-btn").click(function() {
+            location.href = "/storage/edit/[% storage.id %]";
+            return false;
+        });
+[% END %]
+-->
+</script>
+
+
 
