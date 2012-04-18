@@ -91,7 +91,7 @@ EOSQL
             my $prev = $size;
             $size = $queue_api->size( 'repair_object' );
             while ( $size > $prev ) {
-                sleep 60;
+                sleep(60 * ($limit / 1_000));
                 $size = $queue_api->size( 'repair_object' );
             }
 
