@@ -78,6 +78,7 @@ sub work_once {
         my $sth = $dbh->prepare(<<EOSQL);
             SELECT object_id FROM entity WHERE storage_id = ? AND object_id > ? LIMIT $limit
 EOSQL
+        my $size = $queue_api->size( 'repair_object' );
         while ( $sth->execute( $storage_id, $object_id ) > 0 ) {
             $sth->bind_columns( \($object_id) );
             while ( $sth->fetchrow_arrayref ) {
@@ -85,6 +86,16 @@ EOSQL
                 $processed++;
             }
 
+            # wait here until we have processed the rows that we just
+            # inserted into the repair queue
+            my $prev = $size;
+            $size = $queue_api->size( 'repair_object' );
+            while ( $size > $prev ) {
+                sleep 60;
+                $size = $queue_api->size( 'repair_object' );
+            }
+
+            # Bail out if the value for mode has changed
             my $now = $api->lookup( $storage_id );
             if ( $now->{mode} != STORAGE_MODE_REPAIR_NOW ) {
                 $bailout = 1;
