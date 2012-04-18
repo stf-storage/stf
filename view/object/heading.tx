@@ -1,6 +1,7 @@
 <div class="well">
     <h2>Object [% object.id %]</h2>
 
+    <button id="stf-object-create-btn" class="btn btn-success btn-mini"><i class="icon-plus icon-white"></i> Create</button>
     <button id="stf-object-edit-btn" class="btn btn-info btn-mini"><i class="icon-pencil icon-white"></i> Edit</button>
     <button id="stf-object-repair-btn" class="btn btn-warning btn-mini"><i class="icon-adjust icon-white"></i> Repair</button>
     <button id="stf-object-delete-btn" class="btn btn-danger btn-mini"><i class="icon-trash icon-white"></i> Delete</button>
@@ -56,6 +57,10 @@
 <script type="text/javascript">
 <!--
     $(document).ready( function() {
+        $("#stf-object-create-btn").click(function() {
+            location.href = "/object/create";
+            return false;
+        });
         $("#stf-object-edit-btn").click(function() {
             location.href = "/object/edit/[% object.id %]";
             return false;
