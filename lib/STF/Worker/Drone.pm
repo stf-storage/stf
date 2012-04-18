@@ -71,7 +71,8 @@ has workers => (
             DeleteBucket  => 4,
             DeleteObject  => 4,
             ObjectHealth  => 1,
-            RepairObject  => 1,
+            RepairObject  => 4,
+            RepairStorage => 1,
         );
         return \%workers,
     },

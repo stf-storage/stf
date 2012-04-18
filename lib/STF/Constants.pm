@@ -72,6 +72,12 @@ BEGIN {
         # These are only used to denote that an automatic migration
         # is happening
 
+        STORAGE_MODE_REPAIR => 5,
+        STORAGE_MODE_REPAIR_NOW => 6,
+        STORAGE_MODE_REPAIR_DONE => 7,
+        # These storages are not crashed, they don't need to be
+        # emptied out, they just need to be checked for repairments
+
         STORAGE_MODE_SPARE => 10,
         # Denotes that the storage is a spare for the registered cluster.
         # Writes are performed, but reads do not happen. Upon a failure
@@ -101,6 +107,9 @@ my @storage = qw(
     STORAGE_MODE_RETIRE
     STORAGE_MODE_MIGRATE_NOW
     STORAGE_MODE_MIGRATED
+    STORAGE_MODE_REPAIR
+    STORAGE_MODE_REPAIR_NOW
+    STORAGE_MODE_REPAIR_DONE
 
     STORAGE_MODE_SPARE
 );

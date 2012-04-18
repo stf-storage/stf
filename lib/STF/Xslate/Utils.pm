@@ -67,6 +67,9 @@ my %mode_str = (
     STF::Constants::STORAGE_MODE_READ_WRITE() => 'rw',
     STF::Constants::STORAGE_MODE_READ_ONLY() => 'ro',
     STF::Constants::STORAGE_MODE_TEMPORARILY_DOWN() => 'down',
+    STF::Constants::STORAGE_MODE_REPAIR() => 'need repair',
+    STF::Constants::STORAGE_MODE_REPAIR_NOW() => 'repairing',
+    STF::Constants::STORAGE_MODE_REPAIR_DONE() => 'repair done',
 );
 
 sub mode_str {

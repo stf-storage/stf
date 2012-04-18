@@ -31,7 +31,10 @@
     const.STORAGE_MODE_CRASH_RECOVERED,
     const.STORAGE_MODE_RETIRE,
     const.STORAGE_MODE_MIGRATE_NOW,
-    const.STORAGE_MODE_MIGRATED
+    const.STORAGE_MODE_MIGRATED,
+    const.STORAGE_MODE_REPAIR,
+    const.STORAGE_MODE_REPAIR_NOW,
+    const.STORAGE_MODE_REPAIR_DONE
 ] %]
                 <option value="[% mode %]">[% mode_str(mode) %]</option>
 [% END %]
