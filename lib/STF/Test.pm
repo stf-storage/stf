@@ -13,6 +13,7 @@ our @EXPORT_OK = qw(
     deploy_fixtures
     start_plackup
     write_file
+    random_string
 );
 
 our $MYSQLD;
@@ -75,6 +76,12 @@ sub clear_queue {
         next unless $table =~ /^queue_|^job$/;
         $dbh->do( "TRUNCATE $table" );
     }
+}
+
+# String::URandomとか使っても良いけど面倒くさい
+sub random_string {
+    my @chars = ('a'..'z');
+    join "", map { $chars[ rand @chars ] } 1..($_[0] || 8);
 }
 
 1;

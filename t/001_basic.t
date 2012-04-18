@@ -11,25 +11,19 @@ use STF::Constants qw(
     STORAGE_CLUSTER_MODE_READ_ONLY STORAGE_CLUSTER_MODE_READ_WRITE
     STORAGE_MODE_TEMPORARILY_DOWN STORAGE_MODE_READ_WRITE
 );
-use STF::Test qw(clear_queue);
+use STF::Test qw(clear_queue random_string);
 
 use_ok "STF::Context";
 use_ok "STF::Worker::DeleteBucket";
 use_ok "STF::Worker::DeleteObject";
 use_ok "STF::Worker::Replicate";
 
-# String::URandomとか使っても良いけど面倒くさい
-my $random_string = sub {
-    my @chars = ('a'..'z');
-    join "", map { $chars[ rand @chars ] } 1..($_[0] || 8);
-};
-
 my $create_data = sub {
     my $chunks = shift;
     my $content;
     my $md5 = Digest::MD5->new;
     for (1..$chunks) {
-        my $piece = $random_string->(1024);
+        my $piece = random_string(1024);
         $md5->add($piece);
         $content .= $piece;
     }
@@ -50,8 +44,8 @@ EOSQL
 my $code = sub {
     my ($chunks, $cb) = @_;
     my $res;
-    my $bucket_name = $random_string->();
-    my $object_name = $random_string->();
+    my $bucket_name = random_string();
+    my $object_name = random_string();
 
     $res = $cb->(
         PUT "http://127.0.0.1/$bucket_name"
@@ -216,7 +210,7 @@ EOSQL
         } );
 
         my $dbh = $context->container->get('DB::Master');
-        my @objects = map { $random_string->() } 1..30;
+        my @objects = map { random_string() } 1..30;
         foreach my $a_object_name ( @objects ) {
             $res = $cb->( PUT "http://127.0.0.1/$bucket_name/$a_object_name", "Content-Type" => "text/plain", Content => $create_data->(1) );
 
@@ -402,12 +396,12 @@ EOSQL
     my $verify_cluster_is_not_written_to = sub {
         my ($ro_cluster, $extra_message) = @_;
 
-        my $base = $random_string->(16);
+        my $base = random_string(16);
         $cb->( PUT "http://127.0.0.1/$base" );
         for my $i (1..10) {
             my $res = $cb->(
                 PUT "http://127.0.0.1/$base/$i",
-                    Content => $random_string->(512)
+                    Content => random_string(512)
             );
 
             if ( ! ok $res->is_success, "PUT is success ($extra_message)" ) {
