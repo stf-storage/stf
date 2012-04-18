@@ -10,12 +10,12 @@
 <script type="text/javascript">
 <!--
     $(document).ready( function() {
-        $("#stf-object-create-btn").click(function() {
+        $("#stf-storage-create-btn").click(function() {
             location.href = "/storage/add";
             return false;
         });
 [% IF (storage) %]
-        $("#stf-object-edit-btn").click(function() {
+        $("#stf-storage-edit-btn").click(function() {
             location.href = "/storage/edit/[% storage.id %]";
             return false;
         });
