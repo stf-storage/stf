@@ -55,12 +55,14 @@ sub work_once {
 
         # Signals terminate the process, but don't allow us to fire the
         # guard object, so we manually fire it up
+        my $loop = 1;
         my $sig   = sub {
             my $sig = shift;
             return sub {
+                $loop = 0;
                 undef $guard;
                 if ( STF_DEBUG ) {
-                    print STDERR "[     Crash] Received signal, stopping repair\n";
+                    print STDERR "[     ] Received signal, stopping repair\n";
                 }
                 die "Received signal $sig, bailing out";
             };
@@ -79,7 +81,7 @@ sub work_once {
             SELECT object_id FROM entity WHERE storage_id = ? AND object_id > ? LIMIT $limit
 EOSQL
         my $size = $queue_api->size( 'repair_object' );
-        while ( $sth->execute( $storage_id, $object_id ) > 0 ) {
+        while ( $loop && $sth->execute( $storage_id, $object_id ) > 0 ) {
             $sth->bind_columns( \($object_id) );
             while ( $sth->fetchrow_arrayref ) {
                 $queue_api->enqueue( repair_object => "NP:$object_id" );
