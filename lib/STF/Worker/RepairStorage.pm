@@ -45,6 +45,7 @@ sub work_once {
         }
         my $guard = Guard::guard {
             STF::Utils::timeout_call( 2, sub {
+                local $@;
                 eval {
                     $api->update( $storage_id,
                         { mode => STORAGE_MODE_REPAIR, updated_at => \'NOW()' },
