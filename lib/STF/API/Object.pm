@@ -412,6 +412,12 @@ sub repair {
         if (! $content) { # eek
             push @broken, $storage;
         } elsif ( ! $master_content ) {
+            if ( STF_DEBUG ) {
+                printf STDERR "[    Repair] Going to use content from storage %s (%s)\n",
+                    $storage->{id},
+                    "$storage->{uri}/$object->{internal_name}"
+                ;
+            }
             $master_content = $content;
         }
     }
