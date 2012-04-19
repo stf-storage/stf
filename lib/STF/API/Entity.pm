@@ -117,7 +117,20 @@ sub store {
     my $content = $args->{content} or die "XXX no content";
     my $furl    = $self->get('Furl');
 
-    if ( $storage->{mode} != STORAGE_MODE_READ_WRITE && $storage->{mode} != STORAGE_MODE_SPARE ) {
+    # XXX The storage is writeable in the following cases:
+    #    1) STORAGE_MODE_READ_WRITE:
+    #       captain obvious
+    #    2) STORAGE_MODE_SPARE:
+    #       because this is just a spare in case something happens
+    #    3) STORAGE_MODE_REPAIR(_NOW|_DONE)?:
+    #       'repair' storages are ones that are being repaired, but are
+    #       not necessarily broken. (if it's broken, you should just 'crash' it)
+    if ( $storage->{mode} != STORAGE_MODE_READ_WRITE  &&
+         $storage->{mode} != STORAGE_MODE_SPARE       &&
+         $storage->{mode} != STORAGE_MODE_REPAIR      &&
+         $storage->{mode} != STORAGE_MODE_REPAIR_DONE &&
+         $storage->{mode} != STORAGE_MODE_REPAIR_NOW
+    ) {
         if ( STF_DEBUG ) {
             printf "[     Store] Storage [%s] is not writable, skipping write\n",
                 $storage->{id}
