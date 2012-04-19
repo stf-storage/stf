@@ -52,7 +52,7 @@ sub work_once {
         }
 
         # XXX Not sending stuff to object health for now
-        return
+        return;
 
         if ( STF_DEBUG ) {
             printf STDERR "[    Repair] Going to enqueue neighbors to object health queue (%s)\n",
