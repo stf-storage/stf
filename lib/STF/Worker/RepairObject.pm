@@ -51,6 +51,9 @@ sub work_once {
             return;
         }
 
+        # XXX Not sending stuff to object health for now
+        return
+
         if ( STF_DEBUG ) {
             printf STDERR "[    Repair] Going to enqueue neighbors to object health queue (%s)\n",
                 $object_id
