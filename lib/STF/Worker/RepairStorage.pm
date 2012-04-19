@@ -62,7 +62,7 @@ sub work_once {
                 $loop = 0;
                 undef $guard;
                 if ( STF_DEBUG ) {
-                    print STDERR "[     ] Received signal, stopping repair\n";
+                    print STDERR "[    Repair] Received signal, stopping repair\n";
                 }
                 die "Received signal $sig, bailing out";
             };
@@ -93,7 +93,7 @@ EOSQL
             my $prev = $size;
             $size = $queue_api->size( 'repair_object' );
             while ( $size > $prev ) {
-                sleep(60 * ($limit / 1_000));
+                sleep(60);
                 $size = $queue_api->size( 'repair_object' );
             }
 
