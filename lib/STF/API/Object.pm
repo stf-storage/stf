@@ -4,12 +4,9 @@ use Digest::MurmurHash ();
 use HTTP::Status ();
 use STF::Constants qw(
     :object
+    :storage
     STF_DEBUG
     STF_ENABLE_OBJECT_META
-    STORAGE_MODE_TEMPORARILY_DOWN
-    STORAGE_MODE_READ_ONLY
-    STORAGE_MODE_READ_WRITE
-    STORAGE_MODE_SPARE
 );
 use STF::Dispatcher::PSGI::HTTPException;
 
