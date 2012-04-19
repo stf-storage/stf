@@ -2,6 +2,7 @@ package STF::API::Object;
 use Mouse;
 use Digest::MurmurHash ();
 use HTTP::Status ();
+use List::Util ();
 use STF::Constants qw(
     :object
     :storage
@@ -400,7 +401,10 @@ sub repair {
     }
 
     my (@broken, $master_content);
-    foreach my $storage ( @in_cluster ) {
+
+    # This needs to be randomized, or we will ALWAYS hit the same node,
+    # and therefore incur extra I/O on that particular node alone
+    foreach my $storage ( List::Util::shuffle(@in_cluster) ) {
         my $content;
 
         if ( $storage->{mode} == STORAGE_MODE_READ_ONLY ||
