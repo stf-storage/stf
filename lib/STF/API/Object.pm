@@ -408,7 +408,10 @@ sub repair {
 
         if ( $storage->{mode} == STORAGE_MODE_READ_ONLY ||
             $storage->{mode} == STORAGE_MODE_READ_WRITE ||
-            $storage->{mode} == STORAGE_MODE_SPARE )
+            $storage->{mode} == STORAGE_MODE_SPARE      ||
+            $storage->{mode} == STORAGE_MODE_REPAIR     ||
+            $storage->{mode} == STORAGE_MODE_REPAIR_NOW ||
+            $storage->{mode} == STORAGE_MODE_REPAIR_DONE
         {
             $content = $entity_api->fetch_content({
                 object  => $object,
