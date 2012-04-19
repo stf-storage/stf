@@ -418,6 +418,12 @@ sub repair {
 
         if (! $content) { # eek
             push @broken, $storage;
+            if ( STF_DEBUG ) {
+                printf "[    Repair] Failed to retrieve obejct %s from storage [%s]. Marking it as broken\n",
+                    $object->{id},
+                    $storage->{id}
+                ;
+            }
         } elsif ( ! $master_content ) {
             if ( STF_DEBUG ) {
                 printf STDERR "[    Repair] Going to use content from storage %s (%s)\n",
