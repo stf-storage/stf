@@ -479,7 +479,11 @@ sub fetch_content {
     }
     # success
     if ( STF_DEBUG ) {
-        printf STDERR "[ Replicate] Success fetching %s\n", $uri;
+        printf STDERR "[ Replicate] Success fetching %s (object = %s, storage = %s)\n",
+            $uri,
+            $object->{id},
+            $storage->{id},
+        ;
     }
 
     return $fh;
