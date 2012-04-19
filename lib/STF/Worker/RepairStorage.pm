@@ -118,6 +118,8 @@ EOSQL
     if (my $e = $@) {
         if ($e !~ /Received signal/) {
             Carp::confess("Failed to run repair storage: $e");
+        } else {
+            Carp::confess("Bailing out because of signal; $e" );
         }
     }
 }
