@@ -395,6 +395,13 @@ sub repair {
         cluster_id => $cluster->{id}
     });
 
+    if ( STF_DEBUG ) {
+        printf STDERR "[    Repair] Object %s should be in storages [%s]\n",
+            $object->{id},
+            join ", ", map { $_->{id} } @in_cluster
+        ;
+    }
+
     my (@broken, $master_content);
     foreach my $storage ( @in_cluster ) {
         my $content;
