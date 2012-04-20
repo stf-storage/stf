@@ -206,51 +206,6 @@ EOSQL
         is scalar @$entities, scalar @before, "Should be " . scalar @before . " entities";
     }
 
-    note "Now we should check out if the object health worker received any inputs";
-
-    my $object_health_queue_size;
-    if ( $IS_SCHWARTZ ) {
-        ($object_health_queue_size) = $queue_dbh->selectrow_array( <<EOSQL, undef, "STF::Worker::ObjectHealth::Proxy" );
-            SELECT count(*) FROM job JOIN funcmap ON job.funcid = funcmap.funcid WHERE funcmap.funcname = ?
-EOSQL
-    } else {
-        ($object_health_queue_size) = $queue_dbh->selectrow_array( <<EOSQL );
-            SELECT count(*) FROM queue_object_health
-EOSQL
-    }
-
-    if ( ok $object_health_queue_size > 0, "object_health_queue_size is > 0" ) {
-        # run the repair worker a bit longer
-        eval {
-            local $SIG{ALRM} = sub {
-                die "RepairObject worker timed out";
-            };
-            alarm(5);
-            my $worker = STF::Worker::ObjectHealth->new(
-                container => $context->container,
-                max_works_per_child => 1,
-            );
-            $worker->work;
-        };
-        if ($@) {
-            fail "Error running RepairObject Worker: $@";
-        }
-        alarm(0);
-    }
-
-    my $object_health_queue_size_after;
-    if ( $IS_SCHWARTZ ) {
-        ($object_health_queue_size_after) = $queue_dbh->selectrow_array( <<EOSQL, undef, "STF::Worker::RepairObject::Proxy" );
-            SELECT count(*) FROM job JOIN funcmap ON job.funcid = funcmap.funcid WHERE funcmap.funcname = ?
-EOSQL
-    } else {
-        ($object_health_queue_size_after) = $queue_dbh->selectrow_array( <<EOSQL );
-            SELECT count(*) FROM queue_repair_object
-EOSQL
-    }
-
-    ok $object_health_queue_size_after <= $object_health_queue_size, "queue size has not increased (before=$object_health_queue_size, after=$object_health_queue_size_after)";
-
     note "alright, it worked for the most normal case of storages crashing. Howabout corrupted files?";
     my ($broken_file) = sort { rand } glob $pattern;
     {
