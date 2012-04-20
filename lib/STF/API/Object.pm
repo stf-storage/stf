@@ -463,7 +463,21 @@ sub repair {
     }
 
     my $repaired = 0;
-    if (@broken) { # we got something broken
+    if (! @broken) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[    Repair] No need to repair object %s\n",
+                $object->{id}
+            ;
+        }
+    } else {
+        if ( STF_DEBUG ) {
+            printf STDERR "[    Repair] Entities for object %s in storages [%s] were not available. Repairing\n",
+                $object->{id},
+                join ", ", map { $_->{id} } @broken,
+            ;
+        }
+
+        # we got something broken
         # write to all broken storages
         foreach my $storage ( @broken ) {
             if ( STF_DEBUG ) {
