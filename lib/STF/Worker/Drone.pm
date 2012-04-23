@@ -60,7 +60,7 @@ has scoreboard => (
 
 has spawn_interval => (
     is => 'rw',
-    default => 1
+    default => 5
 );
 
 has workers => (
@@ -166,17 +166,12 @@ sub run {
     my $scoreboard = $self->scoreboard; # load to initialize;
     my $pp = $self->process_manager();
     while ( $pp->signal_received !~ /^(?:TERM|INT)$/ ) {
-        $pp->start and next;
-        eval {
+        $pp->start(sub {
             $self->start_worker( $self->get_worker() );
-        };
-        if ($@) {
-            warn "Failed to start worker ($$): $@";
-        }
-        print STDERR "Worker ($$) exit\n";
-        $pp->finish;
+        });
     }
 
+    $pp->signal_all_children('TERM');
     $self->cleanup();
 }
 
