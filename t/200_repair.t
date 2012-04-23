@@ -5,7 +5,6 @@ use HTTP::Request::Common qw(GET PUT);
 use STF::Test qw(clear_queue);
 
 use_ok "STF::Context";
-use_ok "STF::Worker::ObjectHealth";
 use_ok "STF::Worker::RepairObject";
 use_ok "STF::Worker::Replicate";
 

@@ -585,11 +585,11 @@ sub get_any_valid_entity_url {
     # enqueuing condition
     if ($check) {
         if ( STF_DEBUG ) {
-            printf STDERR "[Get Entity] Object %s being sent to health check\n",
+            printf STDERR "[Get Entity] Object %s forcefully being sent to repair (probably harmless)\n",
                 $object_id
             ;
         }
-        eval { $self->get('API::Queue')->enqueue( object_health => $object_id ) };
+        eval { $self->get('API::Queue')->enqueue( repair_object => $object_id ) };
     }
 
     # We cache

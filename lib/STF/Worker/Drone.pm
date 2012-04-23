@@ -70,7 +70,6 @@ has workers => (
             Replicate     => 8,
             DeleteBucket  => 4,
             DeleteObject  => 4,
-            ObjectHealth  => 1,
             RepairObject  => 4,
             RepairStorage => 1,
         );
@@ -94,38 +93,6 @@ sub bootstrap {
         context => $context,
         %{ $context->get('config')->{ 'Worker::Drone' } },
     );
-}
-
-sub new {
-    my ($class, %args) = @_;
-
-    my $self = bless {
-        spawn_interval => 1,
-        workers => {
-            Replicate     => 8,
-            DeleteBucket  => 4,
-            DeleteObject  => 4,
-            ObjectHealth  => 1,
-            RepairObject  => 1,
-            RecoverCrash  => 1,
-            RetireStorage => 1,
-        },
-        %args,
-    }, $class;
-
-    my %alias = (
-        Usage => 'UpdateUsage',
-        Retire => 'RetireStorage',
-        Crash => 'RecoverCrash',
-    );
-    my $workers = $self->workers;
-    while ( my ($k, $v) = each %alias ) {
-        if (exists $workers->{$k}) {
-            $workers->{$v} = delete $workers->{$k};
-        }
-    }
-
-    return $self;
 }
 
 sub max_workers {
