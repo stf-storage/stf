@@ -407,13 +407,7 @@ sub repair {
     foreach my $storage ( List::Util::shuffle(@in_cluster) ) {
         my $content;
 
-        if ( $storage->{mode} == STORAGE_MODE_READ_ONLY ||
-            $storage->{mode} == STORAGE_MODE_READ_WRITE ||
-            $storage->{mode} == STORAGE_MODE_SPARE      ||
-            $storage->{mode} == STORAGE_MODE_REPAIR     ||
-            $storage->{mode} == STORAGE_MODE_REPAIR_NOW ||
-            $storage->{mode} == STORAGE_MODE_REPAIR_DONE
-        ) {
+        if ( $storage_api->is_readable( $storage ) ) { 
             $content = $entity_api->fetch_content({
                 object  => $object,
                 storage => $storage
@@ -617,7 +611,8 @@ sub get_any_valid_entity_url {
 
         # If *any* of the storages fail, we should re-compute
         foreach my $storage_id ( @storage_ids ) {
-            if (! $lookup->{ $storage_id } ) {
+            my $storage = $lookup->{ $storage_id };
+            if (! $storage || ! $storage_api->is_readable( $storage ) ) {
                 # Invalidate the cached entry, and set the repair flag
                 undef $storages;
                 $repair++;

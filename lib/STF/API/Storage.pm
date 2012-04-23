@@ -7,6 +7,17 @@ with 'STF::API::WithDBI';
 
 my @META_KEYS = qw(used capacity notes);
 
+sub is_readable {
+    my ($self, $storage) = @_;
+    return 
+        $storage->{mode} == STORAGE_MODE_READ_ONLY ||
+        $storage->{mode} == STORAGE_MODE_READ_WRITE ||
+        $storage->{mode} == STORAGE_MODE_SPARE      ||
+        $storage->{mode} == STORAGE_MODE_REPAIR     ||
+        $storage->{mode} == STORAGE_MODE_REPAIR_NOW ||
+        $storage->{mode} == STORAGE_MODE_REPAIR_DONE
+}
+
 # XXX These queries to load meta info should, and can be optimized
 around search => sub {
     my ($next, $self, @args) = @_;
