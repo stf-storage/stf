@@ -3,7 +3,7 @@
 <script type="text/javascript">
 <!--
     $(document).ready( function() {
-        $(["#stf-bucket-delete"]).each( function(i, id) {
+        $(["#stf-bucket-delete-confirm"]).each( function(i, id) {
             var btn_id = id + "-btn";
             $(btn_id).click(function() {
                 var modal_id = id + "-modal";
@@ -19,24 +19,25 @@
             location.href = "[% c.uri_for("/object/create", { bucket_id => bucket.id } ) %]";
         });
 
-        $("a.btn-primary", "#stf-bucket-delete-confirm").click(function() {
+        var del_modal_id = "#stf-bucket-delete-confirm-modal";
+        $("a.btn-primary", del_modal_id).click(function() {
             if ( ! confirm( "Are you sure you want to proceed DELETING this object?" ) ) {
-                $("#stf-bucket-delete-confirm").modal("hide");
+                $(del_modal_id).modal("hide");
                 return false;
             }
 
-            $("div.main", "#stf-bucket-delete-confirm div.modal-body").hide();
-            $("div.processing", "#stf-bucket-delete-confirm div.modal-body").show();
+            $("div.main", del_modal_id + " div.modal-body").hide();
+            $("div.processing", del_modal_id + " div.modal-body").show();
             $.ajax({
                 url: "/ajax/bucket/[% bucket.id %]/delete.json",
                 type: "POST",
                 error: function(xhr, st, err) {
-                    $("div.processing", "#stf-bucket-delete-confirm div.modal-body").hide();
-                    $("div.error", "#stf-bucket-delete-confirm div.modal-body")
+                    $("div.processing", del_modal_id + " div.modal-body").hide();
+                    $("div.error", del_modal_id + " div.modal-body")
                         .text("Failed to delete bucket " + err).show();
                 },
                 success: function() {
-                    $("#stf-bucket-delete-confirm").modal("hide");
+                    $(del_modal_id).modal("hide");
                     setTimeout( function() {
                         window.location.reload();
                     }, 3000 );
@@ -89,7 +90,7 @@
     </div>
 </div>
 
-<div class="modal fade" data-toggle="modal" id="stf-bucket-delete-confirm">
+<div class="modal fade" data-toggle="modal" id="stf-bucket-delete-confirm-modal">
     <div class="modal-header">
         <a class="close" data-dismiss="modal">x</a>
         <h3>Delete bucket [% bucket.id %]</h3>
