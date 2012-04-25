@@ -372,7 +372,23 @@ sub repair {
     }
 
     my $cluster_api = $self->get( 'API::StorageCluster' );
-    my $cluster = $cluster_api->load_for_object( $object->{id}, 1 );
+
+    # When repairing, always recalculate the cluster ID to make sure that
+    # we're placing this object in the correct cluster
+    my $cluster = $cluster_api->load_for_object( $object->{id} );
+    my $recalculated = $cluster_api->calculate_for_object( $object->{id} );
+    if (! $cluster) {
+        # object is not in a cluster yet.
+        $cluster = $cluster_api->load_for_object( $object->{id}, 1 );
+    } elsif ($recalculated->{id} != $cluster->{id}) {
+        # object is in a cluster, but the calculated cluster is different
+        $cluster_api->register_for_object( {
+            object_id => $object->{id},
+            cluster_id => $recalculated->{id},
+        });
+        $cluster = $cluster_api->load_for_object( $object->{id} );
+    }
+
     if (! $cluster) {
         if ( STF_DEBUG ) {
             printf STDERR "[    Repair] Could not load cluster for object %s, bailing out of repair\n",
