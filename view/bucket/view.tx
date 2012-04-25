@@ -89,7 +89,7 @@
     </div>
 </div>
 
-<div class="modal fade" data-toggle="modal" id="stf-bucket-delete-modal">
+<div class="modal fade" data-toggle="modal" id="stf-bucket-delete-confirm">
     <div class="modal-header">
         <a class="close" data-dismiss="modal">x</a>
         <h3>Delete bucket [% bucket.id %]</h3>
