@@ -51,7 +51,7 @@
     <h2>Bucket [% bucket.id %]</h2>
 
     <button id="stf-create-object-in-bucket-btn" class="btn btn-info btn-mini"><i class="icon-plus icon-white"></i> Create Object</button>
-    <button id="stf-bucket-delete-btn" class="btn btn-danger btn-mini"><i class="icon-trash icon-white"></i> Delete</button>
+    <button id="stf-bucket-delete-confirm-btn" class="btn btn-danger btn-mini"><i class="icon-trash icon-white"></i> Delete</button>
 </div>
 
 <div class="modal fade" data-toggle="modal" id="stf-create-object-in-bucket-modal">
