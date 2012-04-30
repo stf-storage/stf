@@ -91,7 +91,9 @@ sub delete_for_object_id {
             print STDERR "[DeleteObject] + Sending DELETE $uri\n";
         }
 
-        if ( $storage->{mode} != STORAGE_MODE_READ_WRITE ) {
+        # XXX REPAIR mode is done while the storage is online, so you need to
+        # at least attempt to delete the object
+        if ( $storage->{mode} != STORAGE_MODE_READ_WRITE && $storage->{mode} != STORAGE_MODE_REPAIR_NOW && $storage->{mode} != STORAGE_MODE_REPAIR ) {
             if ( STF_DEBUG ) {
                 printf STDERR "[DeleteObject] storage %s is known to be broken. Skipping delete request\n",
                     $storage->{uri}
