@@ -242,8 +242,11 @@ sub remove {
     foreach my $broken ( @$storages ) {
         my $cache_key = [ "storage", $broken->{id}, "http_accessible" ];
         my $st        = $self->cache_get( @$cache_key );
+        my $mode      = $broken->{mode};
         if ( ( defined $st && $st == -1 ) ||
-             $broken->{mode} != STORAGE_MODE_READ_WRITE
+             ( $mode != STORAGE_MODE_READ_WRITE &&
+               $mode != STORAGE_MODE_REPAIR_NOW &&
+               $mode != STORAGE_MODE_REPAIR )
         ) {
             if ( STF_DEBUG) {
                 printf STDERR "[    Repair] storage %s is known to be broken. Skipping delete request\n", $broken->{uri};
