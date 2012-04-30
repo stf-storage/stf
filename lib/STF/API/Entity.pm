@@ -302,7 +302,7 @@ sub check_health {
     # if this were the case, we DO NOT issue an DELETE on the backend, 
     # as it most likely will not properly respond.
     my $storage_api = $self->get('API::Storage');
-    if ($storage_api->is_readable($storage)) {
+    if (! $storage_api->is_readable($storage)) {
         if (STF_DEBUG) {
             print STDERR "[    Health] Storage $storage->{id} is not readable. Adding to invalid list.\n";
         }
