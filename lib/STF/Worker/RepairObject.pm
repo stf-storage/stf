@@ -29,15 +29,12 @@ sub work_once {
     }
     eval {
         my $object_api = $self->get('API::Object');
-        my $queue_api = $self->get('API::Queue');
-
-        # returns the number of repaired entities.
-        my ($n, $broken) = $object_api->repair( $object_id );
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] Repaired object %s (%d items).\n",
-                $object_id,
-                defined $n ? $n : 0,
-            ;
+        if ($object_api->repair( $object_id )) {
+            if ( STF_DEBUG ) {
+                printf STDERR "[    Repair] Repaired object %s.\n",
+                    $object_id,
+                ;
+            }
         }
     };
     if ($@) {
