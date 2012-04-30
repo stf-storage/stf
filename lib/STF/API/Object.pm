@@ -289,6 +289,9 @@ sub repair {
     }
 
     my $cluster_api = $self->get( 'API::StorageCluster' );
+
+    # find the current cluster
+    my $cluster = $cluster_api->load_for_object( $object_id  );
     my @clusters = $cluster_api->load_candidates_for( $object_id );
 
     # The object should be inthe first cluster found, so run a health check
@@ -306,6 +309,12 @@ sub repair {
             ;
         }
         $designated_cluster = $clusters[0];
+        if (! $cluster || $designated_cluster->{id} != $cluster->{id}) {
+            $cluster_api->register_for_object({
+                cluster_id => $designated_cluster->{id},
+                object_id => $object_id,
+            });
+        }
     } else {
         if (STF_DEBUG) {
             printf STDERR "[    Repair] Object %s needs repair\n",
