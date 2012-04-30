@@ -88,13 +88,23 @@ sub store {
         }
     }
 
+    my $ok = defined $minimum ? $stored >= $minimum : scalar @storages == $stored;
+    if ($ok) {
+        $self->register_for_object( {
+            cluster_id => $cluster->{id},
+            object_id  => $object_id,
+        } );
+    }
+
+
     if (STF_DEBUG) {
-        printf STDERR "[   Cluster] Stored %d entities, wanted %d\n",
+        printf STDERR "[   Cluster] Stored %d entities in cluster %s (wanted %d)\n",
             $stored,
+            $cluster->{id},
             defined $minimum ? $minimum : scalar @storages
         ;
     }
-    return defined $minimum ? $stored >= $minimum : scalar @storages == $stored;
+    return $ok;
 }
 
 sub check_entity_health {
@@ -133,6 +143,13 @@ sub register_for_object {
 
     my $object_id = $args->{object_id} or die "XXX no object";
     my $cluster_id = $args->{cluster_id} or die "XXX no cluster";
+
+    if (STF_DEBUG) {
+        printf STDERR "[   Cluster] Registering object %s to cluster %s\n",
+            $object_id,
+            $cluster_id,
+        ;
+    }
 
     my $dbh = $self->dbh;
     $dbh->do( <<EOSQL, undef, $object_id, $cluster_id );
