@@ -9,13 +9,14 @@ my @META_KEYS = qw(used capacity notes);
 
 sub is_readable {
     my ($self, $storage) = @_;
+    my $mode = $storage->{mode};
     return 
-        $storage->{mode} == STORAGE_MODE_READ_ONLY ||
-        $storage->{mode} == STORAGE_MODE_READ_WRITE ||
-        $storage->{mode} == STORAGE_MODE_SPARE      ||
-        $storage->{mode} == STORAGE_MODE_REPAIR     ||
-        $storage->{mode} == STORAGE_MODE_REPAIR_NOW ||
-        $storage->{mode} == STORAGE_MODE_REPAIR_DONE
+        $mode == STORAGE_MODE_READ_ONLY   ||
+        $mode == STORAGE_MODE_READ_WRITE  ||
+        $mode == STORAGE_MODE_SPARE       ||
+        $mode == STORAGE_MODE_REPAIR      ||
+        $mode == STORAGE_MODE_REPAIR_NOW  ||
+        $mode == STORAGE_MODE_REPAIR_DONE
 }
 
 # XXX These queries to load meta info should, and can be optimized

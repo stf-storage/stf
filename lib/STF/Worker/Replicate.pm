@@ -14,9 +14,7 @@ sub work_once {
     my ($self, $object_id) = @_;
 
     eval {
-        $self->get('API::Entity')->replicate( {
-            object_id => $object_id 
-        } );
+        $self->get('API::Object')->repair( $object_id );
     };
     if ($@) {
         Carp::confess( "Failed to replicate object ID: $object_id: $@" );

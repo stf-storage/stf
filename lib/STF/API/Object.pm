@@ -184,158 +184,62 @@ EOSQL
     return $rv;
 }
 
-# Returns good/bad entities -- actually, returns the storages that contains
-# the broken entities.
-# my ($valid_listref, $invalid_listref) = $api->check_health($object_id);
-sub check_health {
-    my ($self, $object_id) = @_;
+# We used to use replicate() for both the initial write and the actual
+# replication, but it has been separated out so that you can make sure
+# that we make sure we do a double-write in the initial store(), and
+# replication that happens afterwards runs with a different logic
+sub store {
+    my ($self, $args) = @_;
 
-    if (STF_DEBUG) {
-        print STDERR "[    Health] Checking health for object $object_id\n";
-    }
+    my $object_id     = $args->{id}            or die "XXX no id";
+    my $bucket_id     = $args->{bucket_id}     or die "XXX no bucket_id";
+    my $object_name   = $args->{object_name}   or die "XXX no object_name";
+    my $internal_name = $args->{internal_name} or die "XXX no internal_name";
+    my $input         = $args->{input}         or die "XXX no input";;
+    my $size          = $args->{size} || 0;
+    my $replicas      = $args->{replicas} || 3; # XXX unused, stored for compat
 
-    my $object = $self->lookup( $object_id );
-    if (! $object) {
-        if (STF_DEBUG) {
-            print STDERR "[    Health] No matching object $object_id\n";
-        }
-        return ([], []);
-    }
+    my $cluster_api = $self->get('API::StorageCluster');
+    $self->create({
+        id            => $object_id,
+        bucket_id     => $bucket_id,
+        object_name   => $object_name,
+        internal_name => $internal_name,
+        size          => $size,
+        replicas      => $replicas, # Unused, stored for back compat
+    });
 
-    my $object_meta = $self->lookup_meta( $object_id );
-    if (! $object_meta) {
-        if (STF_DEBUG) {
-            print STDERR "[    Health] No matching object meta for $object_id (harmless)\n";
-        }
-    }
-
-    my $entity_api = $self->get( 'API::Entity' );
-    my @entities = $entity_api->search( { object_id => $object_id } );
-    if (@entities) {
-        if (STF_DEBUG) {
-            printf STDERR "[    Health] Loaded %d entities\n",
-                scalar @entities
-        }
-    } else {
-        if (STF_DEBUG) {
-            print STDERR "[    Health] No matching entities for $object_id ( XXX broken ? )\n";
-        }
-        return ([], []);
-    }
-
-    my $storage_api = $self->get('API::Storage');
-    my $furl = $self->get('Furl');
-    my $ref_url;
-    my ($content, @intact, @broken);
-    foreach my $entity ( @entities ) {
-        my $storage = $storage_api->lookup( $entity->{storage_id} );
-        if (! $storage) {
-            if (STF_DEBUG) {
-                print STDERR "[    Health] storage $entity->{storage_id} does not exist. Adding to broken list\n";
-            }
-            push @broken, { id => $entity->{storage_id} };
-            next;
-        }
-
-        # an entity in TEMPORARILY_DOWN node needs to be treated as alive
-        if ($storage->{mode} == STORAGE_MODE_TEMPORARILY_DOWN) {
-            if (STF_DEBUG) {
-                print STDERR "[    Health] storage $entity->{storage_id} is temporarily down. Adding to intact list\n";
-            }
-            push @intact, $storage;
-            next;
-        }
-
-        # If the mode is not in a readable state, then we've purposely 
-        # taken it out of the system, and needs to be repaired. Also, 
-        # if this were the case, we DO NOT issue an DELETE on the backend, 
-        # as it most likely will not properly respond.
-        if ($storage->{mode} != STORAGE_MODE_READ_ONLY && $storage->{mode} != STORAGE_MODE_READ_WRITE) {
-            if (STF_DEBUG) {
-                print STDERR "[    Health] Storage $storage->{id} is not readable. Adding to invalid list.\n";
-            }
-
-            push @broken, $storage;
-
-            # This "next" by-passes the HEAD request that we'd normally
-            # send to the storage.
-            next;
-        }
-
-        my $url = join "/", $storage->{uri}, $object->{internal_name};
-        if (STF_DEBUG) {
-            print STDERR "[    Health] Going to check $url\n";
-        }
-
-        my $fh = File::Temp->new( UNLINK => 1 );
-        my (undef, $code) = eval {
-            $furl->request(
-                url => $url,
-                method => "GET",
-                write_file => $fh,
-            );
-        };
-        if ($@) {
-            print STDERR "[    Health] HTTP request raised an exception: $@\n";
-            # Make sure this becomes an error
-            $code = 500;
-        }
-        my $is_success = HTTP::Status::is_success( $code );
-        if (STF_DEBUG) {
-            printf STDERR "[    Health] GET %s was %s (%d)\n",
-                $url, ($is_success ? "OK" : "FAIL"), $code;
-        }
-
-        $fh->flush;
-        $fh->seek(0, 0);
-        my $size = (stat($fh))[7];
-        if ( $size != $object->{size} ) {
-            $is_success = 0;
-            if ( STF_DEBUG ) {
-                printf STDERR "[    Health] Object %s sizes do not match (got %d, expected %d)\n",
-                    $object->{id},
-                    $size,
-                    $object->{size}
+    # Load all possible clusteres, ordered by a consistent hash
+    my @clusters = $cluster_api->load_candidates_for( $object_id );
+    if (! @clusters) {
+        if ( STF_DEBUG ) {
+            printf STDERR "[ Replicate] No cluster defined for object %s, and could not any load cluster for it\n",
+                    $object_id
                 ;
-            }
         }
+        return;
+    }
 
-        if (STF_ENABLE_OBJECT_META && $object_meta && $is_success) {
-            # XXX If the object wasn't created with meta info (which can
-            # happen), then we shouldn't run all this
-            my $hash = Digest::MD5->new;
-            my $hash_ok = 0;
-            $hash->addfile( $fh );
-            my $expected = $object_meta->{hash};
-            my $actual   = $hash->hexdigest();
-            $hash_ok = $expected eq $actual;
-            if (STF_DEBUG) {
-                printf STDERR "[    Health] MD5 hashes for %s %s (DB = %s, actual = %s)\n",
-                    $url, ( $hash_ok ? "OK" : "FAIL"), $expected, $actual
-                ;
-            }
-
-            $is_success = $hash_ok;
-        }
-
-        if ($is_success) {
-            $ref_url ||= $url;
-            push @intact, $storage;
-        } else {
-            push @broken, $storage;
+    # At this point we still don't know which cluster we belong to.
+    # Attempt to write into clusters in order.
+    foreach my $cluster (@clusters) {
+        my $ok = $cluster_api->store({
+            cluster   => $cluster,
+            object_id => $object_id,
+            content   => $input,
+            minimum   => 2,
+        });
+        if ($ok) {
+            $cluster_api->register_for_object( {
+                cluster_id => $cluster->{id},
+                object_id  => $object_id
+            });
+            # done
+            return 1;
         }
     }
 
-    if ( STF_DEBUG ) {
-        foreach my $storage (@intact) {
-            printf "[    Health] + OK $storage->{uri}/$object->{internal_name}\n";
-        }
-        foreach my $storage (@broken) {
-            printf "[    Health] - NOT OK $storage->{uri}/$object->{internal_name}\n";
-        }
-    }
-
-    return (\@intact, \@broken);
+    return;
 }
 
 sub repair {
@@ -371,98 +275,10 @@ sub repair {
         return;
     }
 
-    my $cluster_api = $self->get( 'API::StorageCluster' );
-
-    # When repairing, always recalculate the cluster ID to make sure that
-    # we're placing this object in the correct cluster
-    my $cluster = $cluster_api->load_for_object( $object->{id} );
-    my $recalculated = $cluster_api->calculate_for_object( $object->{id} );
-    if (! $cluster) {
-        # object is not in a cluster yet.
-        $cluster = $cluster_api->load_for_object( $object->{id}, 1 );
-    } elsif ($recalculated->{id} != $cluster->{id}) {
-        # object is in a cluster, but the calculated cluster is different
-        $cluster_api->register_for_object( {
-            object_id => $object->{id},
-            cluster_id => $recalculated->{id},
-        });
-        $cluster = $cluster_api->load_for_object( $object->{id} );
-    }
-
-    if (! $cluster) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] Could not load cluster for object %s, bailing out of repair\n",
-                $object_id
-            ;
-        }
-        return;
-    }
-
-    # XXX select all entities from our EXPECTED cluster.
-    # if anything in there is broken, then attempt to load a good content
-    # from any entity that looks like worth it (even if it's from a different
-    # cluster).
-    # once we have a good content, we should write to 
-
-    my $storage_api = $self->get( 'API::Storage' );
-    my @in_cluster = $storage_api->search( {
-        cluster_id => $cluster->{id}
+    # Attempt to read from any given resource
+    my $master_content = $entity_api->fetch_content_from_any({
+        object => $object,
     });
-
-    if ( STF_DEBUG ) {
-        printf STDERR "[    Repair] Object %s should be in storages [%s]\n",
-            $object->{id},
-            join ", ", map { $_->{id} } @in_cluster
-        ;
-    }
-
-    my (@broken, $master_content);
-
-    # This needs to be randomized, or we will ALWAYS hit the same node,
-    # and therefore incur extra I/O on that particular node alone
-    foreach my $storage ( List::Util::shuffle(@in_cluster) ) {
-        my $content;
-
-        if ( $storage_api->is_readable( $storage ) ) { 
-            $content = $entity_api->fetch_content({
-                object  => $object,
-                storage => $storage
-            });
-        }
-
-        if (! $content) { # eek
-            push @broken, $storage;
-            if ( STF_DEBUG ) {
-                printf "[    Repair] Failed to retrieve obejct %s from storage [%s]. Marking it as broken\n",
-                    $object->{id},
-                    $storage->{id}
-                ;
-            }
-        } elsif ( ! $master_content ) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[    Repair] Going to use content from storage %s (%s)\n",
-                    $storage->{id},
-                    "$storage->{uri}/$object->{internal_name}"
-                ;
-            }
-            $master_content = $content;
-        }
-    }
-
-    if (! $master_content) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] No content for %s could be fetched from storages in cluster %s. Falling back to reading from ANY source\n",
-                $object->{id},
-                $cluster->{id},
-            ;
-        }
-
-        # Last resort. See if we can fetch from other sources
-        $master_content = $entity_api->fetch_content_from_any({
-            object => $object,
-        });
-    }
-
     if (! $master_content) {
         if ( STF_DEBUG ) {
             printf STDERR "[    Repair] PANIC: No content for %s could be fetched!! Cannot proceed with repair.\n",
@@ -472,109 +288,75 @@ sub repair {
         return;
     }
 
-    my $repaired = 0;
-    if (! @broken) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] No need to repair object %s\n",
-                $object->{id}
+    my $cluster_api = $self->get( 'API::StorageCluster' );
+    my @clusters = $cluster_api->load_candidates_for( $object_id );
+
+    # The object should be inthe first cluster found, so run a health check
+    my $ok = $cluster_api->check_entity_health({
+        cluster_id => $clusters[0]->{id},
+        object_id  => $object_id,
+    });
+
+    my $designated_cluster;
+    if ($ok) {
+        if (STF_DEBUG) {
+            printf STDERR "[    Repair] Object %s is correctly stored in cluster %s. Object does not need repair\n",
+                $object_id,
+                $clusters[0]->{id}
             ;
         }
+        $designated_cluster = $clusters[0];
     } else {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] Entities for object %s in storages [%s] were not available. Repairing\n",
-                $object->{id},
-                join ", ", map { $_->{id} } @broken,
+        if (STF_DEBUG) {
+            printf STDERR "[    Repair] Object %s needs repair\n",
+                $object_id
             ;
         }
-
-        # we got something broken
-        # write to all broken storages
-        foreach my $storage ( @broken ) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[    Repair] Repairing object %s on storage %s (%s)\n",
-                    $object->{id},
-                    $storage->{id},
-                    "$storage->{uri}/$object->{internal_name}"
-                ;
-            }
-
-            my $ok = $entity_api->store({
-                storage => $storage,
-                object  => $object,
-                content => $master_content,
+        # If it got here, either the object was not properly in clusters[0]
+        # (i.e., some of the storages in the cluster did not have this object)
+        # or it was in a different cluster
+        foreach my $cluster ( @clusters ) {
+            # The first one is where we should be, but there's always a chance
+            # that it's broken, so we need to try all clusters.
+            my $ok = $cluster_api->store({
+                cluster   => $cluster,
+                object_id => $object_id,
+                content   => $master_content,
             });
-            if ( STF_DEBUG ) {
-                printf STDERR "[    Repair] STORE object %s to storage %s (mode = %s) was %s\n",
-                    $object->{id},
-                    $storage->{id},
-                    $storage->{mode}, # XXX make it human-readable
-                    $ok ? "OK" : "FAIL"
-                ;
-            }
-            if ( $ok ) {
-                $repaired++;
+            if ($ok) {
+                $designated_cluster = $cluster;
+                last;
             }
         }
 
-        if (@broken < $repaired) {
-            # yikes, if we got here, that means we were able to get
-            # some content out of the system, but we were not able to
-            # properly store all copies. We shouldn't go to the next
-            # step, which is to delete all entities that are NOT in
-            # the expected cluster
-
-            if ( STF_DEBUG ) {
-                printf STDERR "[    Repair] Stored %d entities, but we started with %d broken entities, this is suspicious...\n",
-                    $repaired,
-                    scalar @broken
+        if (! $designated_cluster) {
+            if (STF_DEBUG) {
+                printf STDERR "[    Repair] PANIC: Failed to repair object %s to any cluster!\n",
+                    $object_id
                 ;
             }
             return;
         }
-
-        # if we got here, cool, we should be at least as good as
-        # the previous state
     }
 
-    # before doing deletes, make sure that we have at least 2 entities
-    # otherwise we shouldn't be performing deletes
-    my @entities = $entity_api->search({
-        object_id => $object->{id},
-        storage_id => { in => [ map { $_->{id} } @in_cluster ] }
-    } );
-    if (@entities < 2) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] PANIC: We only have %d entities in cluster %s, AFTER attempting to repair!! (%d storages in cluster). Do you have enough storages in cluster (at least 2, recommend 3)? Is your storage having hardware issues?\n",
-                scalar @entities,
-                $cluster->{id},
-                scalar @in_cluster,
-            ;
-        }
-        return;
-    }
-
-    # now check if we have entities outside of our cluster.
-    my @not_in_cluster = $entity_api->search({
-        object_id => $object->{id},
-        storage_id => { 'not in' => [ map { $_->{id} } @in_cluster ] }
+    # Object is now properly stored in $designated_cluster. Find which storages
+    # map to this, and remove any other. This may happen if we added new
+    # clusters and rebalancing occurred.
+    my $storage_api = $self->get('API::Storage');
+    my @storages = $storage_api->search({
+        cluster_id => { 'not in' => [ $designated_cluster->{id} ] },
     });
-    if (@not_in_cluster > 0) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] Found storages in different cluster(s), deleting from %s\n",
-                join ", ", map { $_->{storage_id} } @not_in_cluster;
-        }
-        $entity_api->remove_from({
+    my @entities = $entity_api->search({
+        object_id => $object_id,
+        storage_id => { in => [ map { $_->{id} } @storages ] }
+    });
+    if (@entities) {
+        $self->get('API::Entity')->remove({
             object => $object,
-            storages => [ 
-                grep { defined $_ }
-                map { $storage_api->lookup( $_->{storage_id} ) }
-                    @not_in_cluster
-            ]
+            storages => [ map { $storage_api->lookup($_->{storage_id}) } @entities ],
         });
     }
-    $repaired += scalar @not_in_cluster;
-
-    return wantarray ? ( $repaired, [ @broken, @not_in_cluster ] ) : $repaired;
+    return 1;
 }
 
 sub get_any_valid_entity_url {

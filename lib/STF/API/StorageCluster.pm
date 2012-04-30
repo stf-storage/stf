@@ -1,8 +1,132 @@
 package STF::API::StorageCluster;
 use Mouse;
+use Digest::MD5 ();
 use STF::Constants qw(STF_DEBUG STORAGE_CLUSTER_MODE_READ_WRITE);
 
 with 'STF::API::WithDBI';
+
+sub load_candidates_for {
+    my ($self, $object_id) = @_;
+
+    my @clusters = $self->load_writable();
+    my %clusters = map {
+        (Digest::MurmurHash::murmur_hash($_->{id} . $object_id) => $_)
+    } @clusters;
+
+    return map  { $clusters{$_} } sort { $a <=> $b } keys %clusters;
+}
+
+sub store {
+    my ($self, $args) = @_;
+
+    my $cluster   = $args->{cluster}   or die "XXX no cluster";
+    my $object_id = $args->{object_id} or die "XXX no object_id";
+    my $content   = $args->{content}   or die "XXX no content";;
+    my $minimum   = $args->{minimum};
+
+    my $object     = $self->get('API::Object')->lookup($object_id);
+    if (! $object) {
+        if (STF_DEBUG) {
+            printf STDERR "[   Cluster] Could not load object to store (object_id = %s)\n",
+                $object_id,
+        }
+        return;
+    }
+
+    my @storages = $self->get('API::Storage')->search({
+        cluster_id => $cluster->{id},
+    });
+    if (STF_DEBUG) {
+        printf STDERR "[   Cluster] Attempting to store object %s in cluster %s (want %d copies)\n",
+            $object_id,
+            $cluster->{id},
+            defined $minimum ? $minimum : scalar @storages,
+        ;
+        printf STDERR "[   Cluster] Going to store in:\n";
+        foreach my $storage (@storages) {
+            printf STDERR "[   Cluster] + %s (id = %s)\n",
+                $storage->{uri},
+                $storage->{id}
+            ;
+        }
+    }
+
+    my $md5 = Digest::MD5->new;
+    my $expected = $md5->addfile( $content )->hexdigest;
+    my $entity_api = $self->get('API::Entity');
+    my $stored = 0;
+    # This object must be stored at least X times
+    foreach my $storage (List::Util::shuffle(@storages)) {
+        # if we can fetch it, don't store it
+        my $fetched = $entity_api->fetch_content({
+            object => $object,
+            storage => $storage,
+        });
+        if ($fetched) {
+            if ($md5->new->addfile($fetched)->hexdigest eq $expected) {
+                $stored++;
+                if (STF_DEBUG) {
+                    printf STDERR "[   Cluster] Object %s already exist on storage %s\n",
+                        $object_id,
+                        $storage->{id},
+                    ;
+                }
+            }
+        } else {
+            my $ok = $entity_api->store({
+                object  => $object,
+                storage => $storage,
+                content => $content,
+            });
+            if ($ok) {
+                $stored++;
+            }
+        }
+
+        if ($minimum) {
+            last if $stored >= $minimum;
+        }
+    }
+
+    if (STF_DEBUG) {
+        printf STDERR "[   Cluster] Stored %d entities, wanted %d\n",
+            $stored,
+            defined $minimum ? $minimum : scalar @storages
+        ;
+    }
+    return defined $minimum ? $stored >= $minimum : scalar @storages == $stored;
+}
+
+sub check_entity_health {
+    my ($self, $args) = @_;
+    my $object_id = $args->{object_id} or die "XXX no object";
+    my $cluster_id = $args->{cluster_id} or die "XXX no cluster";
+
+    my @storages = $self->get('API::Storage')->search({
+        cluster_id => $cluster_id
+    });
+    if (! @storages) {
+        if (STF_DEBUG) {
+            printf STDERR "[    Cluster] Could not find any storages belonging to cluster %s\n",
+                $cluster_id
+            ;
+        }
+        return ();
+    }
+
+    # only check until the first failure
+    my $entity_api = $self->get('API::Entity');
+    foreach my $storage (List::Util::shuffle(@storages)) {
+        my $ok = $entity_api->check_health({
+            object_id => $object_id,
+            storage_id => $storage->{id},
+        });
+        if (! $ok) {
+            return ();
+        }
+    }
+    return 1;
+}
 
 sub register_for_object {
     my ($self, $args) = @_;

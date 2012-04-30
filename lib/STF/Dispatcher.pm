@@ -437,17 +437,6 @@ sub create_object {
             $insert_object_timer = STF::Utils::timer_guard( "create_object (insert)" );
         }
 
-        my $internal_name = $object_api->create_internal_name( { suffix => $suffix } );
-        # Create an object entry. This is the "master" reference to the object.
-        $object_api->create({
-            id            => $object_id,
-            bucket_id     => $bucket_id,
-            object_name   => $object_name,
-            internal_name => $internal_name,
-            size          => $size,
-            replicas      => $replicas,
-        } );
-
         if ( STF_ENABLE_OBJECT_META ) {
             # XXX I'm not sure below is correct, but it works on my tests :/
             my $md5 = Digest::MD5->new;
@@ -467,23 +456,20 @@ sub create_object {
             undef $insert_object_timer;
         }
 
-        # Create entities. These are the actual entities which are replicated
-        # across the system
-        # XXX - We're calling "replicate" here, but this here is for "consistency"
-
-        my $min = $self->min_consistency;
-        if ( defined $min && $consistency < $min ) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[Dispatcher] Got consistency %d, but our minimum consistency is %d\n",
-                    $consistency, $min
-            }
-            $consistency = $min;
-        }
-        my $replicated = $entity_api->replicate({
-            object_id => $object_id,
-            replicas  => $consistency,
-            input     => $input,
+        my $internal_name = $object_api->create_internal_name( { suffix => $suffix } );
+        # Create an object entry. This is the "master" reference to the object.
+        my $ok = $object_api->store({
+            id            => $object_id,
+            bucket_id     => $bucket_id,
+            object_name   => $object_name,
+            internal_name => $internal_name,
+            size          => $size,
+            replicas      => $replicas, # Unused, stored for back compat
+            input         => $input,
         });
+        if (! $ok) {
+            return ();
+        }
 
         return (1, $old_object_id);
     } );
