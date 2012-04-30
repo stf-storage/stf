@@ -298,7 +298,7 @@ sub check_health {
     # taken it out of the system, and needs to be repaired. Also, 
     # if this were the case, we DO NOT issue an DELETE on the backend, 
     # as it most likely will not properly respond.
-    if ($storage->{mode} != STORAGE_MODE_READ_ONLY && $storage->{mode} != STORAGE_MODE_READ_WRITE) {
+    if ($storage_api->is_readable($storage)) {
         if (STF_DEBUG) {
             print STDERR "[    Health] Storage $storage->{id} is not readable. Adding to invalid list.\n";
         }
