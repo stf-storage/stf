@@ -23,7 +23,7 @@
 </tr>
 <tr>
     <td>Cluster</td>
-    <td><a href="[% c.uri_for("/cluster/show", object.cluster.id) %]">[% object.cluster.id %]</a></td>
+    <td>[% IF (object.cluster.id) %]<a href="[% c.uri_for("/cluster/show", object.cluster.id) %]">[% object.cluster.id %]</a>[% ELSE %]N/A[% END %]</td>
 </tr>
 <tr>
     <td>Replicas</td>
