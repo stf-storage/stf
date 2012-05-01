@@ -91,7 +91,7 @@ sub mark_for_delete {
         }
     }
 
-    $self->cache_del( $self->table, $bucket_id );
+    $self->cache_delete( $self->table, $bucket_id );
 
     return $rv_replace && $rv_delete;
 }
