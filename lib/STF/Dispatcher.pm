@@ -437,25 +437,6 @@ sub create_object {
             $insert_object_timer = STF::Utils::timer_guard( "create_object (insert)" );
         }
 
-        if ( STF_ENABLE_OBJECT_META ) {
-            # XXX I'm not sure below is correct, but it works on my tests :/
-            my $md5 = Digest::MD5->new;
-            if ( eval { fileno $input }) {
-                $md5->addfile( $input );
-            } elsif ( eval { $input->can('read') } ) {
-                $md5->add( $input->read() );
-            }
-            seek $input, 0, 0;
-            $self->get('API::ObjectMeta')->create({
-                object_id => $object_id,
-                hash      => $md5->hexdigest,
-            });
-        }
-
-        if ( STF_TIMER ) {
-            undef $insert_object_timer;
-        }
-
         my $internal_name = $object_api->create_internal_name( { suffix => $suffix } );
         # Create an object entry. This is the "master" reference to the object.
         my $ok = $object_api->store({
@@ -467,6 +448,27 @@ sub create_object {
             replicas      => $replicas, # Unused, stored for back compat
             input         => $input,
         });
+
+        if ( STF_ENABLE_OBJECT_META ) {
+            # XXX I'm not sure below is correct, but it works on my tests :/
+            eval { seek $input, 0, 0 };
+            my $md5 = Digest::MD5->new;
+            if ( eval { fileno $input }) {
+                $md5->addfile( $input );
+            } elsif ( eval { $input->can('read') } ) {
+                $md5->add( $input->read() );
+            }
+            eval { seek $input, 0, 0 };
+            $self->get('API::ObjectMeta')->create({
+                object_id => $object_id,
+                hash      => $md5->hexdigest,
+            });
+        }
+
+        if ( STF_TIMER ) {
+            undef $insert_object_timer;
+        }
+
         if (! $ok) {
             return ();
         }
