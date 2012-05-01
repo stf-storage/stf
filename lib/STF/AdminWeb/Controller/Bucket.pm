@@ -8,7 +8,7 @@ sub delete {
     my ($self, $c) = @_;
     my $bucket_id = $c->match->{bucket_id};
 
-    $c->get('API::Bucket')->mark_for_delete( $bucket_id );
+    $c->get('API::Bucket')->mark_for_delete({ id => $bucket_id });
     $c->get('API::Queue')->enqueue( delete_bucket => $bucket_id );
 
     my $response = $c->response;
