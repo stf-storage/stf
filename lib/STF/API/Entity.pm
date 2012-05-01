@@ -230,7 +230,7 @@ sub remove {
             $object->{id}
         ;
         foreach my $storage (@$storages) {
-            print STDERR "[    Repair] + @{[ $storage->{uri} || '(null)' ]} (id = $storage->{id})\n";
+            print STDERR "[    Repair] - @{[ $storage->{uri} || '(null)' ]} (id = $storage->{id})\n";
         }
     }
 
