@@ -94,7 +94,7 @@ sub uri_for {
 sub pager {
     my ($self, $limit) = @_;
     my $req = $self->request;
-    my $p   = int($req->param('p'));
+    my $p   = int($req->param('p') || 0);
     if ($p <= 0) {
         $p = 1;
     }
