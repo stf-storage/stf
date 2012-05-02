@@ -371,6 +371,22 @@ sub delete_bucket {
     return $res || ();
 }
 
+sub rename_bucket {
+    my ($self, $args) = @_;
+    my ($bucket, $name) = @$args{ qw( bucket name ) };
+
+    my $bucket_api = $self->get('API::Bucket');
+    my $dest = $bucket_api->lookup_by_name( $name );
+    if ($dest) {
+        return;
+    }
+
+    return $bucket_api->rename({
+        id => $bucket->{id},
+        name => $name
+    }) > 0;
+}
+
 sub is_valid_object {
     my ($self, $args) = @_;
     my ($bucket, $object_name ) = @$args{ qw( bucket object_name ) };
