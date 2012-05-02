@@ -21,6 +21,19 @@ sub create {
 EOSQL
 }
 
+sub rename {
+    my ($self, $args) = @_;
+
+    my $name = $args->{name};
+    my $bucket_id = $args->{id};
+    my $dbh = $self->dbh;
+
+    my $rv = $dbh->do(<<EOSQL, undef, $name, $bucket_id );
+        UPDATE bucket SET name = ? WHERE id = ?
+EOSQL
+    return $rv;
+}
+
 sub delete {
     my ($self, $args) = @_;
 
