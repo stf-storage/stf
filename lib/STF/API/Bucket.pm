@@ -31,6 +31,9 @@ sub rename {
     my $rv = $dbh->do(<<EOSQL, undef, $name, $bucket_id );
         UPDATE bucket SET name = ? WHERE id = ?
 EOSQL
+    if ($rv) {
+        $self->cache_delete( $self->table => $bucket_id );
+    }
     return $rv;
 }
 
