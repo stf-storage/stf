@@ -1,5 +1,5 @@
 <div class="well">
-    <h2>Storages[% IF (storage) %] [% storage.id %][% END %]</h2>
+    <h2>[% IF (storage) %]Storages [% storage.id %][% ELSE %]Storages[% END %]</h2>
 
     <button id="stf-storage-create-btn" class="btn btn-success btn-mini"><i class="icon-plus icon-white"></i> Create</button>
 [% IF (storage) %]
@@ -20,6 +20,7 @@
             return false;
         });
 [% END %]
+    });
 -->
 </script>
 
