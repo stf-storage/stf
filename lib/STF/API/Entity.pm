@@ -314,7 +314,11 @@ sub check_health {
 
     my $url = join "/", $storage->{uri}, $object->{internal_name};
     if (STF_DEBUG) {
-        print STDERR "[    Health] Going to check $url\n";
+        printf STDERR "[    Health] Going to check %s (object_id = %s, storage_id = %s)\n",
+            $url,
+            $object_id,
+            $storage_id,
+        ;
     }
 
     my $furl = $self->get('Furl');
