@@ -71,6 +71,18 @@ sub store {
                         $storage->{id},
                     ;
                 }
+
+                # Make sure that this entity exist in the database
+                my ($entity) = $entity_api->search({
+                    storage_id => $storage->{id},
+                    object_id  => $object->{id}
+                });
+                if (! $entity) {
+                    $entity_api->record({
+                        storage_id => $storage->{id},
+                        object_id  => $object->{id}
+                    });
+                }
             }
         } else {
             my $ok = $entity_api->store({

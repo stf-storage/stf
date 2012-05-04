@@ -109,6 +109,26 @@ sub delete_for_object_id {
     $delobj_api->delete( $object_id );
 }
 
+sub record {
+    my ($self, $args) = @_;
+
+    my $object_id = $args->{object_id} or die "XXX no object_id";
+    my $storage_id = $args->{storage_id} or die "XXX no storage_id";
+
+    # PUT was successful. Now write this to the database
+    eval {
+        my $store_sth = $self->get('DB::Master')->prepare( <<EOSQL );
+            REPLACE
+                INTO entity (object_id, storage_id, status, created_at)
+                VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()))
+EOSQL
+        $store_sth->execute( $object_id, $storage_id, ENTITY_ACTIVE );
+    };
+    if ($@) {
+        die "Failed to write new entity in database: $@";
+    }
+}
+
 # Stores 1 entity for given object + storage. Also creates an entry in the 
 # database. This code is will break if you use it in event-based code
 sub store {
@@ -193,17 +213,10 @@ sub store {
     }
 
     # PUT was successful. Now write this to the database
-    eval {
-        my $store_sth = $self->get('DB::Master')->prepare( <<EOSQL );
-            REPLACE
-                INTO entity (object_id, storage_id, status, created_at)
-                VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()))
-EOSQL
-        $store_sth->execute( $object->{id}, $storage->{id}, ENTITY_ACTIVE );
-    };
-    if ($@) {
-        die "Failed to write new entity in database: $@";
-    }
+    $self->record({
+        storage_id => $storage->{id},
+        object_id  => $object->{id},
+    });
     return 1;
 } 
 
