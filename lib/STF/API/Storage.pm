@@ -7,6 +7,28 @@ with 'STF::API::WithDBI';
 
 my @META_KEYS = qw(used capacity notes);
 
+sub is_writable {
+    my ($self, $storage) = @_;
+
+    my $mode = $storage->{mode};
+
+    # XXX The storage is writeable in the following cases:
+    #    1) STORAGE_MODE_READ_WRITE:
+    #       captain obvious
+    #    2) STORAGE_MODE_SPARE:
+    #       because this is just a spare in case something happens
+    #    3) STORAGE_MODE_REPAIR(_NOW|_DONE)?:
+    #       'repair' storages are ones that are being repaired, but are
+    #       not necessarily broken. (if it's broken, you should just 'crash' it)
+    return
+        $mode != STORAGE_MODE_READ_WRITE  &&
+        $mode != STORAGE_MODE_SPARE       &&
+        $mode != STORAGE_MODE_REPAIR      &&
+        $mode != STORAGE_MODE_REPAIR_DONE &&
+        $mode != STORAGE_MODE_REPAIR_NOW
+    ;
+}
+
 sub is_readable {
     my ($self, $storage) = @_;
     my $mode = $storage->{mode};
