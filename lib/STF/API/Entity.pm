@@ -272,7 +272,7 @@ sub check_health {
     my $object_id = $args->{object_id} or die "XXX no object";
     my $storage_id = $args->{storage_id} or die "XXX no storage";
 
-    my $entity  = $self->get('API::Entity')->search({
+    my ($entity) = $self->get('API::Entity')->search({
         storage_id => $storage_id,
         object_id  => $object_id,
     });
