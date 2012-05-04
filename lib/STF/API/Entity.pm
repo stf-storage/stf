@@ -272,6 +272,20 @@ sub check_health {
     my $object_id = $args->{object_id} or die "XXX no object";
     my $storage_id = $args->{storage_id} or die "XXX no storage";
 
+    my $entity  = $self->get('API::Entity')->search({
+        storage_id => $storage_id,
+        object_id  => $object_id,
+    });
+    if (! $entity) {
+        if (STF_DEBUG) {
+            printf STDERR "[    Health] Entity on storage %s for object %s is not recorded.\n",
+                $object_id,
+                $storage_id,
+            ;
+        }
+        return;
+    }
+
     my $object = $self->get('API::Object')->lookup( $object_id );
     my $storage = $self->get('API::Storage')->lookup( $storage_id );
 
@@ -279,7 +293,7 @@ sub check_health {
     if ($storage->{mode} == STORAGE_MODE_TEMPORARILY_DOWN) {
         if (STF_DEBUG) {
             printf STDERR "[    Health] Storage %s is temporarily down. Assuming this is intact.\n",
-                $storage->{storage_id}
+                $storage->{id}
             ;
         }
         return 1;
