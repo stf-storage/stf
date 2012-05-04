@@ -21,11 +21,11 @@ sub is_writable {
     #       'repair' storages are ones that are being repaired, but are
     #       not necessarily broken. (if it's broken, you should just 'crash' it)
     return
-        $mode != STORAGE_MODE_READ_WRITE  &&
-        $mode != STORAGE_MODE_SPARE       &&
-        $mode != STORAGE_MODE_REPAIR      &&
-        $mode != STORAGE_MODE_REPAIR_DONE &&
-        $mode != STORAGE_MODE_REPAIR_NOW
+        $mode == STORAGE_MODE_READ_WRITE  ||
+        $mode == STORAGE_MODE_SPARE       ||
+        $mode == STORAGE_MODE_REPAIR      ||
+        $mode == STORAGE_MODE_REPAIR_DONE ||
+        $mode == STORAGE_MODE_REPAIR_NOW
     ;
 }
 
