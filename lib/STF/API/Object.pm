@@ -365,6 +365,10 @@ sub repair {
             storages => [ map { $storage_api->lookup($_->{storage_id}) } @entities ],
         });
     }
+
+    my $cache_key = [ storages_for => $object_id ];
+    $self->cache_delete(@$cache_key);
+
     return 1;
 }
 
@@ -400,19 +404,23 @@ sub get_any_valid_entity_url {
     }
 
     # We cache
-    #   "storages_for.$object_id => {
-    #       $storage_id, $storage_uri ],
-    #       $storage_id, $storage_uri ],
-    #       $storage_id, $storage_uri ],
+    #   "storages_for.$object_id => [
+    #       [ $storage_id, $storage_uri ],
+    #       [ $storage_id, $storage_uri ],
+    #       [ $storage_id, $storage_uri ],
     #       ...
     #   ]
     my $repair = 0;
     my $cache_key = [ storages_for => $object_id ];
     my $storages = $self->cache_get( @$cache_key );
     if ($storages) {
+        if (STF_DEBUG) {
+            printf STDERR "[Get Entity] Cache HIT for storages, checking if cached contents are still readable\n";
+        }
+
         # Got storages, but we need to validate that they are indeed
         # readable, and that the uris match
-        my @storage_ids = grep { $_->[0] } @$storages;
+        my @storage_ids = map { $_->[0] } @$storages;
         my $storage_api = $self->get('API::Storage');
         my $lookup      = $storage_api->lookup_multi( @storage_ids );
 
@@ -420,6 +428,11 @@ sub get_any_valid_entity_url {
         foreach my $storage_id ( @storage_ids ) {
             my $storage = $lookup->{ $storage_id };
             if (! $storage || ! $storage_api->is_readable( $storage ) ) {
+                if (STF_DEBUG) {
+                    printf STDERR "[Get Entity] Storage '%s' is not readable anymore. Invalidating cache\n",
+                        $storage->{id},
+                    ;
+                }
                 # Invalidate the cached entry, and set the repair flag
                 undef $storages;
                 $repair++;
