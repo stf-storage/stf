@@ -159,6 +159,7 @@ sub store {
             $uri, $storage->{id}, $storage->{cluster_id};
     }
     eval {
+        local $furl->{timeout} = 5;
         my (undef, $code) = $furl->delete($uri);
         if ( STF_DEBUG ) {
             printf STDERR "[     Store]   DELETE was $code (harmless)\n";
