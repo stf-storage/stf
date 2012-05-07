@@ -265,18 +265,26 @@ sub remove {
 
             # XXX Remember which hosts would respond to HTTP
             # This is here to speed up the recovery process
-            if ( HTTP::Status::is_error($code) ) {
-                # XXX This error code is probably not portable.
-                if ( $msg =~ /(?:Cannot connect to|Failed to send HTTP request: Broken pipe)/ ) {
-                    $self->cache_set( $cache_key, -1, 5 * 60 );
-                }
-            } else {
+            if ( $code eq 404 || HTTP::Status::is_success($code) ) {
                 $self->delete( {
                     storage_id => $broken->{id},
                     object_id  => $object->{id},
                 } );
+            } elsif ( HTTP::Status::is_error($code) ) {
+                # XXX This error code is probably not portable.
+                if ( $msg =~ /(?:Cannot connect to|Failed to send HTTP request: Broken pipe)/ ) {
+                    $self->cache_set( $cache_key, -1, 5 * 60 );
+                }
             }
         };
+        if ($@) {
+            if (STF_DEBUG) {
+                printf STDERR "[    Repair] Error while deleting entity on storage %s for object %s\n",
+                    $broken->{id},
+                    $object->{id},
+                ;
+            }
+        }
     }
 }
 
