@@ -1,5 +1,5 @@
 package STF::Storage;
-use strict;
+use Mouse;
 use Cwd ();
 use Plack::Middleware::ConditionalGET;
 use Plack::Request;
@@ -8,24 +8,29 @@ use File::Copy ();
 use File::Spec ();
 use STF::Constants qw(STF_DEBUG STF_TIMER);
 use STF::Utils ();
-use Class::Accessor::Lite
-    rw => [ qw(root fileapp) ]
-;
 
-sub new {
-    my ($class, %args) = @_;
-    my $self = bless { root => Cwd::cwd(), %args }, $class;
-    if (! $self->fileapp) {
+has root => (
+    is => 'ro',
+    required => 1,
+    default => sub { Cwd::cwd() }
+);
+
+has fileapp => (
+    is => 'ro',
+    required => 1,
+    lazy => 1,
+    builder => sub {
+        my $self = shift;
         require Plack::App::File;
-        $self->fileapp( Plack::App::File->new( root => $self->root ) );
+        Plack::App::File->new( root => $self->root );
     }
-
-    $self;
-}
+);
 
 sub to_app {
     my $self = shift;
-    return Plack::Middleware::ConditionalGET->wrap(sub { $self->process(@_) });
+    my $app = sub { $self->process(@_) };
+    $app = Plack::Middleware::ConditionalGET->wrap($app);
+    return $app;
 }
 
 sub process {
