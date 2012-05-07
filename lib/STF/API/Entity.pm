@@ -166,8 +166,8 @@ sub store {
     };
 
     if ( STF_DEBUG ) {
-        printf STDERR "[     Store] + Sending PUT %s (storage = %s, cluster = %s)\n",
-            $uri, $storage->{id}, $storage->{cluster_id};
+        printf STDERR "[     Store] + Sending PUT %s (object = %s, storage = %s, cluster = %s)\n",
+            $uri, $object->{id}, $storage->{id}, $storage->{cluster_id};
     }
 
     if ( Scalar::Util::openhandle( $content ) ) {
