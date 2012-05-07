@@ -22,6 +22,7 @@ use STF::Constants qw(
 );
 use STF::Context;
 use STF::Dispatcher::PSGI::HTTPException;
+use STF::Log;
 use Time::HiRes ();
 
 # XXX Don't need this?
@@ -79,9 +80,7 @@ has shm_name => (
 
 BEGIN {
     if (! HAVE_64BITINT) {
-        if ( STF_DEBUG ) {
-            print STDERR "[Dispatcher] You don't have 64bit int. Emulating using Math::BigInt (This will be SLOW! Use 64bit-enabled Perls for STF!)\n";
-        }
+        debugf("You don't have 64bit int. Emulating using Math::BigInt (This will be SLOW! Use 64bit-enabled Perls for STF!)");
         require Math::BigInt;
         Math::BigInt->import;
     }
@@ -180,10 +179,9 @@ sub DEMOLISH {
 
 sub cleanup {
     my $self = shift;
+    local $STF::Log::PREFIX = "Cleanup(D)";
     if ( ! defined $self->parent || $self->parent != $$ ) {
-        if ( STF_DEBUG ) {
-            print STDERR "[Dispatcher] Cleanup skipped (PID $$ != $self->{parent})\n";
-        }
+        debugf("Cleanup skipped (PID %s != %s)", $$, $self->{parent});
         return;
     }
 
@@ -191,20 +189,14 @@ sub cleanup {
         local $@;
         if ( my $mutex = $self->{mutex} ) {
             eval {
-                if ( STF_DEBUG ) {
-                    printf STDERR "[Dispatcher] Cleaning up semaphore (%s)\n",
-                        $mutex->id
-                }
+                debugf("Cleaning up semaphore (%s)", $mutex->id);
                 $mutex->remove;
             };
         }
         if ( my $shm = $self->{shared_mem} ) {
             eval {
-                if ( STF_DEBUG ) {
-                    printf STDERR "[Dispatcher] Cleaning up shared memory (%s)\n",
-                        $shm->id
-                }
-                $shm->remove
+                debugf("Cleaning up shared memory (%s)", $shm->id);
+                $shm->remove;
             };
         }
     }
@@ -212,8 +204,9 @@ sub cleanup {
 
 sub start_request {
     my ($self, $env) = @_;
-    if ( STF_DEBUG ) {
-        printf STDERR "[Dispatcher] Starting request scope\n";
+    if (STF_DEBUG) {
+        local $STF::Log::PREFIX = "Start(D)";
+        debugf("Starting request scope");
     }
     return $self->container->new_scope();
 }
@@ -229,12 +222,14 @@ sub handle_exception {
 sub get_bucket {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Dispatcher" if STF_DEBUG;
+
     my ($bucket) = $self->get('API::Bucket')->lookup_by_name( $args->{bucket_name} );
     if ( STF_DEBUG ) {
         if ( $bucket ) {
-            print STDERR "[Dispatcher] Found bucket $args->{bucket_name}:\n";
+            debugf("Found bucket %s", "Dispatcher", "get_bucket", $args->{bucket_name});
         } else {
-            printf STDERR "[Dispatcher] Could not find bucket $args->{bucket_name}\n";
+            debugf("Could not find bucket %s", $args->{bucket_name});
         }
     }
     return $bucket || ();
@@ -245,10 +240,6 @@ sub create_id {
 
     my $mutex = $self->mutex;
     my $shm   = $self->shared_mem;
-
-    if ( STF_DEBUG > 1 ) {
-        printf STDERR "[Dispatcher] $$ ATTEMPT to LOCK\n";
-    }
 
     my ($rc, $errno);
     my $acquire = 0;
@@ -262,8 +253,9 @@ sub create_id {
     } while ( $rc <= 0 && $acquire < 100);
 
     if ( $rc <= 0 ) {
-        die sprintf
-            "[Dispatcher] SEMAPHORE: Process $$ failed to acquire mutex (tried %d times, \$! = %d, rc = %d, val = %d, zcnt = %d, ncnt = %d, id = %d)\n",
+        croakff(
+            "[Dispatcher] SEMAPHORE: Process %s failed to acquire mutex (tried %d times, \$! = %d, rc = %d, val = %d, zcnt = %d, ncnt = %d, id = %d)",
+            $$,
             $acquire,
             $errno,
             $rc,
@@ -271,17 +263,10 @@ sub create_id {
             $mutex->getzcnt(0),
             $mutex->getncnt(0),
             $mutex->id
-        ;
-    }
-
-    if ( STF_DEBUG > 1 ) {
-        printf STDERR "[Dispatcher] $$ SUCCESS LOCK mutex\n"
+        );
     }
 
     Guard::scope_guard {
-        if ( STF_DEBUG > 1 ) {
-            printf STDERR "[Dispatcher] $$ UNLOCK mutex\n"
-        }
         $mutex->op( 0, 1, SEM_UNDO );
     };
 
@@ -322,9 +307,7 @@ sub create_bucket {
 
     my $res = $txn->( $self->create_id, $args->{bucket_name} );
     if (my $e = $@) {
-        if (STF_DEBUG) {
-            printf STDERR "Failed to create bucket: $e\n";
-        }
+        debugf("Failed to create bucket: %s", $e);
         $self->handle_exception($e);
     }
 
@@ -350,17 +333,10 @@ sub delete_bucket {
     my ($bucket, $recursive) = @$args{ qw(bucket) };
     my $res = $txn->( $bucket->{id} );
     if (my $e = $@) {
-        if (STF_DEBUG) {
-            print STDERR "[Dispatcher] Failed to delete bucket: $e\n";
-        }
+        debugf("Failed to delete bucket: %s", $e);
         $self->handle_exception($e);
     } else {
-        if ( STF_DEBUG ) {
-            printf STDERR "[Dispatcher] Deleted bucket %s (%s)\n",
-                $bucket->{name},
-                $bucket->{id}
-            ;
-        }
+        debugf("Deleted bucket %s (%s)", $bucket->{name}, $bucket->{id});
     }
 
     if ($res) {
@@ -401,6 +377,8 @@ sub is_valid_object {
 sub create_object {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Create(D)" if STF_DEBUG;
+
     my $timer;
     if ( STF_TIMER ) {
         $timer = STF::Utils::timer_guard();
@@ -419,12 +397,11 @@ sub create_object {
 
         # check if this object has already been created before.
         # if it has, make sure to delete it first
-        if ( STF_DEBUG ) {
-            printf STDERR "[Dispatcher] Create object checking if object '%s' on bucket '%s' exists\n",
-                $bucket_id,
-                $object_name,
-            ;
-        }
+        debugf(
+            "Create object checking if object '%s' on bucket '%s' exists",
+            $bucket_id,
+            $object_name,
+        ) if STF_DEBUG;
 
         my $find_object_timer;
         if ( STF_TIMER ) {
@@ -439,12 +416,11 @@ sub create_object {
         }
 
         if ( $old_object_id ) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[Dispatcher] Object '%s' on bucket '%s' already exists\n",
-                    $object_name,
-                    $bucket_id,
-                ;
-            }
+            debugf(
+                "Object '%s' on bucket '%s' already exists",
+                $object_name,
+                $bucket_id,
+            );
             $object_api->mark_for_delete( $old_object_id );
         }
 
@@ -495,20 +471,17 @@ sub create_object {
     my ($bucket, $replicas, $object_name, $size, $consistency, $suffix, $input) = 
         @$args{ qw( bucket replicas object_name size consistency suffix input) };
 
-    if ( STF_DEBUG ) {
-        printf STDERR "[Dispatcher] Create object %s/%s\n",
-            $bucket->{name},
-            $object_name
-        ;
-    }
+    debugf(
+        "Create object %s/%s",
+        $bucket->{name},
+        $object_name
+    );
     my $object_id = $self->create_id();
 
     my ($res, $old_object_id) = $txn->(
         $object_id, $bucket->{id}, $replicas, $object_name, $size, $consistency, $suffix, $input );
     if (my $e = $@) {
-        if (STF_DEBUG) {
-            print STDERR "Error while creating object: $e\n";
-        }
+        debugf("Error while creating object: %s", $e);
         $self->handle_exception($e);
         return ();
     }
@@ -519,12 +492,19 @@ sub create_object {
     }
 
     if ($old_object_id) {
-        if ( STF_DEBUG ) {
-            print STDERR
-                "[Dispatcher] Request $bucket->{name}/$object_name was for existing content.\n",
-                " + Will queue request to delete old object ($old_object_id)\n"
-            ;
-        }
+        debugf(
+            "[%10s] Request %s/%s was for existing content.",
+            "Dispatcher",
+            "create",
+            $bucket->{name},
+            $object_name,
+        );
+        debugf(
+            "[%10s] Will queue request to delete old object (%s)",
+            "Dispatcher",
+            "create",
+            $old_object_id
+        );
         $self->enqueue( delete_object => $old_object_id );
     }
 
@@ -539,6 +519,7 @@ sub create_object {
 sub get_object {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Get(D)";
     my $timer;
     if ( STF_TIMER ) {
         $timer = STF::Utils::timer_guard();
@@ -575,9 +556,7 @@ sub get_object {
         STF::Dispatcher::PSGI::HTTPException->throw(@args);
     }
 
-    if ( STF_DEBUG ) {
-        print STDERR "[Dispatcher] get_object() could not find suitable entity for $object_name\n";
-    }
+    debugf("get_object() could not find suitable entity for %s", $object_name);
 
     return ();
 }
@@ -599,9 +578,7 @@ sub delete_object {
         } );
 
         if (! $object_id) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[Dispatcher] No matching object_id found for DELETE\n";
-            }
+            debugf("No matching object_id found for DELETE");
             return ();
         }
 
@@ -615,9 +592,7 @@ sub delete_object {
     my ($bucket, $object_name) = @$args{ qw(bucket object_name) };
     my ($res, $object_id) = $txn->( $bucket->{id}, $object_name);
     if (my $e = $@) {
-        if (STF_DEBUG) {
-            print STDERR "Failed to delete object: $e\n";
-        }
+        debugf("Failed to delete object: %s", $e);
         $self->handle_exception($e);
         return ();
     }
@@ -631,14 +606,15 @@ sub delete_object {
 sub modify_object {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Modify(D)" if STF_DEBUG;
+
     my ($bucket, $object_name, $replicas) = @$args{ qw(bucket object_name replicas) };
-    if ( STF_DEBUG ) {
-        printf STDERR "[Dispatcher] Modifying %s/%s (replicas = %d)\n",
-            $bucket->{name},
-            $object_name,
-            $replicas
-        ;
-    }
+    debugf(
+        "Modifying %s/%s (replicas = %d)",
+        $bucket->{name},
+        $object_name,
+        $replicas
+    );
 
     state $txn = $self->txn_block( sub {
         my ($self, $bucket_id, $object_name, $replicas) = @_;
@@ -648,31 +624,21 @@ sub modify_object {
             object_name =>  $object_name
         } );
         if (! $object_id) {
-            printf STDERR "[Dispatcher] Create object checking if object '%s' on bucket '%s' exists\n",
-                $bucket_id,
-                $object_name,
-            ;
+            debugf("Object %s on %s does not exist", $bucket_id, $object_name) if STF_DEBUG;
             return ();
         }
 
         $object_api->update($object_id => {
             num_replica => $replicas
         });
-        if ( STF_DEBUG ) {
-            printf STDERR "[Dispatcher] Updated %s to num_replica = %d\n",
-                $object_id,
-                $replicas
-            ;
-        }
+        debugf("Updated %s to num_replica = %d", $object_id, $replicas);
 
         return $object_id;
     });
 
     my ($object_id) = $txn->( $bucket->{id}, $object_name, $replicas);
     if (my $e = $@) {
-        if (STF_DEBUG) {
-            printf STDERR "[Dispatcher]: Failed to modify object: %s\n", $e;
-        }
+        debugf("Failed to modify object: %s", $e);
         $self->handle_exception($e);
         return ();
     }
@@ -706,9 +672,7 @@ sub rename_object {
         $args->{destination_object_name},
     );
     if (my $e = $@) {
-        if (STF_DEBUG) {
-            printf STDERR "[Dispatcher]: Failed to rename object: %s\n", $e;
-        }
+        debugf("Failed to rename object: %s", $e);
         $self->handle_exception($e);
         return ();
     }

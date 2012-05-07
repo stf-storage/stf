@@ -2,6 +2,7 @@ package STF::API::Queue::Schwartz;
 use Mouse;
 use STF::Constants qw(STF_DEBUG);
 use TheSchwartz;
+use STF::Log;
 
 with qw(STF::Trait::WithDBI);
 
@@ -54,9 +55,7 @@ sub enqueue {
 
     my $client = $self->get_client();
 
-    if ( STF_DEBUG ) {
-        print STDERR "[     Queue] Engqueued $ability ($object_id)\n";
-    }
+    debugf("Enqueued %s (%s)", $ability, $object_id) if STF_DEBUG;
     $client->insert( $ability, $object_id );
 }
 

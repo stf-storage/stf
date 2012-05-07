@@ -53,6 +53,7 @@ WriteMakefile(
         'HTML::FillInForm::Lite' => 0,
         'HTTP::Parser::XS' => 0,
         'IPC::SysV' => 0,
+        'Log::Minimal' => 0,
         'Mouse' => 0,
         'Plack' => '0.9981',
         'Plack::Middleware::ReverseProxy' => 0,

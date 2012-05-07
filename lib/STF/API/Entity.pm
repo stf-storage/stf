@@ -4,6 +4,7 @@ use Carp ();
 use Furl::HTTP;
 use Scalar::Util ();
 use STF::Constants qw(:entity :storage STF_DEBUG STF_TIMER STORAGE_MODE_READ_WRITE OBJECT_INACTIVE);
+use STF::Log;
 use STF::Utils ();
 
 with 'STF::API::WithDBI';
@@ -51,12 +52,12 @@ sub search_with_url {
 sub delete_for_object_id {
     my ($self, $object_id) = @_;
 
+    local $STF::Log::PREFIX = "Delete(O)";
+
     my $delobj_api = $self->get('API::DeletedObject');
     my $deleted = $delobj_api->lookup( $object_id );
     if ( ! $deleted ) {
-        if (STF_DEBUG) {
-            print STDERR "Object $object_id not found\n";
-        }
+        debugf("Object %s not found", $object_id) if STF_DEBUG;
         return ;
     }
 
@@ -66,42 +67,35 @@ sub delete_for_object_id {
         my $storage_id = $entity->{storage_id};
         my $storage = $storage_api->lookup( $storage_id );
         if (! $storage) {
-            if ( STF_DEBUG ) {
-                print STDERR "[DeleteObject] Could not find storage %s for object ID %s\n",
-                    $storage_id,
-                    $object_id
-                ;
-            }
+            debugf(
+                "Could not find storage %s for object ID %s",
+                $storage_id, $object_id
+            ) if STF_DEBUG;
             next;
         }
 
-        if ( STF_DEBUG ) {
-            printf STDERR "[DeleteObject] + Deleting logical entity for %s on %s\n",
-                $object_id,
-                $storage->{id},
-            ;
-        }
+        debugf(
+            " + Deleting logical entity for %s on %s",
+            $object_id, $storage->{id},
+        ) if STF_DEBUG;
+
         $self->delete( {
             object_id => $object_id,
             storage_id => $storage->{id}
         } );
 
-        my $uri = join '/', $storage->{uri}, $deleted->{internal_name};
-        if ( STF_DEBUG ) {
-            print STDERR "[DeleteObject] + Sending DELETE $uri\n";
-        }
-
         # XXX REPAIR mode is done while the storage is online, so you need to
         # at least attempt to delete the object
         if ( $storage->{mode} != STORAGE_MODE_READ_WRITE && $storage->{mode} != STORAGE_MODE_REPAIR_NOW && $storage->{mode} != STORAGE_MODE_REPAIR ) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[DeleteObject] storage %s is known to be broken. Skipping delete request\n",
-                    $storage->{uri}
-                ;
-            }
+            debugf(
+                "Storage %s is known to be broken. Skipping physical delete request\n",
+                $storage->{uri}
+            ) if STF_DEBUG;
             next;
         }
 
+        my $uri = join '/', $storage->{uri}, $deleted->{internal_name};
+        debugf(" + Sending DELETE %s (object = %s)", $uri, $object_id) if STF_DEBUG;
         # Send requests to the backend.
         $furl->delete( $uri );
     }
@@ -133,6 +127,7 @@ EOSQL
 # database. This code is will break if you use it in event-based code
 sub store {
     my ($self, $args) = @_;
+    local $STF::Log::PREFIX = "Store(E)" if STF_DEBUG;
 
     my $storage = $args->{storage} or die "XXX no storage";
     my $object  = $args->{object}  or die "XXX no object";
@@ -154,27 +149,32 @@ sub store {
     # Handle the case where the destination already exists. If the
     # storage allows us to overwrite it then fine, but if it doesn't
     # we need to delete it
-    if ( STF_DEBUG ) {
-        printf STDERR "[     Store] + Sending DELETE %s (storage = %s, cluster = %s)\n",
-            $uri, $storage->{id}, $storage->{cluster_id};
+    if (STF_DEBUG) {
+        debugf(
+            "Sending DELETE %s (storage = %s, cluster = %s)",
+            $uri, $storage->{id}, $storage->{cluster_id},
+        );
     }
     eval {
         local $furl->{timeout} = 5;
         my (undef, $code) = $furl->delete($uri);
-        if ( STF_DEBUG ) {
-            printf STDERR "[     Store]   DELETE was $code (harmless)\n";
+        if (STF_DEBUG) {
+            my $ok = HTTP::Status::is_success($code);
+            debugf(
+                "        DELETE %s was %s (%s)",
+                $uri,
+                ($ok ? "OK" : "FAIL (harmless)"),
+                $code
+            );
         }
     };
 
-    if ( STF_DEBUG ) {
-        printf STDERR "[     Store] + Sending PUT %s (object = %s, storage = %s, cluster = %s)\n",
-            $uri, $object->{id}, $storage->{id}, $storage->{cluster_id};
-    }
+    debugf(
+        "Sending PUT %s (object = %s, storage = %s, cluster = %s)",
+        $uri, $object->{id}, $storage->{id}, $storage->{cluster_id}
+    );
 
     if ( Scalar::Util::openhandle( $content ) ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[     Store] Content is a file handle. Seeking to position 0 to make sure\n";
-        }
         seek( $content, 0, 0 );
     }
 
@@ -197,19 +197,21 @@ sub store {
     }
 
     my $ok = HTTP::Status::is_success($code);
-    if ( STF_DEBUG ) {
-        printf STDERR "[     Store] PUT %s was %s\n", $uri, ($ok ? "OK" : "FAIL");
-    }
+    debugf(
+        "        PUT %s was %s (%s)",
+        $uri,
+        ($ok ? "OK" : "FAIL"),
+        $code
+    );
 
     if ( !$ok ) {
-        require Data::Dumper;
-        print STDERR 
-            "[     Store] Request to replicate to $uri failed:\n",
-            "[     Store] code    = $code\n",
-            "[     Store] headers = ", Data::Dumper::Dumper($rhdrs),
-            "[     Store] ===\n$body\n===\n",
-        ;
-
+        local $Log::Minimal::AUTODUMP = 1;
+        debugf("Request to replicate to %s failed:", $uri);
+        debugf("   code    = %s", $code);
+        debugf("   headers = ", $rhdrs);
+        debugf("===");
+        debugf($_) for split /\n/, $body;
+        debugf("===");
         return;
     }
 
@@ -224,15 +226,14 @@ sub store {
 sub remove {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Remove(E)";
     my $object = $args->{object} or die "XXX no object";
     my $storages = $args->{storages} or die "XXX no storages";
 
     if (STF_DEBUG) {
-        printf STDERR "[    Repair] Removing broken entities for %s in\n",
-            $object->{id}
-        ;
+        debugf( "Removing broken entities for %s in", $object->{id});
         foreach my $storage (@$storages) {
-            print STDERR "[    Repair] - @{[ $storage->{uri} || '(null)' ]} (id = $storage->{id})\n";
+            debugf(" - [%d] %s", $storage->{id}, $storage->{uri} || '(null)');
         }
     }
 
@@ -250,16 +251,12 @@ sub remove {
                $mode != STORAGE_MODE_REPAIR_NOW &&
                $mode != STORAGE_MODE_REPAIR )
         ) {
-            if ( STF_DEBUG) {
-                printf STDERR "[    Repair] storage %s is known to be broken. Skipping delete request\n", $broken->{uri};
-            }
+            debugf("Storage %s is known to be broken. Skipping delete request", $broken->{uri}) if STF_DEBUG;
             next;
         }
 
         my $url = join "/", $broken->{uri}, $object->{internal_name};
-        if (STF_DEBUG) {
-            printf STDERR "[    Repair] Deleting entity %s for object %s\n", $url, $object->{id};
-        }
+        debugf("Deleting entity %s for object %s", $url, $object->{id}) if STF_DEBUG;
         eval {
             my (undef, $code, $msg) = $furl->delete( $url );
 
@@ -278,12 +275,10 @@ sub remove {
             }
         };
         if ($@) {
-            if (STF_DEBUG) {
-                printf STDERR "[    Repair] Error while deleting entity on storage %s for object %s\n",
-                    $broken->{id},
-                    $object->{id},
-                ;
-            }
+            critf(
+                "Error while deleting entity on storage %s for object %sj",
+                $broken->{id}, $object->{id},
+            );
         }
     }
 }
@@ -291,6 +286,7 @@ sub remove {
 sub check_health {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Health(E)";
     my $object_id = $args->{object_id} or die "XXX no object";
     my $storage_id = $args->{storage_id} or die "XXX no storage";
 
@@ -299,12 +295,10 @@ sub check_health {
         object_id  => $object_id,
     });
     if (! $entity) {
-        if (STF_DEBUG) {
-            printf STDERR "[    Health] Entity on storage %s for object %s is not recorded.\n",
-                $object_id,
-                $storage_id,
-            ;
-        }
+        debugf(
+            "Entity on storage %s for object %s is not recorded.",
+            $object_id, $storage_id,
+        ) if STF_DEBUG;
         return;
     }
 
@@ -313,11 +307,10 @@ sub check_health {
 
     # an entity in TEMPORARILY_DOWN node needs to be treated as alive
     if ($storage->{mode} == STORAGE_MODE_TEMPORARILY_DOWN) {
-        if (STF_DEBUG) {
-            printf STDERR "[    Health] Storage %s is temporarily down. Assuming this is intact.\n",
-                $storage->{id}
-            ;
-        }
+        debugf(
+            "Storage %s is temporarily down. Assuming this is intact.",
+            $storage->{id}
+        ) if STF_DEBUG;
         return 1;
     }
 
@@ -327,21 +320,19 @@ sub check_health {
     # as it most likely will not properly respond.
     my $storage_api = $self->get('API::Storage');
     if (! $storage_api->is_readable($storage)) {
-        if (STF_DEBUG) {
-            print STDERR "[    Health] Storage $storage->{id} is not readable. Adding to invalid list.\n";
-        }
+        debugf(
+            "Storage %s is not readable. Adding to invalid list.",
+            $storage->{id}
+        ) if STF_DEBUG;
 
         return ();
     }
 
     my $url = join "/", $storage->{uri}, $object->{internal_name};
-    if (STF_DEBUG) {
-        printf STDERR "[    Health] Going to check %s (object_id = %s, storage_id = %s)\n",
-            $url,
-            $object_id,
-            $storage_id,
-        ;
-    }
+    debugf(
+        "Going to check %s (object_id = %s, storage_id = %s)\n",
+        $url, $object_id, $storage_id,
+    ) if STF_DEBUG;
 
     my $furl = $self->get('Furl');
     my $fh = File::Temp->new( UNLINK => 1 );
@@ -353,231 +344,49 @@ sub check_health {
         );
     };
     if ($@) {
-        print STDERR "[    Health] HTTP request raised an exception: $@\n";
+        debugf("HTTP request raised an exception: %s", $@) if STF_DEBUG;
         # Make sure this becomes an error
         $code = 500;
     }
 
     my $is_success = HTTP::Status::is_success( $code );
-    if (STF_DEBUG) {
-        printf STDERR "[    Health] GET %s was %s (%d)\n",
-            $url, ($is_success ? "OK" : "FAIL"), $code;
-    }
+    debugf("GET %s was %s (%d)", $url, ($is_success ? "OK" : "FAIL"), $code);
 
     $fh->flush;
     $fh->seek(0, 0);
     my $size = (stat($fh))[7];
     if ( $size != $object->{size} ) {
         $is_success = 0;
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Health] Object %s sizes do not match (got %d, expected %d)\n",
-                $object->{id},
-                $size,
-                $object->{size}
-            ;
-        }
+        debugf(
+            "Object %s sizes do not match (got %d, expected %d)",
+            $object->{id}, $size, $object->{size}
+        ) if STF_DEBUG;
     }
 
     return $is_success;
 }
 
-sub replicate {
-    my ($self, $args) = @_;
-
-    my $replicate_guard;
-    if ( STF_TIMER ) {
-        $replicate_guard = STF::Utils::timer_guard("STF::API::Entity::replicate [ALL]");
-    }
-
-    my ($object_id, $replicas, $content, $input) =
-        @$args{ qw(object_id replicas content input) };
-    if ( STF_DEBUG ) {
-        printf STDERR 
-            "[ Replicate] Replicating object ID %s\n",
-            $object_id;
-    }
-    my $dbh = $self->dbh;
-
-    my $cluster_api = $self->get('API::StorageCluster');
-    my $storage_api = $self->get('API::Storage');
-    my $object_api  = $self->get('API::Object');
-    my $object = $object_api->lookup( $object_id );
-    if (! $object) {
-        if ( STF_DEBUG ) {
-            printf STDERR 
-                "[ Replicate] object %s does not exist\n",
-                $object_id;
-        }
-        return ();
-    }
-
-    my $furl = $self->get('Furl');
-
-    if ( ! $content && $input ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[ Replicate] Content is null, reading from input\n";
-        }
-
-        my $read_timer;
-        if ( STF_TIMER ) {
-            $read_timer = STF::Utils::timer_guard( "replicate [read content]" );
-        }
-
-        my ($buf, $ret);
-        my $size = $object->{size};
-        my $sofar = 0;
-
-        my $fh = File::Temp->new( UNLINK => 1 );
-        READCONTENT: while ( $sofar < $size ) {
-            $ret = read( $input, $buf, $size );
-            if ( not defined $ret ) {
-                Carp::croak("Failed to read from input: $!");
-            } elsif ( $ret == 0 ) { # EOF
-                last READCONTENT;
-            }
-            print $fh $buf;
-            $sofar += $ret;
-        }
-        $fh->flush;
-        $content = $fh;
-    }
-
-    if (! $content && $object ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[ Replicate] content is null, fetching content from existing entitites\n";
-        }
-
-        $content = $self->fetch_content_from_any({
-            object => $object,
-        });
-
-        if ( ! $content ) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[ Replicate] Failed to get content for %s, disabling it\n",
-                    $object_id
-                ;
-            }
-            $self->get('API::Object')->update( $object_id => { status => OBJECT_INACTIVE } );
-            return;
-        }
-    }
-
-    # Load all possible clusteres, ordered by a consistent hash
-    my @clusters = $cluster_api->load_candidates_for( $object->{id} );
-    if (! @clusters) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[ Replicate] No cluster defined for object %s, and could not any load cluster for it\n",
-                    $object_id
-                ;
-        }
-        return;
-    }
-
-    my @replicated;
-    my $success = 0;
-    foreach my $cluster ( @clusters ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[ Replicate] Attempting to use  cluster %s for object %s\n",
-                $cluster->{id},
-                $object->{id},
-            ;
-        }
-
-        # Now load writable storages in this cluster
-        my $storages   = $storage_api->load_writable_for({
-            object  => $object,
-            cluster => $cluster,
-        } );
-
-        # Ugh, not storages? darn it.
-        if ( @$storages < 1 ) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[ Replicate] Not enough backend storages to write were available.\n",;
-            }
-            next;
-        }
-
-        # we got storages. try to write to them
-        if (STF_DEBUG) {
-            printf STDERR "[ Replicate] Creating entities in the backend storages\n";
-        }
-
-        my $store_timer;
-        if ( STF_TIMER ) {
-            $store_timer = STF::Utils::timer_guard( "replicate [store all]" );
-        }
-
-        @replicated = ();
-        my @failed;
-        foreach my $storage ( @$storages ) {
-            my $ok = $self->store( {
-                object  => $object,
-                storage => $storage,
-                content => $content,
-            } );
-
-            if ($ok) {
-                push @replicated, $storage;
-            } else {
-                push @failed, $storage;
-            }
-        }
-
-        undef $store_timer;
-
-        # Bad news. 
-        if (scalar @replicated < $replicas) { 
-            if (STF_DEBUG) {
-                printf STDERR "[ Replicate] Could not write to some of the storages in cluster %s (wrote to %s, failed to write to %s)\n",
-                    $cluster->{id},
-                    join( ", ", map { sprintf "[%s]", $_->{id} } @replicated),
-                    join( ", ", map { sprintf "[%s]", $_->{id} } @failed),
-                ;
-            }
-
-            # We won't try to delete stuff here. it's better to have
-            # more copies than to lose it.
-            next;
-        }
-
-        # hooray! we got to write to all of the storages!
-        # XXX Do we need to store the cluster ?
-        if (STF_DEBUG) {
-            printf STDERR "[ Replicate] Replicated %d times\n",
-                scalar @replicated;
-        }
-
-        $success++;
-        last;
-    }
-
-    if ( ! $success) {
-        Carp::croak("*** ALL REQUESTS TO REPLICATE FAILED (wanted $replicas) ***");
-    }
-
-    return wantarray ? @replicated : scalar @replicated;
-}
-
 sub fetch_content {
     my ( $self, $args ) = @_;
+
+    local $STF::Log::PREFIX = "Fetch(E)" if STF_DEBUG;
 
     my $object = $args->{object} or die "XXX no object";
     my $storage = $args->{storage} or die "XXX no object";
 
     if (! $self->get('API::Storage')->is_readable($storage)) {
-        if (STF_DEBUG) {
-            printf STDERR "[    Fetch] Storage %s is not readable\n",
-                $storage->{id},
-            ;
-        }
+        debugf("Storage %s is not readable", $storage->{id}) if STF_DEBUG;
         return;
     }
 
     my $furl = $self->get('Furl');
     my $uri = join "/", $storage->{uri}, $object->{internal_name};
-    if ( STF_DEBUG ) {
-        printf STDERR "[     Fetch] Attempting to fetch %s\n", $uri;
-    }
+    debugf(
+        "Sending GET %s (object = %s, storage = %s)",
+        $uri,
+        $object->{id},
+        $storage->{id},
+    ) if STF_DEBUG;
 
     my $fh = File::Temp->new( UNLINK => 1 );
     my (undef, $code, undef, $hdrs) = $furl->request(
@@ -586,10 +395,13 @@ sub fetch_content {
         write_file => $fh,
     );
 
+    my $fetch_ok = $code eq '200';
+    debugf(
+        "        GET %s was %s (%s)",
+        $uri, $fetch_ok ? "OK" : "FAIL", $code,
+    ) if STF_DEBUG;
+    
     if ( $code ne '200' ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[     Fetch] Failed to fetch %s: %s\n", $uri, $code;
-        }
         $fh->close;
         return;
     }
@@ -599,25 +411,19 @@ sub fetch_content {
 
     my $size = (stat($fh))[7];
     if ( $object->{size} != $size ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[     Fetch] Fetched content size for object %s does not match registered size?! (got %d, expected %d)\n",
-                $object->{id},
-                $size,
-                $object->{size}
-            ;
-        }
+        debugf(
+            "Fetched content size for object %s does not match registered size?! (got %d, expected %d)",
+            $object->{id}, $size, $object->{size}
+        ) if STF_DEBUG;
         $fh->close;
         return;
     }
-    # success
-    if ( STF_DEBUG ) {
-        printf STDERR "[     Fetch] Success fetching %s (object = %s, storage = %s)\n",
-            $uri,
-            $object->{id},
-            $storage->{id},
-        ;
-    }
 
+    # success
+    debugf(
+        "Success fetching %s (object = %s, storage = %s)",
+        $uri, $object->{id}, $storage->{id},
+    ) if STF_DEBUG;
     return $fh;
 }
 
@@ -634,11 +440,7 @@ sub fetch_content_from_any {
 EOSQL
 
     if ( scalar( @$storages ) == 0) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[     Fetch] No storage matching object %s found\n",
-,
-                $object->{id};
-        }
+        debugf("No storage matching object %s found", $object->{id}) if STF_DEBUG;
         return;
     }
 

@@ -9,6 +9,7 @@ use STF::Constants qw(
     STF_DEBUG
     STF_ENABLE_OBJECT_META
 );
+use STF::Log;
 use STF::Dispatcher::PSGI::HTTPException;
 
 with 'STF::API::WithDBI';
@@ -212,11 +213,11 @@ sub store {
     # Load all possible clusteres, ordered by a consistent hash
     my @clusters = $cluster_api->load_candidates_for( $object_id );
     if (! @clusters) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[ Replicate] No cluster defined for object %s, and could not any load cluster for it\n",
-                    $object_id
-                ;
-        }
+        debugf(
+            "[%10s] No cluster defined for object %s, and could not any load cluster for it\n",
+            "Object",
+            $object_id
+        );
         return;
     }
 
@@ -245,27 +246,23 @@ sub store {
 sub repair {
     my ($self, $object_id)= @_;
 
-    if (STF_DEBUG) {
-        print STDERR "[    Repair] Repairing object $object_id\n";
-    }
+    local $STF::Log::PREFIX = "Repair(O)";
+
+    debugf("Repairing object %s", "Object", "repair", $object_id) if STF_DEBUG;
 
     my $object = $self->lookup( $object_id );
     my $entity_api = $self->get( 'API::Entity' );
     if (! $object) {
-        if (STF_DEBUG) {
-            print STDERR "[    Repair] No matching object $object_id\n";
-        }
+        debugf("No matching object %s", $object_id ) if STF_DEBUG;
 
         my @entities = $entity_api->search( {
             object_id => $object_id 
         } );
         if (@entities) {
             if ( STF_DEBUG ) {
-                print STDERR "[    Repair] Removing orphaned entities in storages:\n";
+                debugf("Removing orphaned entities in storages:\n");
                 foreach my $entity ( @entities ) {
-                    printf STDERR "[    Repair] + %s\n",
-                        $entity->{storage_id}
-                    ;
+                    debugf("+ %s", $entity->{storage_id});
                 }
             }
             $entity_api->delete( {
@@ -280,11 +277,10 @@ sub repair {
         object => $object,
     });
     if (! $master_content) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] PANIC: No content for %s could be fetched!! Cannot proceed with repair.\n",
-                $object->{id}
-            ;
-        }
+        critf(
+            "PANIC: No content for %s could be fetched!! Cannot proceed with repair.",
+            $object->{id}
+        );
         return;
     }
 
@@ -302,12 +298,11 @@ sub repair {
 
     my $designated_cluster;
     if ($ok) {
-        if (STF_DEBUG) {
-            printf STDERR "[    Repair] Object %s is correctly stored in cluster %s. Object does not need repair\n",
-                $object_id,
-                $clusters[0]->{id}
-            ;
-        }
+        debugf(
+            "Object %s is correctly stored in cluster %s. Object does not need repair",
+            $object_id, $clusters[0]->{id}
+        ) if STF_DEBUG;
+
         $designated_cluster = $clusters[0];
         if (! $cluster || $designated_cluster->{id} != $cluster->{id}) {
             $cluster_api->register_for_object({
@@ -316,11 +311,7 @@ sub repair {
             });
         }
     } else {
-        if (STF_DEBUG) {
-            printf STDERR "[    Repair] Object %s needs repair\n",
-                $object_id
-            ;
-        }
+        debugf( "Object %s needs repair", $object_id ) if STF_DEBUG;
         # If it got here, either the object was not properly in clusters[0]
         # (i.e., some of the storages in the cluster did not have this object)
         # or it was in a different cluster
@@ -339,11 +330,7 @@ sub repair {
         }
 
         if (! $designated_cluster) {
-            if (STF_DEBUG) {
-                printf STDERR "[    Repair] PANIC: Failed to repair object %s to any cluster!\n",
-                    $object_id
-                ;
-            }
+            critf("PANIC: Failed to repair object %s to any cluster!", $object_id);
             return;
         }
     }
@@ -375,16 +362,17 @@ sub repair {
 sub get_any_valid_entity_url {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Get Any(O)" if STF_DEBUG;
+
     my ($bucket_id, $object_name, $if_modified_since, $check) =
         @$args{ qw(bucket_id object_name if_modified_since health_check) };
     my $object_id = $self->find_active_object_id($args);
     if (! $object_id) {
-        if (STF_DEBUG) {
-            printf STDERR "[Get Entity] Could not get object_id from bucket ID (%s) and object name (%s)\n",
-                $bucket_id,
-                $object_name
-            ;
-        }
+        debugf(
+            "Could not get object_id from bucket ID (%s) and object name (%s)",
+            $bucket_id,
+            $object_name
+        ) if STF_DEBUG;
         return;
     }
 
@@ -395,11 +383,10 @@ sub get_any_valid_entity_url {
     # short circuits from this method, and never allows us to reach this
     # enqueuing condition
     if ($check) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[Get Entity] Object %s forcefully being sent to repair (probably harmless)\n",
-                $object_id
-            ;
-        }
+        debugf(
+            "Object %s forcefully being sent to repair (probably harmless)",
+            $object_id
+        ) if STF_DEBUG;
         eval { $self->get('API::Queue')->enqueue( repair_object => $object_id ) };
     }
 
@@ -414,9 +401,9 @@ sub get_any_valid_entity_url {
     my $cache_key = [ storages_for => $object_id ];
     my $storages = $self->cache_get( @$cache_key );
     if ($storages) {
-        if (STF_DEBUG) {
-            printf STDERR "[Get Entity] Cache HIT for storages, checking if cached contents are still readable\n";
-        }
+        debugf(
+            "Cache HIT for storages, checking if cached contents are still readable."
+        ) if STF_DEBUG;
 
         # Got storages, but we need to validate that they are indeed
         # readable, and that the uris match
@@ -428,11 +415,11 @@ sub get_any_valid_entity_url {
         foreach my $storage_id ( @storage_ids ) {
             my $storage = $lookup->{ $storage_id };
             if (! $storage || ! $storage_api->is_readable( $storage ) ) {
-                if (STF_DEBUG) {
-                    printf STDERR "[Get Entity] Storage '%s' is not readable anymore. Invalidating cache\n",
-                        $storage->{id},
-                    ;
-                }
+                debugf(
+                    "Storage '%s' is not readable anymore. Invalidating cache",
+                    $storage->{id},
+                ) if STF_DEBUG;
+
                 # Invalidate the cached entry, and set the repair flag
                 undef $storages;
                 $repair++;
@@ -477,14 +464,9 @@ EOSQL
         $self->cache_set( $cache_key, $storages, $self->cache_expires );
     }
 
-    if ( STF_DEBUG ) {
-        print STDERR "[Get Entity] Backend storage candidates:\n";
-        foreach my $storage ( @$storages ) {
-            printf STDERR "[Get Entity] + [%s] %s\n",
-                $storage->[0],
-                $storage->[1]
-            ;
-        }
+    debugf("Backend storage candidates:");
+    foreach my $storage ( @$storages ) {
+        debugf("    * [%s] %s", $storage->[0], $storage->[1]);
     }
 
     # XXX repair shouldn't be triggered by entities < num_replica
@@ -509,36 +491,33 @@ EOSQL
 
     foreach my $storage ( @$storages ) {
         my $url = "$storage->[1]/$object->{internal_name}";
+        debugf("Sending HEAD %s", $url) if STF_DEBUG;
         my (undef, $code) = $furl->head( $url, $headers );
+
+        debugf(
+            "        HEAD %s was %s (%s)",
+            $url,
+            $code =~ /^[23]/ ? "OK" : "FAIL",
+            $code
+        ) if STF_DEBUG;
+
         if ( HTTP::Status::is_success( $code ) ) {
-            if ( STF_DEBUG ) {
-                print STDERR "[Get Entity] + HEAD $url OK\n";
-            }
             $fastest = $url;
             last;
         } elsif ( HTTP::Status::HTTP_NOT_MODIFIED() == $code ) {
             # XXX if this is was not modified, then short circuit
-            if ( STF_DEBUG ) {
-                printf STDERR "[Get Entity] IMS request to %s returned NOT MODIFIED. Short-circuiting\n",
-                    $object_id
-                ;
-            }
+            debugf(
+                "IMS request to %s returned NOT MODIFIED. Short-circuiting",
+                $object_id
+            );
             STF::Dispatcher::PSGI::HTTPException->throw( 304, [], [] );
         } else {
-            if ( STF_DEBUG ) {
-                print STDERR "[Get Entity] + HEAD $url failed: $code\n";
-            }
             $repair++;
         }
     };
 
     if ($repair) { # Whoa!
-        if ( STF_DEBUG ) {
-            printf STDERR "[Get Entity] Object %s needs repair\n",
-                $object_id
-            ;
-        }
-
+        debugf("Object %s needs repair", $object_id) if STF_DEBUG;
         eval { $self->get('API::Queue')->enqueue( repair_object => $object_id ) };
 
         # Also, kill the cache
@@ -547,9 +526,13 @@ EOSQL
 
     if ( STF_DEBUG ) {
         if (! $fastest) {
-            print STDERR "[Get Entity] All HEAD requests failed\n";
+            critf("All HEAD requests failed");
         } else {
-            print STDERR "[Get Entity] HEAD request to $fastest was fastest\n";
+            debugf(
+                "HEAD request to %s was fastest (object_id = %s)",
+                $fastest,
+                $object_id,
+            ) if STF_DEBUG;
         }
     }
 
@@ -561,6 +544,8 @@ EOSQL
 sub mark_for_delete {
     my ($self, $object_id) = @_;
 
+    local $STF::Log::PREFIX = "MarkDel(O)" if STF_DEBUG;
+
     my $dbh = $self->dbh;
     my ($rv_replace, $rv_delete);
 
@@ -569,29 +554,26 @@ sub mark_for_delete {
 EOSQL
 
     if ( $rv_replace <= 0 ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[  Mark Del] Failed to insert object %s into deleted_object (rv = %s)\n",
-                $object_id,
-                $rv_replace
-        }
+        debugf(
+            "Failed to insert object %s into deleted_object (rv = %s)",
+            $object_id, $rv_replace
+        ) if STF_DEBUG;
     } else {
-        if ( STF_DEBUG ) {
-            printf STDERR "[  Mark Del] Inserted object %s into deleted_object (rv = %s)\n",
-                $object_id,
-                $rv_replace
-            ;
-        }
+        debugf(
+            "Inserted object %s into deleted_object (rv = %s)",
+            $object_id,
+            $rv_replace
+        );
 
         $rv_delete = $dbh->do( <<EOSQL, undef, $object_id );
             DELETE FROM object WHERE id = ?
 EOSQL
 
-        if ( STF_DEBUG ) {
-            printf STDERR "[  Mark Del] Deleted object %s from object (rv = %s)\n",
-                $object_id,
-                $rv_delete
-            ;
-        }
+        debugf(
+            "Deleted object %s from object (rv = %s)",
+            $object_id,
+            $rv_delete
+        );
     }
 
     return $rv_replace && $rv_delete;
@@ -600,6 +582,7 @@ EOSQL
 sub rename {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Rename(O)";
     my $source_bucket_id = $args->{ source_bucket_id };
     my $source_object_name = $args->{ source_object_name };
     my $dest_bucket_id = $args->{ destination_bucket_id };
@@ -612,12 +595,10 @@ sub rename {
 
     # This should always exist
     if (! $source_object_id ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Rename] Source object did not exist (bucket_id = %s, object_name = %s)\n",
-                $source_bucket_id,
-                $source_object_name
-            ;
-        }
+        critf(
+            "Source object did not exist (bucket_id = %s, object_name = %s)",
+            $source_bucket_id, $source_object_name
+        );
         return;
     }
 
@@ -627,12 +608,10 @@ sub rename {
         object_name => $dest_object_name
     } );
     if ( $dest_object_id ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Rename] Destination object already exists (bucket_id = %s, object_name = %s)\n",
-                $dest_bucket_id,
-                $dest_object_name
-            ;
-        }
+        critf(
+            "Destination object already exists (bucket_id = %s, object_name = %s)",
+            $dest_bucket_id, $dest_object_name
+        );
         return;
     }
 

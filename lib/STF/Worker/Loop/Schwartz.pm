@@ -2,6 +2,7 @@ package STF::Worker::Loop::Schwartz;
 use Mouse;
 use Scalar::Util ();
 use STF::Constants qw(STF_DEBUG);
+use STF::Log;
 use TheSchwartz;
 use Time::HiRes ();
 
@@ -10,6 +11,8 @@ with 'STF::Trait::WithContainer';
 
 sub create_client {
     my ($self, $impl) = @_;
+
+    local $STF::Log::PREFIX = "Schwartz";
     my $dbh = $self->get('DB::Queue') or
         Carp::confess( "Could not fetch DB::Queue" );
     my $driver = Data::ObjectDriver::Driver::DBI->new( dbh => $dbh );
@@ -28,9 +31,9 @@ sub create_client {
 
             my $extra_guard;
             if ( STF_DEBUG ) {
-                printf STDERR "[ Schwartz] ---- START %s:%s ----\n", $ability, $job->arg;
+                debugf("---- START %s:%s ----", $ability, $job->arg) if STF_DEBUG;
                 $extra_guard = Guard::guard(sub {
-                    printf STDERR "[ Schwartz] ---- END %s:%s ----\n", $ability, $job->arg;
+                    debugf("---- END %s:%s ----", $ability, $job->arg) if STF_DEBUG;
                 } );
             }
 
@@ -39,7 +42,7 @@ sub create_client {
             };
             # XXX Retry? Naahhhh
             if ($@) {
-                print STDERR $@;
+                critf("Error from work_once: %s", $@);
             }
             eval { $job->completed };
         };

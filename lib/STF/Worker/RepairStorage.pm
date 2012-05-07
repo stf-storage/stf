@@ -2,6 +2,7 @@ package STF::Worker::RepairStorage;
 use Mouse;
 use STF::Constants qw(:storage STF_DEBUG);
 use STF::Utils ();
+use STF::Log;
 
 extends 'STF::Worker::Base';
 with 'STF::Trait::WithContainer';
@@ -13,6 +14,7 @@ has '+interval' => (
 sub work_once {
     my $self = shift;
 
+    local $STF::Log::PREFIX = "Repair(S)" if STF_DEBUG;
     eval {
         my $api = $self->get('API::Storage');
 
@@ -21,26 +23,18 @@ sub work_once {
 
         my ($storage) = $api->search( { mode => STORAGE_MODE_REPAIR } );
         if (! $storage) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[    Repair] No storage to repair\n";
-            }
+            infof("No storage to repair");
             return;
         }
 
         my $storage_id = $storage->{id};
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] Repairing storage %s\n",
-                $storage_id
-            ;
-        }
+        infof("Repairing storage %s", $storage_id) if STF_DEBUG;
         my $ok = $api->update( $storage_id,
             { mode => STORAGE_MODE_REPAIR_NOW, updated_at => \'NOW()' },
             { updated_at => $storage->{updated_at} }
         );
         if (! $ok) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[    Repair] Could not update storage, bailing out\n";
-            }
+            warnf("Could not update storage, bailing out");
             return;
         }
         my $guard = Guard::guard {
@@ -62,10 +56,7 @@ sub work_once {
             return sub {
                 $loop = 0;
                 undef $guard;
-                if ( STF_DEBUG ) {
-                    print STDERR "[    Repair] Received signal, stopping repair\n";
-                }
-                die "Received signal $sig, bailing out";
+                croakf("Received signal, stopping repair");
             };
         };
         local $SIG{INT}  = $sig->("INT");
@@ -108,10 +99,7 @@ EOSQL
         }
 
         $guard->cancel;
-        if (STF_DEBUG) {
-            printf STDERR "[    Repair] Storage %d, processed %d rows\n",
-                $storage_id, $processed;
-        }
+        infof("Storage %d, processed %d rows", $storage_id, $processed );
         if (! $bailout) {
             $api->update( $storage_id => { mode => STORAGE_MODE_REPAIR_DONE } );
         }

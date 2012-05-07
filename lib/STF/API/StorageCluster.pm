@@ -2,6 +2,7 @@ package STF::API::StorageCluster;
 use Mouse;
 use Digest::MD5 ();
 use STF::Constants qw(STF_DEBUG STORAGE_CLUSTER_MODE_READ_WRITE);
+use STF::Log;
 
 with 'STF::API::WithDBI';
 
@@ -19,6 +20,8 @@ sub load_candidates_for {
 sub store {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Store(C)" if STF_DEBUG;
+
     my $cluster   = $args->{cluster}   or die "XXX no cluster";
     my $object_id = $args->{object_id} or die "XXX no object_id";
     my $content   = $args->{content}   or die "XXX no content";;
@@ -26,10 +29,10 @@ sub store {
 
     my $object     = $self->get('API::Object')->lookup($object_id);
     if (! $object) {
-        if (STF_DEBUG) {
-            printf STDERR "[   Cluster] Could not load object to store (object_id = %s)\n",
-                $object_id,
-        }
+        debugf(
+            "Could not load object to store (object_id = %s)n",
+            $object_id,
+        ) if STF_DEBUG;
         return;
     }
 
@@ -37,17 +40,15 @@ sub store {
         cluster_id => $cluster->{id},
     });
     if (STF_DEBUG) {
-        printf STDERR "[   Cluster] Attempting to store object %s in cluster %s (want %d copies)\n",
+        debugf(
+            "Attempting to store object %s in cluster %s (want %d copies)",
             $object_id,
             $cluster->{id},
             defined $minimum ? $minimum : scalar @storages,
-        ;
-        printf STDERR "[   Cluster] Going to store in:\n";
+        );
+        debugf("Going to store in:");
         foreach my $storage (@storages) {
-            printf STDERR "[   Cluster] + %s (id = %s)\n",
-                $storage->{uri},
-                $storage->{id}
-            ;
+            debugf(" + %s (id = %s)", $storage->{uri}, $storage->{id});
         }
     }
 
@@ -65,12 +66,10 @@ sub store {
         if ($fetched) {
             if ($md5->new->addfile($fetched)->hexdigest eq $expected) {
                 $stored++;
-                if (STF_DEBUG) {
-                    printf STDERR "[   Cluster] Object %s already exist on storage %s\n",
-                        $object_id,
-                        $storage->{id},
-                    ;
-                }
+                debugf(
+                    "Object %s already exist on storage %s",
+                    $object_id, $storage->{id},
+                ) if STF_DEBUG;
 
                 # Make sure that this entity exist in the database
                 my ($entity) = $entity_api->search({
@@ -109,13 +108,12 @@ sub store {
     }
 
 
-    if (STF_DEBUG) {
-        printf STDERR "[   Cluster] Stored %d entities in cluster %s (wanted %d)\n",
-            $stored,
-            $cluster->{id},
-            defined $minimum ? $minimum : scalar @storages
-        ;
-    }
+    debugf(
+        "Stored %d entities in cluster %s (wanted %d)",
+        $stored,
+        $cluster->{id},
+        defined $minimum ? $minimum : scalar @storages
+    );
     return $ok;
 }
 
@@ -128,11 +126,7 @@ sub check_entity_health {
         cluster_id => $cluster_id
     });
     if (! @storages) {
-        if (STF_DEBUG) {
-            printf STDERR "[    Cluster] Could not find any storages belonging to cluster %s\n",
-                $cluster_id
-            ;
-        }
+        debugf("Could not find any storages belonging to cluster %s", $cluster_id) if STF_DEBUG;
         return ();
     }
 
@@ -153,15 +147,16 @@ sub check_entity_health {
 sub register_for_object {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Cluster" if STF_DEBUG;
+
     my $object_id = $args->{object_id} or die "XXX no object";
     my $cluster_id = $args->{cluster_id} or die "XXX no cluster";
 
-    if (STF_DEBUG) {
-        printf STDERR "[   Cluster] Registering object %s to cluster %s\n",
-            $object_id,
-            $cluster_id,
-        ;
-    }
+    debugf(
+        "Registering object %s to cluster %s",
+        $object_id,
+        $cluster_id,
+    ) if STF_DEBUG;
 
     my $dbh = $self->dbh;
     $dbh->do( <<EOSQL, undef, $object_id, $cluster_id );
@@ -198,12 +193,10 @@ EOSQL
         cluster_id => $cluster->{id},
         object_id  => $object_id,
     } );
-    if ( STF_DEBUG ) {
-        printf STDERR "[   Cluster] No cluster defined for object %s yet. Created mapping for cluster %d\n",
-            $object_id,
-            $cluster->{id},
-        ;
-    }
+    debugf(
+        "No cluster defined for object %s yet. Created mapping for cluster %d",
+        $object_id, $cluster->{id},
+    ) if STF_DEBUG;
     return $cluster;
 }
 

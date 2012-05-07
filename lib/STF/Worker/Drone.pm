@@ -7,6 +7,7 @@ use Getopt::Long ();
 use Parallel::Prefork;
 use Parallel::Scoreboard;
 use STF::Context;
+use STF::Log;
 
 has context => (
     is => 'rw',
@@ -123,6 +124,7 @@ sub cleanup {
 sub run {
     my $self = shift;
 
+    local $STF::Log::PREFIX = "Drone";
     if ( my $pid_file = $self->pid_file ) {
         open my $fh, '>', $pid_file or
             die "Could not open PID file $pid_file for writing: $!";
@@ -153,7 +155,7 @@ sub start_worker {
     Mouse::Util::load_class($klass)
         if ! Mouse::Util::is_class_loaded($klass);
 
-    print STDERR "Spawning $klass ($$)\n";
+    infof("Spawning %s (%d)", $klass, $$);
 
     my ($config_key) = ($klass =~ /(Worker::[\w:]+)$/);
     my $container = $self->context->container;

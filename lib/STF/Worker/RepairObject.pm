@@ -1,6 +1,7 @@
 package STF::Worker::RepairObject;
 use Mouse;
 use STF::Constants qw(STF_DEBUG);
+use STF::Log;
 
 extends 'STF::Worker::Base';
 with 'STF::Trait::WithDBI';
@@ -23,6 +24,8 @@ has '+loop_class' => (
 sub work_once {
     my ($self, $object_id) = @_;
 
+    local $STF::Log::PREFIX = "Repair(W)";
+
     my $propagate = 1;
     if ($object_id =~ s/^NP://) {
         $propagate = 0;
@@ -30,11 +33,7 @@ sub work_once {
     eval {
         my $object_api = $self->get('API::Object');
         if ($object_api->repair( $object_id )) {
-            if ( STF_DEBUG ) {
-                printf STDERR "[    Repair] Repaired object %s.\n",
-                    $object_id,
-                ;
-            }
+            debugf("Repaired object %s.", $object_id) if STF_DEBUG;
         }
     };
     if ($@) {

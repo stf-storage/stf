@@ -2,6 +2,7 @@ package STF::API::Queue::Q4M;
 use Mouse;
 use Digest::MurmurHash ();
 use STF::Constants qw(:func STF_DEBUG);
+use STF::Log;
 
 with 'STF::Trait::WithDBI';
 
@@ -49,13 +50,15 @@ EOSQL
 
 sub enqueue {
     my ($self, $func, $object_id) = @_;
+
+    local $STF::Log::PREFIX = "Q4M";
     my $func_id = $self->get_func_id( $func );
     if (! $func_id ) {
-        Carp::confess( "PANIC: Don't know what the function ID for $func is" );
+        croakf("PANIC: Don't know what the function ID for %s is", $func);
     }
 
     if ( ! defined $object_id ) {
-        Carp::confess("No object_id given for $func");
+        croakf("No object_id given for %s", $func);
     }
 
     my $table = "queue_$func";
@@ -68,11 +71,13 @@ sub enqueue {
     );
     foreach my $queue_name ( sort { $queues{$a} <=> $queues{$b} } keys %queues) {
         my $dbh = $self->dbh($queue_name);
-        if (STF_DEBUG) {
-            printf STDERR "[     Queue] INSERT %s into %s for %s on %s\n",
-                $object_id, $table, $func, $queue_name
-            ;
-        }
+        debugf(
+            "INSERT %s into %s for %s on %s",
+            $object_id,
+            $table,
+            $func,
+            $queue_name
+        );
 
         my $rv;
         my $err = STF::Utils::timeout_call(
@@ -85,11 +90,9 @@ EOSQL
         );
         if ( $err ) {
             # XXX Don't wrap in STF_DEBUG
-            printf STDERR "[     Queue] Error while enqueuing: %s\n + func: %s\n + object ID = %s\n",
-                $err,
-                $func,
-                $object_id,
-            ;
+            critf("Error while enqueuing: %s", $err);
+            critf(" + func: %s", $func);
+            critf(" + object ID = %s", $object_id);
             next;
         }
 

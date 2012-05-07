@@ -5,6 +5,7 @@ use Guard ();
 use Scalar::Util ();
 use Time::HiRes ();
 use STF::Constants qw(STF_DEBUG);
+use STF::Log;
 
 extends 'STF::Worker::Loop';
 with 'STF::Trait::WithDBI';
@@ -38,6 +39,7 @@ sub queue_waitcond {
 sub work {
     my ($self, $impl) = @_;
 
+    local $STF::Log::PREFIX = "Loop::Q4M" if STF_DEBUG;
     my $guard = $self->container->new_scope();
 
     my $table = $self->queue_table( $impl );
@@ -87,13 +89,12 @@ EOSQL
             my $extra_guard;
             if (STF_DEBUG) {
                 my ($row_id) = $dbh->selectrow_array( "SELECT queue_rowid()" );
-                printf STDERR "[ Loop::Q4M] ---- START %s:%s ----\n", $table, $row_id;
-                printf STDERR "[ Loop::Q4M] Got new item from %s (%s)\n",
-                    $table,
-                    $object_id
-                ;
+                if (STF_DEBUG) {
+                    debugf("---- START %s:%s ----", $table, $row_id);
+                    debugf("Got new item from %s (%s)", $table, $object_id);
+                }
                 $extra_guard = Guard::guard(sub {
-                    printf STDERR "[ Loop::Q4M] ---- END %s:%s ----\n", $table, $row_id;
+                    debugf("---- END %s:%s ----", $table, $row_id) if STF_DEBUG;
                 } );
             }
             eval { $dbh->do("SELECT queue_end()") };
@@ -116,9 +117,7 @@ EOSQL
     }
     eval { $dbh->do("SELECT queue_end()") };
 
-    if ( STF_DEBUG ) {
-        print STDERR "Process $$ exiting...\n";
-    }
+    infof("Process %d exiting... (%s)", $$, $impl);
 }
 
 no Mouse;

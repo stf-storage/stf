@@ -3,6 +3,7 @@ use strict;
 use Guard ();
 use POSIX ':signal_h';
 use Time::HiRes ();
+use STF::Log;
 
 sub merge_hashes {
     my ($left, $right) = @_;
@@ -55,11 +56,8 @@ sub timer_guard {
     return Guard::guard {
         my $elapsed = Time::HiRes::tv_interval($t0);
         undef $t0;
-        printf STDERR "[     TIMER] (%05d) %s took %0.6f seconds\n",
-            $$,
-            $sub,
-            $elapsed
-        ;
+        local $STF::Log::PREFIX = "TIMER";
+        debugf("%s took %0.6f seconds", $sub, $elapsed);
     };
 }
 

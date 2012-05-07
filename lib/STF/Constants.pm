@@ -87,6 +87,8 @@ BEGIN {
     $constants{ SERIAL_BITS  } = (64 - $constants{HOST_ID_BITS} - $constants{TIME_BITS});
     $constants{ TIME_SHIFT   } = $constants{HOST_ID_BITS} + $constants{SERIAL_BITS};
     $constants{ SERIAL_SHIFT } = $constants{HOST_ID_BITS};
+
+    $ENV{LM_DEBUG} = $constants{STF_DEBUG};
 }
 
 use constant \%constants;
