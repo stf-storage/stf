@@ -474,17 +474,17 @@ EOSQL
             keys %h
         ];
 
-        if ( STF_DEBUG ) {
-            print STDERR "[Get Entity] Backend storage candidates:\n";
-            foreach my $storage ( @$storages ) {
-                printf STDERR "[Get Entity] + [%s] %s\n",
-                    $storage->[0],
-                    $storage->[1]
-                ;
-            }
-        }
-
         $self->cache_set( $cache_key, $storages, $self->cache_expires );
+    }
+
+    if ( STF_DEBUG ) {
+        print STDERR "[Get Entity] Backend storage candidates:\n";
+        foreach my $storage ( @$storages ) {
+            printf STDERR "[Get Entity] + [%s] %s\n",
+                $storage->[0],
+                $storage->[1]
+            ;
+        }
     }
 
     # XXX repair shouldn't be triggered by entities < num_replica
