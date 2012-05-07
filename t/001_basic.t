@@ -461,38 +461,6 @@ EOSQL
         $verify_cluster_is_not_written_to->( $ro_cluster, "cluster disabled directly" );
     }
 
-    { # check the trigger that makes the cluster read-only
-        my $cluster_api = $context->container->get('API::StorageCluster');
-        my @clusters    = $cluster_api->search({}, { order_by => 'rand()' });
-        my $ro_cluster  = $clusters[0];
-
-        my $storage_api = $context->container->get('API::Storage');
-        my @storages    = $storage_api->search(
-            {
-                cluster_id => $ro_cluster->{id},
-            },
-            {
-                order_by   => 'rand()'
-            }
-        );
-
-        my $ro_storage = $storages[0];
-        $storage_api->update( $ro_storage->{id}, {
-            mode => STORAGE_MODE_TEMPORARILY_DOWN,
-        } );
-
-        my $guard = Guard::guard( sub {
-            $storage_api->update( $ro_storage->{id}, {
-                mode => STORAGE_MODE_READ_WRITE,
-            } );
-            $cluster_api->update( $ro_cluster->{id}, {
-                mode => STORAGE_CLUSTER_MODE_READ_WRITE,
-            } );
-        });
-
-        $verify_cluster_is_not_written_to->( $ro_cluster, "cluster disabled via storage" );
-    }
-
     note "DELETE /$bucket_name";
     $res = $cb->(
         DELETE "http://127.0.0.1/$bucket_name"
