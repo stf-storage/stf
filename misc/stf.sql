@@ -106,23 +106,3 @@ CREATE TABLE entity (
        FOREIGN KEY(storage_id) REFERENCES storage(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
-DELIMITER $$
-CREATE PROCEDURE stfVerifyClusterMode(x_cluster_id INT)
-BEGIN
-    DECLARE good_count INT;
-    SELECT COUNT(*) INTO good_count FROM storage WHERE cluster_id = x_cluster_id AND MODE = 1;
-
-    IF ( good_count < 3 ) THEN
-        UPDATE storage_cluster SET mode = 0 WHERE id = x_cluster_id;
-    END IF;
-END
-$$
-
-CREATE TRIGGER storage_update_trig AFTER UPDATE ON storage
-    FOR EACH ROW BEGIN
-        CALL stfVerifyClusterMode(NEW.cluster_id);
-    END;
-$$ 
-
-DELIMITER ;
-
