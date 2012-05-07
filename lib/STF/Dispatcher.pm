@@ -180,7 +180,7 @@ sub DEMOLISH {
 
 sub cleanup {
     my $self = shift;
-    if ( $self->parent != $$ ) {
+    if ( ! defined $self->parent || $self->parent != $$ ) {
         if ( STF_DEBUG ) {
             print STDERR "[Dispatcher] Cleanup skipped (PID $$ != $self->{parent})\n";
         }
