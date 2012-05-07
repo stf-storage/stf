@@ -77,7 +77,7 @@ my $code = sub {
         );
 
         if (! ok $res->is_success, "object get after cluster readonly") {
-            daig $res->as_string;
+            diag $res->as_string;
         }
         is $res->content, $content;
     }
