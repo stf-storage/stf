@@ -7,6 +7,8 @@ use Plack::Runner;
 use Proc::Guard ();
 use Test::TCP;
 use Test::More;
+use Log::Minimal ();
+$Log::Minimal::LOG_LEVEL ||= "NONE";
 
 our @EXPORT_OK = qw(
     clear_queue

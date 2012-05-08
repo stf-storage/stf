@@ -199,6 +199,7 @@ sub store {
     my $input         = $args->{input}         or die "XXX no input";;
     my $size          = $args->{size} || 0;
     my $replicas      = $args->{replicas} || 3; # XXX unused, stored for compat
+    my $force         = $args->{force};
 
     my $cluster_api = $self->get('API::StorageCluster');
     $self->create({
@@ -229,6 +230,7 @@ sub store {
             object_id => $object_id,
             content   => $input,
             minimum   => 2,
+            force     => $force,
         });
         if ($ok) {
             $cluster_api->register_for_object( {

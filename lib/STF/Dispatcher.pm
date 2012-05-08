@@ -439,6 +439,7 @@ sub create_object {
             size          => $size,
             replicas      => $replicas, # Unused, stored for back compat
             input         => $input,
+            force         => 1,
         });
 
         if ( STF_ENABLE_OBJECT_META ) {

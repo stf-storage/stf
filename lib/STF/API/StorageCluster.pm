@@ -26,6 +26,7 @@ sub store {
     my $object_id = $args->{object_id} or die "XXX no object_id";
     my $content   = $args->{content}   or die "XXX no content";;
     my $minimum   = $args->{minimum};
+    my $force     = $args->{force};
 
     my $object     = $self->get('API::Object')->lookup($object_id);
     if (! $object) {
@@ -59,10 +60,13 @@ sub store {
     # This object must be stored at least X times
     foreach my $storage (List::Util::shuffle(@storages)) {
         # if we can fetch it, don't store it
-        my $fetched = $entity_api->fetch_content({
-            object => $object,
-            storage => $storage,
-        });
+        my $fetched;
+        if (! $force) {
+            $fetched = $entity_api->fetch_content({
+                object => $object,
+                storage => $storage,
+            });
+        }
         if ($fetched) {
             if ($md5->new->addfile($fetched)->hexdigest eq $expected) {
                 $stored++;
