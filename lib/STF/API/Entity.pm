@@ -1,6 +1,7 @@
 package STF::API::Entity;
 use Mouse;
 use Carp ();
+use File::Temp ();
 use Furl::HTTP;
 use Scalar::Util ();
 use STF::Constants qw(:entity :storage STF_DEBUG STF_TIMER STORAGE_MODE_READ_WRITE OBJECT_INACTIVE);
