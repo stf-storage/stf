@@ -61,6 +61,10 @@ sub store {
     foreach my $storage (List::Util::shuffle(@storages)) {
         # if we can fetch it, don't store it
         my $fetched;
+
+        # Without the $force flag, we fetch the object before storing to
+        # avoid redundunt writes. $force should only be used when you KNOW
+        # that this is a new entity
         if (! $force) {
             $fetched = $entity_api->fetch_content({
                 object => $object,
