@@ -1,0 +1,104 @@
+#!perl
+use strict;
+use STF::Context;
+use Cwd ();
+use File::Spec;
+use Getopt::Long;
+
+main() unless caller();
+
+sub main () {
+    my %opts;
+    if (! GetOptions(\%opts, "object_id=s", "root=s", "force!")) {
+        exit 1;
+    }
+
+    my $object_id = $opts{object_id};
+    if (! $object_id) {
+        die "--object_id is required\n";
+    }
+
+    my $force = $opts{force};
+    my $root = $opts{root} || Cwd::cwd();
+
+    my $cxt = STF::Context->bootstrap;
+    my $cnt = $cxt->container;
+    my $object_api = $cnt->get('API::Object');
+    my $object = $object_api->lookup( $object_id );
+    if (! $object) {
+        die "Could not find object $object_id\n";
+    }
+
+    my $path   = File::Spec->catfile( $root, $object->{internal_name} );
+    if (!-f $path) {
+        die "Could not find entity $path for $object_id\n";
+    }
+
+    # found it!
+    open my $fh, '<', $path or
+        die "Could not open file $path: $!\n";
+
+    # check sizes
+    my $size = -s $fh;
+    if ($size != $object->{size}) {
+        if (! $force) {
+            die "File size for object $object_id does not match (wanted = $object->{size}, actual = $size). Will not proceed without --force\n";
+        }
+    }
+
+    # store this in a writable storage, anywhere.
+    my $cluster_api = $cnt->get('API::StorageCluster');
+    my @clusters = $cluster_api->load_candidates_for( $object_id );
+    foreach my $cluster (@clusters) {
+        my $ok = $cluster_api->store({
+            cluster   => $cluster,
+            object_id => $object_id,
+            content   => $fh,
+            minimum   => 2,
+            force     => 1,
+        });
+        if ($ok) {
+            $cluster_api->register_for_object( {
+                cluster_id => $cluster->{id},
+                object_id  => $object_id
+            });
+            last;
+        }
+    }
+
+    $cnt->get('API::Queue')->enqueue(repair_obejct => $object_id);
+}
+
+__END__
+
+=head1 NAME
+
+stf-recover-object-disk - Recover An Object From Disk
+
+=head1 SYNOPSIS
+
+    stf-recover-object-disk
+        --root=[/path/to/root] \
+        --object_id=[id]
+
+=head1 DESCRIPTION
+
+C<stf-recover-object-disk> is useful when
+
+=over 4
+
+=item 1. Your object entry is still in tact in the database
+
+=item 2. ...but your entities have gone missing
+
+This may happen if you left your workers down for too long, or you didn't
+properly repair your storages when crashes happened.
+
+=item 3. ...but your hard disk contents are still mostly intact
+
+Perhaps you experienced a storage crash, but you were able to recover the
+hard disk via a raid rebuild.
+
+=back
+
+=cut
