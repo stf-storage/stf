@@ -181,7 +181,7 @@ sub store {
 
     my $put_guard;
     if ( STF_TIMER ) {
-        $put_guard = STF::Utils::timer_guard("STF::API::Entity::replicate [PUT]");
+        $put_guard = STF::Utils::timer_guard("STF::API::Entity::store [PUT]");
     }
 
     my @hdrs = (
@@ -207,7 +207,7 @@ sub store {
 
     if ( !$ok ) {
         local $Log::Minimal::AUTODUMP = 1;
-        debugf("Request to replicate to %s failed:", $uri);
+        debugf("Request to store to %s failed:", $uri);
         debugf("   code    = %s", $code);
         debugf("   headers = ", $rhdrs);
         debugf("===");
