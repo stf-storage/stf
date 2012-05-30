@@ -280,19 +280,53 @@ EOSQL
             $read_timer = STF::Utils::timer_guard( "replicate [read content]" );
         }
 
-        my ($buf, $ret);
-        my $size = $object->{size};
-        my $sofar = 0;
-        $content = '';
-        READCONTENT: while ( $sofar < $size ) {
-            $ret = read( $input, $buf, $size );
-            if ( not defined $ret ) {
-                Carp::croak("Failed to read from input: $!");
-            } elsif ( $ret == 0 ) { # EOF
-                last READCONTENT;
+
+
+        # if filesize is more than 10MByte, use tempfile not in memory.
+        if ( $object->{size} > 10_000_000 ) {
+            my ($buf, $ret);
+            my $size = $object->{size};
+            my $sofar = 0;
+
+            $content = File::Temp->new( UNLINK => 1, SUFFIX => '.uploadtemp' );
+            if ( STF_DEBUG ) {
+                printf STDERR
+                    "[ Replicate] write content to temp_file( %s ) %d\n",
+                    $content->filename, $object->{size} ;
             }
-            $content .= $buf;
-            $sofar += $ret;
+            if ( !$content ) {
+                print STDERR "[ Replicate] fail open temp file.\n";
+                return;
+            }
+
+            READCONTENTTEMP: while ( $sofar < $size ) {
+                $ret = read( $input, $buf, $size );
+                if ( not defined $ret ) {
+                    Carp::croak("Failed to read from input: $!");
+                } elsif ( $ret == 0 ) { # EOF
+                    last READCONTENTTEMP;
+                }
+                print $content $buf;
+                $sofar += $ret;
+            }
+            $content->flush;
+            print STDERR "[ Replicate] write temp file. $sofar $size\n";
+        }
+        else {
+            my ($buf, $ret);
+            my $size = $object->{size};
+            my $sofar = 0;
+            $content = '';
+            READCONTENT: while ( $sofar < $size ) {
+                $ret = read( $input, $buf, $size );
+                if ( not defined $ret ) {
+                    Carp::croak("Failed to read from input: $!");
+                } elsif ( $ret == 0 ) { # EOF
+                    last READCONTENT;
+                }
+                $content .= $buf;
+                $sofar += $ret;
+            }
         }
     }
 
@@ -323,10 +357,34 @@ EOSQL
                 printf STDERR "[ Replicate] Fetching %s as replica source\n", $uri;
             }
 
-            my (undef, $code, undef, $hdrs, $x_content) = $furl->get( $uri );
-            if ( $code ne '200' ) {
-                next;
-            }
+
+
+            # if filesize is more than 10MByte, use tempfile not in memory.
+            my $x_content = '';
+            my %special_headers = ('content-length' => undef);
+            my $res = $furl->request(
+                url             => $uri,
+                special_headers => \%special_headers,
+                write_code      => sub {
+                    my ( $status, $msg, $headers, $buf ) = @_;
+                    if ($special_headers{'content-length'} > 10_000_000) {
+                        if ( ref(\$x_content) eq 'SCALAR' ) {
+                            $x_content = File::Temp->new( UNLINK => 1, SUFFIX => '.uploadtemp' );
+                            if ( STF_DEBUG ) {
+                                printf STDERR
+                                    "[ Replicate] write content to temp_file( %s ) %d\n",
+                                    $x_content->filename,
+                                    $special_headers{'content-length'}
+                                    ;
+                            }
+                        }
+                        print $x_content $buf;
+                    }
+                    else {
+                        $x_content .= $buf;
+                    }
+                }
+            );
 
             # success
             if ( STF_DEBUG ) {
