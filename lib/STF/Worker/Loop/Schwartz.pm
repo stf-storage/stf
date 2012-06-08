@@ -22,7 +22,7 @@ sub create_client {
     # the worker. I hate it. But you can always workaround it by wasting
     # one GV and creating a proxy class name.
     my $ability = Scalar::Util::blessed($impl) . '::Proxy';
-    {
+    if ( ! $ability->can("work") ) {
         no strict 'refs';
         require TheSchwartz::Worker;
         @{ "${ability}::ISA" } = qw(TheSchwartz::Worker);

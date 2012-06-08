@@ -22,6 +22,20 @@ sub build_ability_map {
     };
 }
 
+sub size {
+    my ($self, $func) = @_;
+
+    my $dbh = $self->get('DB::Queue');
+    my $client = $self->get_client();
+    my $ability = $self->get_ability($func);
+    my ($count) = $dbh->selectrow_array( <<EOSQL, undef, $ability );
+        SELECT COUNT(*) FROM
+            job j JOIN funcmap f ON j.funcid = f.funcid
+            WHERE f.funcname = ?
+EOSQL
+    return $count;
+}
+
 sub get_ability {
     my ($self, $func) = @_;
 
@@ -54,9 +68,25 @@ sub enqueue {
     }
 
     my $client = $self->get_client();
+    my $rv;
+    my $err = STF::Utils::timeout_call(
+        0.5,
+        sub {
+            $rv = $client->insert( $ability, $object_id );
+        }
+    );
+    if ( $err ) {
+        # XXX Don't wrap in STF_DEBUG
+        printf STDERR "[     Queue] Error while enqueuing: %s\n + func: %s\n + object ID = %s\n",
+            $err,
+            $func,
+            $object_id,
+        ;
+        next;
+    }
 
     debugf("Enqueued %s (%s)", $ability, $object_id) if STF_DEBUG;
-    $client->insert( $ability, $object_id );
+    return $rv;
 }
 
 no Mouse;
