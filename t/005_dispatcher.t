@@ -48,6 +48,9 @@ subtest 'create ID' => sub {
 };
 
 subtest 'enqueue timeout' => sub {
+    SKIP : {
+        skip "Unimplemented tests for Schwartz queues", 2;
+
     my $ctxt = STF::Context->bootstrap(config => "t/config.pl");
     my $d    = STF::Dispatcher->new(
         cache_expires => 300,
@@ -75,6 +78,7 @@ subtest 'enqueue timeout' => sub {
     alarm(0);
     ok !$@, "enqueue timed out 'silently'";
     like $buf, qr/timeout_call timed out/;
+    }
 };
 
 done_testing;
