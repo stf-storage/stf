@@ -1,10 +1,4 @@
 use strict;
-use Test::More;
-
-ok(1);
-
-done_testing;
-__END__
 use Cwd ();
 use Digest::MD5 qw(md5_hex);
 use Test::More;
