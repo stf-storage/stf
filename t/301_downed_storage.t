@@ -5,6 +5,9 @@ use HTTP::Request::Common qw(PUT HEAD GET POST);
 use HTTP::Date;
 use STF::Test;
 use STF::Test qw(clear_queue);
+BEGIN {
+    use_ok "STF::Constants", "STORAGE_MODE_TEMPORARILY_DOWN",
+}
 
 use_ok "STF::Context";
 
@@ -16,7 +19,7 @@ my $random_string = sub {
 
 # PUT an object (success)
 # GET an object (success)
-# Change the cached entity location such that it points to a bogus location
+# Storage->update($id, mode => STORAGE_MODE_TEMPORARILY_DOWN );
 # GET an object, and this should succeed, FAST
 my $code = sub {
     my ($cb) = @_;
@@ -47,8 +50,10 @@ my $code = sub {
     }
 
     my $context = STF::Context->bootstrap( config => "t/config.pl" ) ;
-    my $dbh = $context->container->get('DB::Master');
 
+    # XXX Find where this object belongs to
+    my $container = $context->container;
+    my $dbh = $container->get('DB::Master');
     my $object = $dbh->selectrow_hashref( <<EOSQL, undef, $bucket_name, $object_name );
         SELECT o.* FROM object o
             JOIN bucket b ON o.bucket_id = b.id
@@ -56,15 +61,18 @@ my $code = sub {
 EOSQL
     ok $object;
 
-    my $cache_key  = [ 'storages_for', $object->{id} ];
-    my $object_api = $context->container->get('API::Object');
-    my $storages   = $object_api->cache_get( @$cache_key );
-    $storages->[0]->[1] =~ s{^(http://[^/]+):\d+}{$1:99999999};
+    my @entities = $container->get('API::Entity')->search(
+        {
+            object_id => $object->{id},
+        },
+        {
+            order_by => 'rand()'
+        }
+    );
 
-    $object_api->cache_set( $cache_key, $storages, 180 );
-    if ( ! ok $object_api->cache_get( @$cache_key ), "sanity check" ) {
-        diag "CACHE SET FOR storages_for.$object->{id} failed?!";
-    }
+    $container->get('API::Storage')->update( $entities[0]->{storage_id}, {
+        mode => STORAGE_MODE_TEMPORARILY_DOWN
+    });
 
     $res = $cb->(
         GET "http://127.0.0.1/$bucket_name/$object_name",
@@ -78,11 +86,6 @@ EOSQL
     );
     if (! ok $res->is_success, "GET is successful (second time)") {
         diag $res->as_string;
-    }
-
-    $storages = $object_api->cache_get( @$cache_key );
-    if ( ! unlike $storages->[0]->[1], qr{:99999999}, "entities[0] shouldn't contain the broken entity" ) {
-        diag explain $storages;
     }
 };
 
