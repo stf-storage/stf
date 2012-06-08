@@ -580,12 +580,25 @@ sub get_any_valid_entity_url {
 
         # If *any* of the storages fail, we should re-compute
         foreach my $storage_id ( @storage_ids ) {
-            if (! $lookup->{ $storage_id } ) {
-                # Invalidate the cached entry, and set the repair flag
-                undef $storages;
+            my $storage = $lookup->{ $storage_id };
+            if (! $storage ) {
+                if (STF_DEBUG) {
+                    printf STDERR "[Get Entity] Validation for cached storage '%s' failed. Recalculating source storages\n", $storage_id;
+                }
                 $repair++;
                 last;
             }
+            if ($storage->{mode} != STORAGE_MODE_READ_WRITE && $storage->{mode} != STORAGE_MODE_READ_ONLY) {
+                if (STF_DEBUG) {
+                    printf STDERR "[Get Entity] Mode for cached storage '%s' was not readable. Recalculating source storages\n", $storage_id;
+                }
+                $repair++;
+                last;
+            }
+        }
+        if ($repair) {
+            # Invalidate the cached entry
+            undef $storages;
         }
     } 
 
