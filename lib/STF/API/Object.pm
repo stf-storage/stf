@@ -7,6 +7,7 @@ use STF::Constants qw(
     :object
     :storage
     STF_DEBUG
+    STF_TRACE
     STF_ENABLE_OBJECT_META
 );
 use STF::Log;
@@ -425,6 +426,9 @@ sub get_any_valid_entity_url {
                 # Invalidate the cached entry, and set the repair flag
                 undef $storages;
                 $repair++;
+                if (STF_TRACE) {
+                    $self->get('Trace')->trace( "stf.object.get_any_valid_entity_url.invalidated_storage_cache");
+                }
                 last;
             }
         }
