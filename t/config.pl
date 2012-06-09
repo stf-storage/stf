@@ -1,4 +1,4 @@
-
+$ENV{STF_TRACE_SQLITE_DBNAME} = "trace.db";
 $ENV{STF_HOST_ID} = int(rand(10000));
 my $config = require 'etc/config.pl';
 
@@ -25,4 +25,12 @@ my %dbopts = ( RaiseError => 1, AutoCommit => 1, mysql_enable_utf8 => 1, AutoIna
         %{ $config->{'Worker::Drone'} || {} },
         spawn_interval => 0,
     },
+    'Trace::SQLite' => {
+        connect_info => [
+            "dbi:SQLite:dbname=$ENV{STF_TRACE_SQLITE_DBNAME}",
+            undef,
+            undef,
+            { RaiseError => 1, AutoCommit => 1 }
+        ],
+    }
 };

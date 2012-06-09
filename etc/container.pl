@@ -17,7 +17,18 @@ BEGIN {
         require STF::API::ObjectMeta;
     }
 }
-use STF::Constants qw(STF_DEBUG);
+use STF::Constants qw(STF_DEBUG STF_TRACE);
+
+if (STF_TRACE) {
+    # The tracer is a special mechanism to trace activities from stf.
+    # 
+    register 'Trace' => sub {
+        my $c = shift;
+        my $config = $c->get('config');
+        require STF::Trace::SQLite;
+        STF::Trace::SQLite->new( $config->{'Trace::SQLite'} );
+    };
+}
 
 register Furl => Furl::HTTP->new( timeout => 30 );
 register Memcached => sub {

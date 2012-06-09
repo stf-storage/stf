@@ -5,6 +5,7 @@ use HTTP::Status ();
 use STF::Constants qw(
     :object
     STF_DEBUG
+    STF_TRACE
     STF_ENABLE_OBJECT_META
     STORAGE_MODE_TEMPORARILY_DOWN
     STORAGE_MODE_READ_ONLY
@@ -597,6 +598,10 @@ sub get_any_valid_entity_url {
             }
         }
         if ($repair) {
+            if (STF_TRACE) {
+                $self->get('Trace')->trace( "stf.object.get_any_valid_entity_url.invalidated_storage_cache");
+            }
+
             # Invalidate the cached entry
             undef $storages;
         }

@@ -6,7 +6,11 @@ use HTTP::Date;
 use STF::Test;
 use STF::Test qw(clear_queue);
 BEGIN {
-    use_ok "STF::Constants", "STORAGE_MODE_TEMPORARILY_DOWN",
+    use_ok "STF::Constants",
+        "STF_TRACE",
+        "STORAGE_MODE_READ_WRITE",
+        "STORAGE_MODE_TEMPORARILY_DOWN",
+    ;
 }
 
 use_ok "STF::Context";
@@ -70,23 +74,63 @@ EOSQL
         }
     );
 
+    my $tracer;
+    if (STF_TRACE) {
+        $tracer = $container->get('Trace');
+
+        # Clear the tracer so we know the values are fresh
+        $tracer->clear();
+    }
     $container->get('API::Storage')->update( $entities[0]->{storage_id}, {
         mode => STORAGE_MODE_TEMPORARILY_DOWN
     });
+    my $guard = Guard::guard(sub {
+        $container->get('API::Storage')->update( $entities[0]->{storage_id}, {
+            mode => STORAGE_MODE_READ_WRITE
+        });
+    });
 
-    $res = $cb->(
-        GET "http://127.0.0.1/$bucket_name/$object_name",
-    );
-    if (! ok $res->is_success, "GET is successful (first time)") {
-        diag $res->as_string;
+    for (1..5) {
+        $res = $cb->(
+            GET "http://127.0.0.1/$bucket_name/$object_name",
+        );
+        if (! ok $res->is_success, "GET is successful") {
+            diag $res->as_string;
+        }
     }
 
-    $res = $cb->(
-        GET "http://127.0.0.1/$bucket_name/$object_name",
-    );
-    if (! ok $res->is_success, "GET is successful (second time)") {
-        diag $res->as_string;
+    if (STF_TRACE) {
+        # make sure that the storage cache was invalidated
+        my $list = $tracer->dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, "stf.object.get_any_valid_entity_url.invalidated_storage_cache");
+            SELECT * FROM trace_log WHERE name = ?
+EOSQL
+        ok @$list > 0, "storage cache was invalidated @{[ scalar @$list ]} times (> 0)";
     }
+
+    undef $guard;
+
+    if (STF_TRACE) {
+        $tracer->clear();
+    }
+
+    # Now we should be back to read-write
+    for (1..5) {
+        $res = $cb->(
+            GET "http://127.0.0.1/$bucket_name/$object_name",
+        );
+        if (! ok $res->is_success, "GET is successful") {
+            diag $res->as_string;
+        }
+    }
+    
+    if (STF_TRACE) {
+        # make sure that the storage cache was invalidated
+        my $list = $tracer->dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, "stf.object.get_any_valid_entity_url.invalidated_storage_cache");
+            SELECT * FROM trace_log WHERE name = ?
+EOSQL
+        ok @$list == 0, "storage cache was invalidated @{[ scalar @$list ]} times (== 0)";
+    }
+
 };
 
 clear_queue();
