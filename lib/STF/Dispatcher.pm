@@ -115,8 +115,8 @@ sub _unpack_head {
     if ( HAVE_64BITINT ) {
         return unpack( "ql", shift() );
     } else {
-        my $high = shift;
-        my $low = shift;
+        my $high = shift || 0;
+        my $low  = shift || 0;
         # drop anything that isn't numeric trailing our number
         $high =~ s/\D+$//;
         $low =~ s/\D+$//;
