@@ -30,6 +30,7 @@ Please make sure to put them in to build/test this application.
 EOM
 }
 
+my $queue_type = $ENV{STF_QUEUE_TYPE} || 'Q4M';
 WriteMakefile(
     NAME => "STF",
     VERSION_FROM => 'lib/STF.pm',
@@ -69,6 +70,9 @@ WriteMakefile(
         'Text::Xslate' => 0,
         'YAML' => 0,
         'STF::Dispatcher::PSGI' => '1.09',
+
+        # Add this requirement if the environment asks for it
+        ( $queue_type eq 'Schwartz' ? 'TheSchwartz' : () ),
     },
     BUILD_REQUIRES => {
         # For tests

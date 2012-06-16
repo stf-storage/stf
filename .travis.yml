@@ -2,8 +2,6 @@ language: perl
 perl:
   - "5.14"
   - "5.12"
-before_install:
-  - cpanm --notest TheSchwartz
 env:
   - STF_QUEUE_TYPE=Schwartz
 
