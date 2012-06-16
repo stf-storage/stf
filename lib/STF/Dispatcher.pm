@@ -117,6 +117,10 @@ sub _unpack_head {
     } else {
         my $high = shift;
         my $low = shift;
+        # drop anything that isn't numeric trailing our number
+        $high =~ s/\D+$//;
+        $low =~ s/\D+$//;
+
         my $time = Math::BigInt->new(
             "0x" . unpack("H*", CORE::pack("N2", $high, $low)));
         my $serial = unpack( "l", shift() );
