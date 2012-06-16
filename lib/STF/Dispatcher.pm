@@ -128,7 +128,7 @@ sub _unpack_head {
         my $time = Math::BigInt->new(
             "0x" . unpack("H*", CORE::pack("N2", $bits[0], $bits[1])));
         my $serial = unpack( "l", $bits[2]);
-        return $time, $serial;
+        return ($time, $serial);
     }
 }
 
