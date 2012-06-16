@@ -115,23 +115,19 @@ sub _unpack_head {
     if ( HAVE_64BITINT ) {
         return unpack( "ql", shift() );
     } else {
-        my $high = shift;
-        my $low  = shift;
+        my @bits = unpack "N2l", $_[0];
 
-        # drop anything that isn't numeric trailing our number
-        $high =~ s/\D+$// if defined $high;
-        $low  =~ s/\D+$// if defined $low;
-
-        if (!defined $high || length $high < 1) { # empty tring, maybe?
-            $high = 0;
-        }
-        if (!defined $low || length $low < 1) { # empty tring, maybe?
-            $low = 0;
+        foreach my $bit (@bits) {
+            # drop anything that isn't numeric trailing our number
+            if (!defined $high || length $high < 1) { # empty tring, maybe?
+                $high = 0;
+            }
+            $bit =~ s/\D+$//;
         }
 
         my $time = Math::BigInt->new(
-            "0x" . unpack("H*", CORE::pack("N2", $high, $low)));
-        my $serial = unpack( "l", shift() );
+            "0x" . unpack("H*", CORE::pack("N2", $bits[0], $bits[1])));
+        my $serial = unpack( "l", $bits[2]);
         return $time, $serial;
     }
 }
