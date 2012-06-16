@@ -119,8 +119,8 @@ sub _unpack_head {
 
         foreach my $bit (@bits) {
             # drop anything that isn't numeric trailing our number
-            if (!defined $high || length $high < 1) { # empty tring, maybe?
-                $high = 0;
+            if (!defined $bit || length $bit < 1) { # empty tring, maybe?
+                $bit = 0;
             }
             $bit =~ s/\D+$//;
         }
