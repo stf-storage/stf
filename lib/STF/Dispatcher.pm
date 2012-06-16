@@ -115,11 +115,19 @@ sub _unpack_head {
     if ( HAVE_64BITINT ) {
         return unpack( "ql", shift() );
     } else {
-        my $high = shift || 0;
-        my $low  = shift || 0;
+        my $high = shift;
+        my $low  = shift;
+
         # drop anything that isn't numeric trailing our number
-        $high =~ s/\D+$//;
-        $low =~ s/\D+$//;
+        $high =~ s/\D+$// if defined $high;
+        $low  =~ s/\D+$// if defined $low;
+
+        if (!defined $high || length $high < 1) { # empty tring, maybe?
+            $high = 0;
+        }
+        if (!defined $low || length $low < 1) { # empty tring, maybe?
+            $low = 0;
+        }
 
         my $time = Math::BigInt->new(
             "0x" . unpack("H*", CORE::pack("N2", $high, $low)));
