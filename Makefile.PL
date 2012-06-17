@@ -1,5 +1,6 @@
 use strict;
 use ExtUtils::MakeMaker;
+use Config ();
 
 # The additional \n helps to fool Module::Install
 sub MY::test_via_harness { "\tprove --lib --rc=t/proverc t\n" }
@@ -73,6 +74,7 @@ WriteMakefile(
 
         # Add this requirement if the environment asks for it
         ( $queue_type eq 'Schwartz' ? 'TheSchwartz' : () ),
+        ( $Config::Config{use64bitint} ? () : ("Bit::Vector" => 0) ),
     },
     BUILD_REQUIRES => {
         # For tests

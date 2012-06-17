@@ -80,9 +80,9 @@ has shm_name => (
 
 BEGIN {
     if (! HAVE_64BITINT) {
-        debugf("You don't have 64bit int. Emulating using Math::BigInt (This will be SLOW! Use 64bit-enabled Perls for STF!)");
-        require Math::BigInt;
-        Math::BigInt->import;
+        debugf("You don't have 64bit int. Emulating using Bit::Vector (This will be SLOW! Use 64bit-enabled Perls for STF!)");
+        require Bit::Vector;
+        Bit::Vector->import;
     }
 
     if ( STF_ENABLE_OBJECT_META ) {
@@ -103,32 +103,22 @@ sub bootstrap {
 }
 
 sub _pack_head {
-    my ($time, $serial) = @_;
     if ( HAVE_64BITINT ) {
-        return pack( "ql", $time, $serial );
+        return pack( "ql", $_[0], $_[1] );
     } else {
-        pack( "N2l", unpack( 'NN', $time ), $serial );
+        pack( "N2l", unpack( 'NN', Bit::Vector->new_Dec(64, $_[0])->Block_Read() ), $_[1] );
     }
 }
 
 sub _unpack_head {
     if ( HAVE_64BITINT ) {
-        return unpack( "ql", shift() );
+        return unpack( "ql", $_[0] );
     } else {
         my @bits = unpack "N2l", $_[0];
-
-        foreach my $bit (@bits) {
-            # drop anything that isn't numeric trailing our number
-            if (!defined $bit || length $bit < 1) { # empty tring, maybe?
-                $bit = 0;
-            }
-            $bit =~ s/\D+$//;
-        }
-
-        my $time = Math::BigInt->new(
-            "0x" . unpack("H*", CORE::pack("N2", $bits[0], $bits[1])));
-        my $serial = unpack( "l", $bits[2]);
-        return ($time, $serial);
+        my $time = pack "NN", $bits[0], $bits[1];
+        $time = Bit::Vector->new_Bin(64, unpack("b*", $time));
+        $time->Reverse($time);
+        return ($time->to_Dec, $bits[2]);
     }
 }
 
