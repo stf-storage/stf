@@ -80,7 +80,7 @@ WriteMakefile(
         'Plack::Middleware::Reproxy' => '0.00002',
     },
     clean => {
-        FILES => 't/*.log t/store*',
+        FILES => 't/*.log t/store* trace.db',
     }
 );
 
