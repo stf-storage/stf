@@ -38,11 +38,6 @@ WriteMakefile(
     LICENSE => "artistic_2",
     AUTHOR    => 'Daisuke Maki C<< <daisuke@endeworks.jp> >>',
     PREREQ_PM => {
-        # Only Migrator requires these
-        'Coro' => 0,
-        'FurlX::Coro' => 0,
-        'DBIx::Connector' => 0,
-
         'Cache::Memcached::Fast' => 0,
         'Class::Load' => 0,
         'Data::Page' => 0,
@@ -61,7 +56,6 @@ WriteMakefile(
         'Plack::Middleware::ReverseProxy' => 0,
         'Plack::Middleware::Static' => 0,
         'Parallel::Prefork' => '0.10',
-        'Parallel::ForkManager' => 0,
         'Parallel::Scoreboard' => 0,
         'Router::Simple' => 0,
         'SQL::Maker' => 0,
