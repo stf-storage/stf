@@ -4,5 +4,4 @@ perl:
   - "5.12"
 env:
   - STF_QUEUE_TYPE=Schwartz
-install: "cpanm -v --installdeps --notest ."
 
