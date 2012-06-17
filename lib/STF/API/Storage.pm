@@ -1,6 +1,5 @@
 package STF::API::Storage;
 use Mouse;
-use Guard ();
 use STF::Constants qw(:storage STF_DEBUG STF_ENABLE_STORAGE_META);
 use STF::Log;
 

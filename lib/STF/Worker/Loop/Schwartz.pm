@@ -1,6 +1,7 @@
 package STF::Worker::Loop::Schwartz;
 use Mouse;
 use Scalar::Util ();
+use Scope::Guard ();
 use STF::Constants qw(STF_DEBUG);
 use STF::Log;
 use TheSchwartz;
@@ -32,7 +33,7 @@ sub create_client {
             my $extra_guard;
             if ( STF_DEBUG ) {
                 debugf("---- START %s:%s ----", $ability, $job->arg) if STF_DEBUG;
-                $extra_guard = Guard::guard(sub {
+                $extra_guard = Scope::Guard->new( sub {
                     debugf("---- END %s:%s ----", $ability, $job->arg) if STF_DEBUG;
                 } );
             }
@@ -45,6 +46,7 @@ sub create_client {
                 critf("Error from work_once: %s", $@);
             }
             eval { $job->completed };
+            undef $extra_guard;
         };
     }
     $client->can_do( $ability );

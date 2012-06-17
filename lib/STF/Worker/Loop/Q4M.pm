@@ -1,9 +1,9 @@
 package STF::Worker::Loop::Q4M;
 use Mouse;
 use POSIX qw(:signal_h);
-use Guard ();
 use Scalar::Util ();
 use Time::HiRes ();
+use Scope::Guard ();
 use STF::Constants qw(STF_DEBUG);
 use STF::Log;
 
@@ -93,14 +93,14 @@ EOSQL
                     debugf("---- START %s:%s ----", $table, $row_id);
                     debugf("Got new item from %s (%s)", $table, $object_id);
                 }
-                $extra_guard = Guard::guard(sub {
+                $extra_guard = Scope::Guard->new(sub {
                     debugf("---- END %s:%s ----", $table, $row_id) if STF_DEBUG;
                 } );
             }
             eval { $dbh->do("SELECT queue_end()") };
 
             $self->incr_processed();
-            my $sig_guard = Guard::guard(\&$setsig);
+            my $sig_guard = Scope::Guard->new(\&$setsig);
 
             # XXX Disable signal handling during work_once
             POSIX::sigaction( SIGINT,  $default );

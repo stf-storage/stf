@@ -1,8 +1,8 @@
 package STF::Utils;
 use strict;
-use Guard ();
 use POSIX ':signal_h';
 use Time::HiRes ();
+use Scope::Guard ();
 use STF::Log;
 
 sub merge_hashes {
@@ -53,12 +53,12 @@ sub timer_guard {
     my $sub = $_[0] || (caller(1))[0,3];
     require Time::HiRes;
     my $t0 = [ Time::HiRes::gettimeofday() ];
-    return Guard::guard {
+    return Scope::Guard->new(sub {
         my $elapsed = Time::HiRes::tv_interval($t0);
         undef $t0;
         local $STF::Log::PREFIX = "TIMER";
         debugf("%s took %0.6f seconds", $sub, $elapsed);
-    };
+    } );
 }
 
 # This is a rather forceful timeout wrapper that allows us to, for example,

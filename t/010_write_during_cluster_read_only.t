@@ -7,7 +7,7 @@ use STF::Constants qw(
     STORAGE_CLUSTER_MODE_READ_ONLY
 );
 use Plack::Test;
-use Guard ();
+use Scope::Guard ();
 
 my $code = sub {
     my $cb = shift;
@@ -66,7 +66,7 @@ my $code = sub {
 
         # make the cluster readonly
         $cluster_api->update( $bad_cluster->{id}, { mode => STORAGE_CLUSTER_MODE_READ_ONLY } );
-        $guard = Guard::guard(sub {
+        $guard = Scope::Guard->new(sub {
             $cluster_api->update( $bad_cluster->{id}, { mode => STORAGE_CLUSTER_MODE_READ_WRITE } );
         });
     }

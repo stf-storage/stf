@@ -3,6 +3,7 @@ use Test::More;
 use Plack::Test;
 use HTTP::Request::Common qw(PUT HEAD GET POST);
 use HTTP::Date;
+use Scope::Guard ();
 use STF::Test;
 use STF::Test qw(clear_queue);
 BEGIN {
@@ -84,7 +85,7 @@ EOSQL
     $container->get('API::Storage')->update( $entities[0]->{storage_id}, {
         mode => STORAGE_MODE_TEMPORARILY_DOWN
     });
-    my $guard = Guard::guard(sub {
+    my $guard = Scope::Guard->new(sub {
         $container->get('API::Storage')->update( $entities[0]->{storage_id}, {
             mode => STORAGE_MODE_READ_WRITE
         });

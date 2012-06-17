@@ -1,5 +1,6 @@
 package STF::API::Config;
 use Mouse;
+use Scope::Guard ();
 
 with 'STF::API::WithDBI';
 
@@ -8,7 +9,7 @@ sub set {
 
     my $dbh = $self->get('DB::Master');
     $dbh->begin_work;
-    my $guard = Guard::guard(sub {
+    my $guard = Scope::Guard->new(sub {
         $dbh->rollback();
     });
     while ( my ($key, $value) = splice @args, 0, 2 ) {
@@ -22,7 +23,7 @@ sub set {
         }
     }
     $dbh->commit;
-    $guard->cancel;
+    $guard->dismiss;
 }
 
 has loaders => (

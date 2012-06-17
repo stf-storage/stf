@@ -1,5 +1,6 @@
 package STF::Worker::RepairStorage;
 use Mouse;
+use Scope::Guard ();
 use STF::Constants qw(:storage STF_DEBUG);
 use STF::Utils ();
 use STF::Log;
@@ -37,7 +38,7 @@ sub work_once {
             warnf("Could not update storage, bailing out");
             return;
         }
-        my $guard = Guard::guard {
+        my $guard = Scope::Guard->new(sub {
             STF::Utils::timeout_call( 2, sub {
                 local $@;
                 eval {
@@ -46,7 +47,7 @@ sub work_once {
                     );
                 };
             } );
-        };
+        });
 
         # Signals terminate the process, but don't allow us to fire the
         # guard object, so we manually fire it up
@@ -98,7 +99,7 @@ EOSQL
             }
         }
 
-        $guard->cancel;
+        $guard->dismiss;
         infof("Storage %d, processed %d rows", $storage_id, $processed );
         if (! $bailout) {
             $api->update( $storage_id => { mode => STORAGE_MODE_REPAIR_DONE } );

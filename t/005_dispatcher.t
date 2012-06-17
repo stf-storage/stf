@@ -1,7 +1,7 @@
 use strict;
 use Test::MockTime qw(restore_time set_fixed_time);
 use Test::More;
-use Guard qw(scope_guard);
+use Scope::Guard ();
 BEGIN {
     use_ok "STF::Dispatcher";
     use_ok "STF::Constants", "SERIAL_BITS";
@@ -9,7 +9,7 @@ BEGIN {
 }
 
 subtest 'create ID' => sub {
-    scope_guard( \&restore_time );
+    my $guard = Scope::Guard->new( \&restore_time );
 
     # ザ・ワールド！
     my $time = CORE::time();

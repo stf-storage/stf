@@ -4,7 +4,7 @@ use Mouse::Role;
 with 'STF::Trait::WithContainer';
 
 use DBI ();
-use Guard ();
+use Scope::Guard ();
 
 sub dbh {
     my ( $self, $key ) = @_;
@@ -26,12 +26,12 @@ sub txn_block {
             Carp::confess("Could not get $dbkey from container");
         }
         $dbh->begin_work;
-        my $guard = Guard::guard { 
+        my $guard = Scope::Guard->new(sub {
             eval { $dbh->rollback }
-        };
+        });
         my @res = $txn->($self, @args);
         $dbh->commit;
-        $guard->cancel;
+        $guard->dismiss;
         return @res ;
     };
 }

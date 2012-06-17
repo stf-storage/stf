@@ -3,9 +3,9 @@ use Cwd ();
 use Digest::MD5 qw(md5_hex);
 use Test::More;
 use Plack::Test;
-use Guard ();
 use HTTP::Request::Common qw(PUT HEAD GET DELETE POST);
 use HTTP::Date;
+use Scope::Guard ();
 use STF::Constants qw(
     STF_ENABLE_OBJECT_META 
     STORAGE_CLUSTER_MODE_READ_ONLY STORAGE_CLUSTER_MODE_READ_WRITE
@@ -204,7 +204,7 @@ EOSQL
 
         $storage_api->update( $broken->{id}, { mode => STORAGE_MODE_TEMPORARILY_DOWN });
         $cluster_api->update( $broken->{cluster_id}, { mode => STORAGE_CLUSTER_MODE_READ_ONLY } );
-       my $guard = Guard::guard(sub {
+       my $guard = Scope::Guard->new(sub {
             $storage_api->update( $broken->{id}, { mode => STORAGE_MODE_READ_WRITE } );
             $cluster_api->update( $broken->{cluster_id}, { mode => STORAGE_CLUSTER_MODE_READ_WRITE } );
         } );
@@ -452,7 +452,7 @@ EOSQL
             mode => STORAGE_CLUSTER_MODE_READ_ONLY,
         } );
 
-        my $guard = Guard::guard( sub {
+        my $guard = Scope::Guard->new(sub {
             $cluster_api->update( $ro_cluster->{id}, {
                 mode => STORAGE_CLUSTER_MODE_READ_WRITE,
             } );

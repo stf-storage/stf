@@ -3,12 +3,12 @@ use feature 'state';
 use Mouse;
 use File::Basename ();
 use File::Temp ();
-use Guard ();
 use IPC::SysV qw(S_IRWXU S_IRUSR S_IWUSR IPC_CREAT IPC_NOWAIT SEM_UNDO);
 use IPC::SharedMem;
 use IPC::Semaphore;
 use POSIX ();
 use Scalar::Util ();
+use Scope::Guard ();
 use STF::Constants qw(
     :entity
     :server
@@ -162,7 +162,7 @@ sub BUILD {
     push @RESOURCE_DESTRUCTION_GUARDS, (sub {
         my $SELF = shift;
         Scalar::Util::weaken($SELF);
-        Guard::guard(sub {
+        Scope::Guard->new(sub {
             eval { $SELF->cleanup };
         });
     })->($self);
@@ -264,9 +264,9 @@ sub create_id {
         );
     }
 
-    Guard::scope_guard {
+    my $guard = Scope::Guard->new(sub {
         $mutex->op( 0, 1, SEM_UNDO );
-    };
+    });
 
     my $host_id = (int($self->host_id + $$)) & 0xffff; # 16 bits
     my $time_id = time();
