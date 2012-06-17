@@ -4,3 +4,4 @@
 -Pt::lib::App::Prove::Plugin::StartDatabase
 -Pt::lib::App::Prove::Plugin::SchemaUpdater
 -Pt::lib::App::Prove::Plugin::StartBackend
+-Pt::lib::App::Prove::Plugin::RedirectLog
