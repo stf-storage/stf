@@ -1,6 +1,7 @@
 use strict;
 use Test::More;
 
+my $have_sqlite = eval { require DBD::SQLite };
 my $have_schwartz = eval { require TheSchwartz };
 my @modules = map {
     my $f = $_;
@@ -12,6 +13,10 @@ my @modules = map {
 
 foreach my $module (@modules) {
     SKIP: {
+        if ( $module =~ /SQLite/ && ! $have_sqlite ) {
+            skip "DBD::SQLite is not available", 1;
+        }
+
         if ( $module =~ /Schwartz/ && ! $have_schwartz ) {
             skip "TheSchwartz is not available", 1;
         }
