@@ -6,6 +6,10 @@ Among other things, it currently handles traffic for one of Japan's busiest blog
 
 STF is built on top of long trusted software like Apache (or nginx), Perl, Q4M (or TheSchwartz), MySQL, and Memcached, with open protocols so it's easy to maintain.
 
+## Travis CI
+
+[![Build Status](https://secure.travis-ci.org/stf-storage/stf.png?branch=master)](http://travis-ci.org/stf-storage/stf)
+
 ## Get STF
 
     git clone git://github.com/stf-storage/stf.git
