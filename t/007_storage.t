@@ -18,7 +18,7 @@ subtest crud => sub {
         SELECT max(id) + 1 FROM storage
 EOM
 
-    my $guard = Socpe::Guard->new(sub {
+    my $guard = Scope::Guard->new(sub {
         $api->delete( $storage_id );
     });
 
