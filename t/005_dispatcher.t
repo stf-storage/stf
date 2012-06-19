@@ -4,11 +4,15 @@ use Test::More;
 use Scope::Guard ();
 BEGIN {
     use_ok "STF::Dispatcher";
-    use_ok "STF::Constants", "SERIAL_BITS";
+    use_ok "STF::Constants", "SERIAL_BITS", "HAVE_64BITINT";
     use_ok "Plack::Util";
 }
 
 subtest 'create ID' => sub {
+    if (! HAVE_64BITINT) {
+        skip "No 64bit int... skipping test", 5;
+    }
+
     my $guard = Scope::Guard->new( \&restore_time );
 
     # ザ・ワールド！
