@@ -15,7 +15,7 @@ has '+interval' => (
     default => 5 * 60 * 1_000_000
 );
 
-sub work {
+sub work_once {
     my $self = shift;
 
     my $storage_api = $self->get('API::Storage');
