@@ -9,6 +9,7 @@ BEGIN {
 }
 
 subtest 'create ID' => sub {
+    SKIP: {
     if (! HAVE_64BITINT) {
         skip "No 64bit int... skipping test", 5;
     }
@@ -49,6 +50,7 @@ subtest 'create ID' => sub {
     note "now time() is " . time();
     eval { $d->create_id };
     ok ! $@, "no overflow";
+    }
 };
 
 subtest 'enqueue timeout' => sub {
