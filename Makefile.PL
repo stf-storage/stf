@@ -68,7 +68,7 @@ WriteMakefile(
 
         # Add this requirement if the environment asks for it
         ( $queue_type eq 'Schwartz' ? ( 'TheSchwartz' => 0 ): () ),
-        ( $Config::Config{use64bitint} ? () : ("Bit::Vector" => 0) ),
+        ( $Config::Config{use64bitint} ? () : ("Bit::Vector" => 0, "Math::BigInt" => 0) ),
     },
     BUILD_REQUIRES => {
         # For tests

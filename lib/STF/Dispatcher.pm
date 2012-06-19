@@ -284,10 +284,19 @@ sub create_id {
     }
     $shm->write( _pack_head( $time_id, $shm_serial ), 0, 24 );
 
-    my $time_bits = ($time_id - EPOCH_OFFSET) << TIME_SHIFT;
-    my $serial_bits = $shm_serial << SERIAL_SHIFT;
-    my $id = $time_bits | $serial_bits | $host_id;
-
+    my $id;
+    if (HAVE_64BITINT) {
+        my $time_bits = ($time_id - EPOCH_OFFSET) << TIME_SHIFT;
+        my $serial_bits = $shm_serial << SERIAL_SHIFT;
+        $id = $time_bits | $serial_bits | $host_id;
+    } else {
+        # XXX This bit operation needs to be done in 32 bits
+        my $time_bits = 
+            (Math::BigInt->new($time_id) - EPOCH_OFFSET) << TIME_SHIFT;
+        my $serial_bits = 
+            Math::BigInt->new($shm_serial) << SERIAL_SHIFT;
+        $id = ( $time_bits | $serial_bits | $host_id )->bstr;
+    }
     return $id;
 }
 
