@@ -80,9 +80,11 @@ has shm_name => (
 
 BEGIN {
     if (! HAVE_64BITINT) {
-        debugf("You don't have 64bit int. Emulating using Bit::Vector (This will be SLOW! Use 64bit-enabled Perls for STF!)");
+        debugf("You don't have 64bit int. Emulating using Math::BigInt and Bit::Vector (This will be SLOW! Use 64bit-enabled Perls for STF!)");
         require Bit::Vector;
+        require Math::BigInt;
         Bit::Vector->import;
+        Math::BigInt->import;
     }
 
     if ( STF_ENABLE_OBJECT_META ) {
