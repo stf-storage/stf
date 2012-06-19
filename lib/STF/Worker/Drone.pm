@@ -74,6 +74,7 @@ has workers => (
             RepairObject  => 1,
             RecoverCrash  => 1,
             RetireStorage => 1,
+            StorageHealth => 1,
         );
         return \%workers,
     },
