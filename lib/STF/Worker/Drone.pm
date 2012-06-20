@@ -4,6 +4,7 @@ use Mouse;
 use File::Spec;
 use File::Temp ();
 use Getopt::Long ();
+use List::Util ();
 use Parallel::Prefork;
 use Parallel::Scoreboard;
 use STF::Context;
@@ -181,7 +182,7 @@ sub get_worker {
     }
 
     my $workers = $self->workers;
-    for my $worker( keys %$workers ) {
+    for my $worker( List::Util::shuffle(keys %$workers) ) {
         my $n = $running{$worker} || 0;
         if ( $n < $workers->{$worker} ) {
             $scoreboard->update( $worker );
