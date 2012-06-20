@@ -75,7 +75,7 @@ has workers => (
             RepairObject  => 1,
             RecoverCrash  => 1,
             RetireStorage => 1,
-            StorageHealth => 1,
+            StorageHealth => 0, # don't enable this by default, as it requires an extra setup step
         );
         return \%workers,
     },
@@ -112,23 +112,8 @@ sub bootstrap {
     );
 }
 
-sub new {
-    my ($class, %args) = @_;
-
-    my $self = bless {
-        spawn_interval => 1,
-        workers => {
-            Replicate     => 8,
-            DeleteBucket  => 4,
-            DeleteObject  => 4,
-            ObjectHealth  => 1,
-            RepairObject  => 1,
-            RecoverCrash  => 1,
-            RetireStorage => 1,
-        },
-        %args,
-    }, $class;
-
+sub BUILD {
+    my $self = shift;
     my %alias = (
         Usage => 'UpdateUsage',
         Retire => 'RetireStorage',
