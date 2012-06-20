@@ -95,6 +95,9 @@ sub update {
         if ($ref eq 'HASH') {
             $where = { %$where, %$id };
         }
+        if ( my $pk = $where->{id} ) {
+            $self->cache_delete( $self->table => $pk );
+        }
     } else {
         $self->cache_delete( $self->table => $id );
         $where->{id} = $id;
