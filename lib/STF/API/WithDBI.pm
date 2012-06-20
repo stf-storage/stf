@@ -90,7 +90,14 @@ sub create {
 sub update {
     my ($self, $id, $args) = @_;
 
-    $self->cache_delete( $self->table => $id ) if ! ref $id;
+    my $ref = ref $id;
+    if (! $ref) {
+        $self->cache_delete( $self->table => $id );
+    } elsif ($ref eq 'HASH') {
+        if (my $pk = $id->{id}) {
+            $self->cache_delete( $self->table => $pk );
+        }
+    }
     my ($sql, @binds) = $self->sql_maker->update(
         $self->table,
         $args,
