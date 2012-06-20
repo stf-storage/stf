@@ -8,7 +8,7 @@ with 'STF::Trait::WithContainer';
 
 has test_path => (
     is => 'ro',
-    default => "/test/test.txt"
+    default => "/test.txt"
 );
 
 has '+interval' => (
