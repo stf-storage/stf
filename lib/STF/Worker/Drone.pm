@@ -61,7 +61,7 @@ has scoreboard => (
 
 has spawn_interval => (
     is => 'rw',
-    default => 1
+    default => 5
 );
 
 has workers => (
