@@ -80,7 +80,7 @@ has shm_name => (
 
 BEGIN {
     if (! HAVE_64BITINT) {
-        debugf("You don't have 64bit int. Emulating using Math::BigInt and Bit::Vector (This will be SLOW! Use 64bit-enabled Perls for STF!)");
+        debugf("You don't have 64bit int. Emulating using Math::BigInt and Bit::Vector (This will be SLOW! Use 64bit-enabled Perls for STF!)") if STF_DEBUG;
         require Bit::Vector;
         require Math::BigInt;
         Bit::Vector->import;
@@ -181,7 +181,7 @@ sub cleanup {
     my $self = shift;
     local $STF::Log::PREFIX = "Cleanup(D)";
     if ( ! defined $self->parent || $self->parent != $$ ) {
-        debugf("Cleanup skipped (PID %s != %s)", $$, $self->{parent});
+        debugf("Cleanup skipped (PID %s != %s)", $$, $self->{parent}) if STF_DEBUG;
         return;
     }
 
@@ -189,13 +189,13 @@ sub cleanup {
         local $@;
         if ( my $mutex = $self->{mutex} ) {
             eval {
-                debugf("Cleaning up semaphore (%s)", $mutex->id);
+                debugf("Cleaning up semaphore (%s)", $mutex->id) if STF_DEBUG;
                 $mutex->remove;
             };
         }
         if ( my $shm = $self->{shared_mem} ) {
             eval {
-                debugf("Cleaning up shared memory (%s)", $shm->id);
+                debugf("Cleaning up shared memory (%s)", $shm->id) if STF_DEBUG;
                 $shm->remove;
             };
         }
@@ -316,7 +316,7 @@ sub create_bucket {
 
     my $res = $txn->( $self->create_id, $args->{bucket_name} );
     if (my $e = $@) {
-        debugf("Failed to create bucket: %s", $e);
+        critf("Failed to create bucket: %s", $e);
         $self->handle_exception($e);
     }
 
@@ -342,10 +342,10 @@ sub delete_bucket {
     my ($bucket, $recursive) = @$args{ qw(bucket) };
     my $res = $txn->( $bucket->{id} );
     if (my $e = $@) {
-        debugf("Failed to delete bucket: %s", $e);
+        critf("Failed to delete bucket: %s", $e);
         $self->handle_exception($e);
     } else {
-        debugf("Deleted bucket %s (%s)", $bucket->{name}, $bucket->{id});
+        debugf("Deleted bucket %s (%s)", $bucket->{name}, $bucket->{id}) if STF_DEBUG;
     }
 
     if ($res) {
@@ -429,7 +429,7 @@ sub create_object {
                 "Object '%s' on bucket '%s' already exists",
                 $object_name,
                 $bucket_id,
-            );
+            ) if STF_DEBUG;
             $object_api->mark_for_delete( $old_object_id );
         }
 
@@ -485,13 +485,13 @@ sub create_object {
         "Create object %s/%s",
         $bucket->{name},
         $object_name
-    );
+    ) if STF_DEBUG;
     my $object_id = $self->create_id();
 
     my ($res, $old_object_id) = $txn->(
         $object_id, $bucket->{id}, $replicas, $object_name, $size, $consistency, $suffix, $input );
     if (my $e = $@) {
-        debugf("Error while creating object: %s", $e);
+        critf("Error while creating object: %s", $e);
         $self->handle_exception($e);
         return ();
     }
@@ -508,13 +508,13 @@ sub create_object {
             "create",
             $bucket->{name},
             $object_name,
-        );
+        ) if STF_DEBUG;
         debugf(
             "[%10s] Will queue request to delete old object (%s)",
             "Dispatcher",
             "create",
             $old_object_id
-        );
+        ) if STF_DEBUG;
         $self->enqueue( delete_object => $old_object_id );
     }
 
@@ -566,7 +566,7 @@ sub get_object {
         STF::Dispatcher::PSGI::HTTPException->throw(@args);
     }
 
-    debugf("get_object() could not find suitable entity for %s", $object_name);
+    debugf("get_object() could not find suitable entity for %s", $object_name) if STF_DEBUG;
 
     return ();
 }
@@ -588,7 +588,7 @@ sub delete_object {
         } );
 
         if (! $object_id) {
-            debugf("No matching object_id found for DELETE");
+            debugf("No matching object_id found for DELETE") if STF_DEBUG;
             return ();
         }
 
@@ -602,7 +602,7 @@ sub delete_object {
     my ($bucket, $object_name) = @$args{ qw(bucket object_name) };
     my ($res, $object_id) = $txn->( $bucket->{id}, $object_name);
     if (my $e = $@) {
-        debugf("Failed to delete object: %s", $e);
+        critf("Failed to delete object: %s", $e);
         $self->handle_exception($e);
         return ();
     }
@@ -624,7 +624,7 @@ sub modify_object {
         $bucket->{name},
         $object_name,
         $replicas
-    );
+    ) if STF_DEBUG;
 
     state $txn = $self->txn_block( sub {
         my ($self, $bucket_id, $object_name, $replicas) = @_;
@@ -641,14 +641,14 @@ sub modify_object {
         $object_api->update($object_id => {
             num_replica => $replicas
         });
-        debugf("Updated %s to num_replica = %d", $object_id, $replicas);
+        debugf("Updated %s to num_replica = %d", $object_id, $replicas) if STF_DEBUG;
 
         return $object_id;
     });
 
     my ($object_id) = $txn->( $bucket->{id}, $object_name, $replicas);
     if (my $e = $@) {
-        debugf("Failed to modify object: %s", $e);
+        critf("Failed to modify object: %s", $e);
         $self->handle_exception($e);
         return ();
     }
@@ -682,7 +682,7 @@ sub rename_object {
         $args->{destination_object_name},
     );
     if (my $e = $@) {
-        debugf("Failed to rename object: %s", $e);
+        critf("Failed to rename object: %s", $e);
         $self->handle_exception($e);
         return ();
     }

@@ -173,7 +173,7 @@ sub store {
     debugf(
         "Sending PUT %s (object = %s, storage = %s, cluster = %s)",
         $uri, $object->{id}, $storage->{id}, $storage->{cluster_id}
-    );
+    ) if STF_DEBUG;
 
     if ( Scalar::Util::openhandle( $content ) ) {
         seek( $content, 0, 0 );
@@ -203,16 +203,16 @@ sub store {
         $uri,
         ($ok ? "OK" : "FAIL"),
         $code
-    );
+    ) if STF_DEBUG;
 
     if ( !$ok ) {
         local $Log::Minimal::AUTODUMP = 1;
-        debugf("Request to store to %s failed:", $uri);
-        debugf("   code    = %s", $code);
-        debugf("   headers = ", $rhdrs);
-        debugf("===");
-        debugf($_) for split /\n/, $body;
-        debugf("===");
+        critf("Request to store to %s failed:", $uri);
+        critf("   code    = %s", $code);
+        critf("   headers = ", $rhdrs);
+        critf("===");
+        critf($_) for split /\n/, $body;
+        critf("===");
         return;
     }
 
@@ -351,7 +351,7 @@ sub check_health {
     }
 
     my $is_success = HTTP::Status::is_success( $code );
-    debugf("GET %s was %s (%d)", $url, ($is_success ? "OK" : "FAIL"), $code);
+    debugf("GET %s was %s (%d)", $url, ($is_success ? "OK" : "FAIL"), $code) if STF_DEBUG;
 
     $fh->flush;
     $fh->seek(0, 0);

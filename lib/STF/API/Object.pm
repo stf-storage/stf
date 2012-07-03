@@ -215,7 +215,7 @@ sub store {
     # Load all possible clusteres, ordered by a consistent hash
     my @clusters = $cluster_api->load_candidates_for( $object_id );
     if (! @clusters) {
-        debugf(
+        critf(
             "[%10s] No cluster defined for object %s, and could not any load cluster for it\n",
             "Object",
             $object_id
@@ -470,9 +470,11 @@ EOSQL
         $self->cache_set( $cache_key, $storages, $self->cache_expires );
     }
 
-    debugf("Backend storage candidates:");
-    foreach my $storage ( @$storages ) {
-        debugf("    * [%s] %s", $storage->[0], $storage->[1]);
+    if (STF_DEBUG) {
+        debugf("Backend storage candidates:");
+        foreach my $storage ( @$storages ) {
+            debugf("    * [%s] %s", $storage->[0], $storage->[1]);
+        }
     }
 
     # XXX repair shouldn't be triggered by entities < num_replica
@@ -515,7 +517,7 @@ EOSQL
             debugf(
                 "IMS request to %s returned NOT MODIFIED. Short-circuiting",
                 $object_id
-            );
+            ) if STF_DEBUG;
             STF::Dispatcher::PSGI::HTTPException->throw( 304, [], [] );
         } else {
             $repair++;
@@ -569,7 +571,7 @@ EOSQL
             "Inserted object %s into deleted_object (rv = %s)",
             $object_id,
             $rv_replace
-        );
+        ) if STF_DEBUG;
 
         $rv_delete = $dbh->do( <<EOSQL, undef, $object_id );
             DELETE FROM object WHERE id = ?
@@ -579,7 +581,7 @@ EOSQL
             "Deleted object %s from object (rv = %s)",
             $object_id,
             $rv_delete
-        );
+        ) if STF_DEBUG;
     }
 
     return $rv_replace && $rv_delete;
