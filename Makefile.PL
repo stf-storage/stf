@@ -55,7 +55,7 @@ WriteMakefile(
         'Plack::Middleware::ReverseProxy' => 0,
         'Plack::Middleware::Static' => 0,
         'Parallel::Prefork' => '0.10',
-        'Parallel::Scoreboard' => 0,
+        'Parallel::Scoreboard' => '0.03',
         'Router::Simple' => 0,
         'SQL::Maker' => 0,
         'Scope::Guard' => 0,
