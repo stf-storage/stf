@@ -79,6 +79,7 @@ sub work {
             SELECT args FROM $table WHERE queue_wait('$waitcond', 60)
 EOSQL
         my $rv = $sth->execute();
+        $self->incr_processed();
         if ($rv == 0) { # nothing found
             $sth->finish;
             next;
@@ -99,7 +100,6 @@ EOSQL
             }
             eval { $dbh->do("SELECT queue_end()") };
 
-            $self->incr_processed();
             my $sig_guard = Scope::Guard->new(\&$setsig);
 
             # XXX Disable signal handling during work_once
