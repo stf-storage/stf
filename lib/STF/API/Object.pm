@@ -251,7 +251,7 @@ sub repair {
 
     local $STF::Log::PREFIX = "Repair(O)";
 
-    debugf("Repairing object %s", "Object", "repair", $object_id) if STF_DEBUG;
+    debugf("Repairing object %s", $object_id) if STF_DEBUG;
 
     my $object = $self->lookup( $object_id );
     my $entity_api = $self->get( 'API::Entity' );
