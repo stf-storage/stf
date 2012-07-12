@@ -138,9 +138,7 @@ sub store {
     my $storage_api = $self->get('API::Storage');
     if (! $storage_api->is_writable( $storage ) ) {
         if ( STF_DEBUG ) {
-            printf "[     Store] Storage [%s] is not writable, skipping write\n",
-                $storage->{id}
-            ;
+            debugf("Storage [%s] is not writable, skipping write", $storage->{id});
         }
         return;
     }
@@ -331,7 +329,7 @@ sub check_health {
 
     my $url = join "/", $storage->{uri}, $object->{internal_name};
     debugf(
-        "Going to check %s (object_id = %s, storage_id = %s)\n",
+        "Going to check %s (object_id = %s, storage_id = %s)",
         $url, $object_id, $storage_id,
     ) if STF_DEBUG;
 
