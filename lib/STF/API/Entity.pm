@@ -228,6 +228,7 @@ sub remove {
     local $STF::Log::PREFIX = "Remove(E)";
     my $object = $args->{object} or die "XXX no object";
     my $storages = $args->{storages} or die "XXX no storages";
+    my $force_logical_delete = $args->{force_logical_delete};
 
     if (STF_DEBUG) {
         debugf( "Removing broken entities for %s in", $object->{id});
@@ -250,7 +251,15 @@ sub remove {
                $mode != STORAGE_MODE_REPAIR_NOW &&
                $mode != STORAGE_MODE_REPAIR )
         ) {
-            debugf("Storage %s is known to be broken. Skipping delete request", $broken->{uri}) if STF_DEBUG;
+            if ($force_logical_delete) {
+                debugf("Storage %s is known to be broken, but proceeding with logical delete anyway", $broken->{uri}) if STF_DEBUG;
+                $self->delete({
+                    storage_id => $broken->{id},
+                    object_id  => $object->{id},
+                });
+            } else {
+                debugf("Storage %s is known to be broken. Skipping delete request", $broken->{uri}) if STF_DEBUG;
+            }
             next;
         }
 

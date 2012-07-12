@@ -353,6 +353,7 @@ sub repair {
         $self->get('API::Entity')->remove({
             object => $object,
             storages => [ map { $storage_api->lookup($_->{storage_id}) } @entities ],
+            force_logical_delete => 1,
         });
     }
 
