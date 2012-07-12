@@ -6,6 +6,28 @@ Among other things, it currently handles traffic for one of Japan's busiest blog
 
 STF is built on top of long trusted software like Apache (or nginx), Perl, Q4M (or TheSchwartz), MySQL, and Memcached, with open protocols so it's easy to maintain.
 
+## UPGRADING (CLUSTERED STORAGE)
+
+Since version XXXX, STF requires that you setup your storage in "clusters".
+This means that you must change your database schema:
+
+    # IT IS HIGHLY RECOMMENDED THAT YOU TEST THIS BEFORE
+    # RUNNING IT AGAINST A PRODUCTION DATABASE
+    # -- you've been warned
+
+    mysql stf ... < misc/stf-update-for-clustered.sql
+
+Then you need to create clusters, and add storages to it. You can set this
+via the new admin interface, or by manual operation.
+
+    INSERT INTO storage_cluster ...;
+    UPDATE storage SET cluster_id = ... WHERE id = ...;
+
+There is no constraint from the system as to how many storages you should put 
+in a cluster, but in order to keep your data safe, you MUST have at least
+three storages per cluster. You also should have at least two clusters, but
+three or more is recommended.
+
 ## Travis CI
 
 [![Build Status](https://secure.travis-ci.org/stf-storage/stf.png?branch=master)](http://travis-ci.org/stf-storage/stf)

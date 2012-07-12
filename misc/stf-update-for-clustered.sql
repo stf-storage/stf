@@ -18,7 +18,4 @@ CREATE TABLE object_cluster_map (
     KEY (cluster_id)
 ) ENGINE=InnoDB;
 
-CREATE PROCEDURE 
-CREATE TRIGGER 
-
 

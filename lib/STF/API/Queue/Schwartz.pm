@@ -77,11 +77,11 @@ sub enqueue {
     );
     if ( $err ) {
         # XXX Don't wrap in STF_DEBUG
-        printf STDERR "[     Queue] Error while enqueuing: %s\n + func: %s\n + object ID = %s\n",
+        critf("Error while enqueuing: %s\n + func: %s\n + object ID = %s\n",
             $err,
             $func,
             $object_id,
-        ;
+        );
         next;
     }
 
