@@ -11,11 +11,11 @@ ALTER TABLE storage ADD COLUMN cluster_id INT;
 ALTER TABLE storage ADD FOREIGN KEY (cluster_id) REFERENCES storage_cluster (id) ON DELETE SET NULL;
 
 CREATE TABLE object_cluster_map (
-    object_id BIGINT NOT NULL PRIMARY KEY,
+    object_id BIGINT NOT NULL,
     cluster_id INT NOT NULL,
     FOREIGN KEY (object_id) REFERENCES object (id) ON DELETE CASCADE,
     FOREIGN KEY (cluster_id) REFERENCES storage_cluster (id) ON DELETE CASCADE,
-    KEY (cluster_id)
+    PRIMARY KEY (object_id, cluster_id)
 ) ENGINE=InnoDB;
 
 
