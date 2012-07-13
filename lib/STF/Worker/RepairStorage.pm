@@ -74,12 +74,13 @@ sub work_once {
             SELECT object_id FROM entity WHERE storage_id = ? AND object_id > ? ORDER BY object_id ASC LIMIT $limit
 EOSQL
         my $size = $queue_api->size( 'repair_object' );
+        my $o_e0 = $0;
         while ( $loop && $sth->execute( $storage_id, $object_id ) > 0 ) {
             $sth->bind_columns( \($object_id) );
             while ( $sth->fetchrow_arrayref ) {
                 $queue_api->enqueue( repair_object => "NP:$object_id" );
                 $processed++;
-                $0 = "$0 (object_id: $object_id, $processed)";
+                $0 = "$o_e0 (object_id: $object_id, $processed)";
             }
 
             # wait here until we have processed the rows that we just
