@@ -349,6 +349,10 @@ sub repair {
         object_id => $object_id,
         storage_id => { in => [ map { $_->{id} } @storages ] }
     });
+    if (STF_DEBUG) {
+        debugf( "Object %s has %d entities that's not in cluster %d",
+            $object_id, scalar @entities, $designated_cluster->{id});
+    }
     if (@entities) {
         $self->get('API::Entity')->remove({
             object => $object,
