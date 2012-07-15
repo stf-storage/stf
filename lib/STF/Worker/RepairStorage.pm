@@ -15,6 +15,10 @@ has '+interval' => (
 sub work_once {
     my $self = shift;
 
+    my $o_e0 = $0;
+    my $guard = Scope::Guard->new(sub {
+        $0 = $o_e0;
+    });
     local $STF::Log::PREFIX = "Repair(S)" if STF_DEBUG;
     eval {
         my $api = $self->get('API::Storage');
@@ -74,7 +78,6 @@ sub work_once {
             SELECT object_id FROM entity WHERE storage_id = ? AND object_id > ? ORDER BY object_id ASC LIMIT $limit
 EOSQL
         my $size = $queue_api->size( 'repair_object' );
-        my $o_e0 = $0;
         while ( $loop && $sth->execute( $storage_id, $object_id ) > 0 ) {
             $sth->bind_columns( \($object_id) );
             while ( $sth->fetchrow_arrayref ) {
