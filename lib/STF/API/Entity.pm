@@ -243,6 +243,14 @@ sub remove {
 
     # Attempt to remove actual bad entities
     foreach my $broken ( @$storages ) {
+        if ($force_logical_delete) {
+            debugf("Storage %s is known to be broken, but proceeding with logical delete anyway", $broken->{uri}) if STF_DEBUG;
+            $self->delete({
+                storage_id => $broken->{id},
+                object_id  => $object->{id},
+            });
+        }
+
         my $cache_key = [ "storage", $broken->{id}, "http_accessible" ];
         my $st        = $self->cache_get( @$cache_key );
         my $mode      = $broken->{mode};
@@ -251,15 +259,7 @@ sub remove {
                $mode != STORAGE_MODE_REPAIR_NOW &&
                $mode != STORAGE_MODE_REPAIR )
         ) {
-            if ($force_logical_delete) {
-                debugf("Storage %s is known to be broken, but proceeding with logical delete anyway", $broken->{uri}) if STF_DEBUG;
-                $self->delete({
-                    storage_id => $broken->{id},
-                    object_id  => $object->{id},
-                });
-            } else {
-                debugf("Storage %s is known to be broken. Skipping delete request", $broken->{uri}) if STF_DEBUG;
-            }
+            debugf("Storage %s is known to be broken. Skipping physical delete", $broken->{uri}) if STF_DEBUG;
             next;
         }
 
@@ -268,15 +268,17 @@ sub remove {
         eval {
             my (undef, $code, $msg) = $furl->delete( $url );
 
-            # XXX Remember which hosts would respond to HTTP
-            # This is here to speed up the recovery process
             if ( $code eq 404 || HTTP::Status::is_success($code) ) {
-                $self->delete( {
-                    storage_id => $broken->{id},
-                    object_id  => $object->{id},
-                } );
+                if (! $force_logical_delete) {
+                    $self->delete( {
+                        storage_id => $broken->{id},
+                        object_id  => $object->{id},
+                    } );
+                }
             } elsif ( HTTP::Status::is_error($code) ) {
                 # XXX This error code is probably not portable.
+                # XXX Remember which hosts would respond to HTTP
+                # This is here to speed up the recovery process
                 if ( $msg =~ /(?:Cannot connect to|Failed to send HTTP request: Broken pipe)/ ) {
                     $self->cache_set( $cache_key, -1, 5 * 60 );
                 }
