@@ -78,6 +78,7 @@ EOSQL
         while ( $loop && $sth->execute( $storage_id, $object_id ) > 0 ) {
             $sth->bind_columns( \($object_id) );
             while ( $sth->fetchrow_arrayref ) {
+                $dbh->do("SELECT queue_end()");
                 $queue_api->enqueue( repair_object => "NP:$object_id" );
                 $processed++;
                 $0 = "$o_e0 (object_id: $object_id, $processed)";
