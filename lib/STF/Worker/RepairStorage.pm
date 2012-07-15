@@ -85,7 +85,6 @@ EOSQL
                 $processed++;
                 $0 = "$o_e0 (object_id: $object_id, $processed)";
             }
-            $dbh->do("SELECT queue_end()");
 
             # wait here until we have processed the rows that we just
             # inserted into the repair queue
