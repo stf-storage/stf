@@ -75,10 +75,10 @@ sub work_once {
         my $queue_api = $self->get('API::Queue');
         my $dbh = $self->get('DB::Master');
         my $sth = $dbh->prepare(<<EOSQL);
-            SELECT object_id FROM entity WHERE storage_id = ? AND object_id > ? ORDER BY object_id ASC LIMIT $limit
+            SELECT object_id FROM entity WHERE storage_id = ? ORDER BY object_id ASC LIMIT $limit
 EOSQL
         my $size = $queue_api->size( 'repair_object' );
-        while ( $loop && $sth->execute( $storage_id, $object_id ) > 0 ) {
+        while ( $loop && $sth->execute( $storage_id ) > 0 ) {
             $sth->bind_columns( \($object_id) );
             while ( $sth->fetchrow_arrayref ) {
                 $queue_api->enqueue( repair_object => "NP:$object_id" );
