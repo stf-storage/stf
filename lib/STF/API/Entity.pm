@@ -447,6 +447,7 @@ sub fetch_content_from_any {
         SELECT s.id, s.uri 
             FROM storage s JOIN entity e ON s.id = e.storage_id
             WHERE s.mode IN (?, ?) AND e.object_id = ?
+            ORDER BY rand()
 EOSQL
 
     if ( scalar( @$storages ) == 0) {
