@@ -90,7 +90,7 @@ EOSQL
             # inserted into the repair queue
             my $prev = $size;
             $size = $queue_api->size( 'repair_object' );
-            while ( $size > $prev && abs($prev - $size) > $prev * 0.05 ) {
+            while ( $size > $prev && abs($prev - $size) > $limit * 0.05 ) {
                 sleep(60);
                 $size = $queue_api->size( 'repair_object' );
             }
