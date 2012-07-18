@@ -1,7 +1,7 @@
 package STF::API::StorageCluster;
 use Mouse;
 use Digest::MD5 ();
-use STF::Constants qw(STF_DEBUG STORAGE_CLUSTER_MODE_READ_WRITE);
+use STF::Constants qw(STF_DEBUG STORAGE_MODE_READ_WRITE STORAGE_CLUSTER_MODE_READ_WRITE);
 use STF::Log;
 
 with 'STF::API::WithDBI';
@@ -39,7 +39,14 @@ sub store {
 
     my @storages = $self->get('API::Storage')->search({
         cluster_id => $cluster->{id},
+        mode       => STORAGE_MODE_READ_WRITE,
     });
+    if (@storages < 3) { # we MUST have at least 3 storages to write to
+        if (STF_DEBUG) {
+            debugf ("Cluster %s does not have enough storages to write to (minimum 3)", $cluster->{id});
+        }
+        return;
+    }
     if (STF_DEBUG) {
         debugf(
             "Attempting to store object %s in cluster %s (want %d copies)",
