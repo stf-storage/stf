@@ -73,9 +73,11 @@ BEGIN {
         # These are only used to denote that an automatic migration
         # is happening
 
-        STORAGE_MODE_REPAIR => 5,
-        STORAGE_MODE_REPAIR_NOW => 6,
+        STORAGE_MODE_REPAIR_OBJECT => 5,
+        STORAGE_MODE_REPAIR_OBJECT_NOW => 6,
         STORAGE_MODE_REPAIR_DONE => 7,
+        STORAGE_MODE_REPAIR_ENTITY => 8,
+        STORAGE_MODE_REPAIR_ENTITY_NOW => 9,
         # These storages are not crashed, they don't need to be
         # emptied out, they just need to be checked for repairments
 
@@ -110,8 +112,10 @@ my @storage = qw(
     STORAGE_MODE_RETIRE
     STORAGE_MODE_MIGRATE_NOW
     STORAGE_MODE_MIGRATED
-    STORAGE_MODE_REPAIR
-    STORAGE_MODE_REPAIR_NOW
+    STORAGE_MODE_REPAIR_ENTITY
+    STORAGE_MODE_REPAIR_OBJECT
+    STORAGE_MODE_REPAIR_ENTITY_NOW
+    STORAGE_MODE_REPAIR_OBJECT_NOW
     STORAGE_MODE_REPAIR_DONE
 
     STORAGE_MODE_SPARE

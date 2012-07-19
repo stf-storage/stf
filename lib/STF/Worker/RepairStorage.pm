@@ -26,16 +26,25 @@ sub work_once {
         # There may be multiple storages, but we only process one at a time,
         # so just pick one
 
-        my ($storage) = $api->search( { mode => STORAGE_MODE_REPAIR } );
+        my ($storage) = $api->search( {
+            mode => { -in => [ STORAGE_MODE_REPAIR_OBJECT, STORAGE_MODE_REPAIR_ENTITY ] }
+        } );
         if (! $storage) {
             infof("No storage to repair");
             return;
         }
 
+        my $o_mode = $storage->{mode};
+        my $new_mode = ($o_mode == STORAGE_MODE_REPAIR_OBJECT) ?
+            STORAGE_MODE_REPAIR_OBJECT_NOW :
+            STORAGE_MODE_REPAIR_ENTITY_NOW
+        ;
+            
+
         my $storage_id = $storage->{id};
         infof("Repairing storage %s", $storage_id) if STF_DEBUG;
         my $ok = $api->update( $storage_id,
-            { mode => STORAGE_MODE_REPAIR_NOW, updated_at => \'NOW()' },
+            { mode => $new_mode, updated_at => \'NOW()' },
             { updated_at => $storage->{updated_at} }
         );
         if (! $ok) {
@@ -47,7 +56,7 @@ sub work_once {
                 local $@;
                 eval {
                     $api->update( $storage_id,
-                        { mode => STORAGE_MODE_REPAIR, updated_at => \'NOW()' },
+                        { mode => $o_mode, updated_at => \'NOW()' },
                     );
                 };
             } );
@@ -97,7 +106,7 @@ EOSQL
 
             # Bail out if the value for mode has changed
             my $now = $api->lookup( $storage_id );
-            if ( $now->{mode} != STORAGE_MODE_REPAIR_NOW ) {
+            if ( $now->{mode} != $new_mode ) {
                 $bailout = 1;
                 last;
             }

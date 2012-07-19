@@ -87,7 +87,11 @@ sub delete_for_object_id {
 
         # XXX REPAIR mode is done while the storage is online, so you need to
         # at least attempt to delete the object
-        if ( $storage->{mode} != STORAGE_MODE_READ_WRITE && $storage->{mode} != STORAGE_MODE_REPAIR_NOW && $storage->{mode} != STORAGE_MODE_REPAIR ) {
+        my $mode = $storage->{mode};
+        if ( $mode != STORAGE_MODE_READ_WRITE &&
+             $mode != STORAGE_MODE_REPAIR_OBJECT_NOW &&
+             $mode != STORAGE_MODE_REPAIR_ENTITY_NOW 
+        ) {
             debugf(
                 "Storage %s is known to be broken. Skipping physical delete request\n",
                 $storage->{uri}
@@ -254,11 +258,7 @@ sub remove {
         my $cache_key = [ "storage", $broken->{id}, "http_accessible" ];
         my $st        = $self->cache_get( @$cache_key );
         my $mode      = $broken->{mode};
-        if ( ( defined $st && $st == -1 ) ||
-             ( $mode != STORAGE_MODE_READ_WRITE &&
-               $mode != STORAGE_MODE_REPAIR_NOW &&
-               $mode != STORAGE_MODE_REPAIR )
-        ) {
+        if ( ( defined $st && $st == -1 ) || ( $mode != STORAGE_MODE_READ_WRITE ) ) {
             debugf("Storage %s is known to be broken. Skipping physical delete", $broken->{uri}) if STF_DEBUG;
             next;
         }
@@ -468,6 +468,90 @@ EOSQL
 
     return $content;
 }
+
+sub repair {
+    my ($self, $object_id, $storage_id) = @_;
+
+    local $STF::Log::PREFIX = "Repair(E)";
+
+    $object_id or die "XXX no object_id";
+    $storage_id or die "XXX no storage_id";
+
+    debugf("Repairing entity for object %s on storage %s", $object_id, $storage_id,) if STF_DEBUG;
+
+    my $object_api = $self->get('API::Object');
+    my $storage_api = $self->get('API::Storage');
+    my $storage = $storage_api->lookup( $storage_id );
+    if (! $storage) {
+        if (STF_DEBUG) {
+            debugf("Could not find storage for %s", $storage_id );
+            debugf("Won't proceed with repair for object %s on storage %s", $object_id, $storage_id);
+        }
+        return;
+    }
+
+    my $object = $object_api->lookup( $object_id );
+    if (! $object) {
+        if (STF_DEBUG) {
+            debugf("Could not find object for %s", $object_id);
+            debugf("Won't proceed with repair for object %s on storage %s", $object_id, $storage_id);
+        }
+        return;
+    }
+
+    # is there an entity for this?
+    my ($entity) = $self->search({
+        storage_id => $storage->{id},
+        object_id  => $object->{id},
+    });
+    if (! $entity) {
+        # ooh, now it gets hairy. If the entity does not exist in
+        # database, how do we know if we should be replicating this
+        # in this storage node? Well... in that case, fix it for real
+        if (STF_DEBUG) {
+            debugf("Whoa, entity does not exist for object %s on storage %s", $object_id,  $storage_id);
+            debugf("Will let STF::Worker::RepairObject deal with this");
+        }
+        $self->get('API::Queue')->enqueue( repair_object => "NP:$object_id" );
+        return;
+    }
+
+    # if it got here, the object exists, the storage exists, and the
+    # entity exists on database. Now we just need to check if we need
+    # to fix the actual content in the storage
+    my $uri = sprintf "%s/%s", $storage->{uri}, $object->{internal_name};
+
+    my $content = $self->fetch_content({
+        storage => $storage,
+        object => $object
+    });
+    if (! $content) {
+        if (STF_DEBUG) {
+            debugf( "Whoa! Entity content for object %s on storage %s was not available.");
+            debugf( "Attempting to replicate from other sources");
+        }
+        $content = $self->fetch_content_from_any({
+            object => $object,
+        });
+        if (! $content) {
+            if (STF_DEBUG) {
+                debugf("PANIC! Could not retrieve content for object %s from any storage!", $object_id);
+                debugf("Maybe the object was deleted?");
+            }
+            return;
+        }
+
+        $self->store({
+            storage => $storage,
+            object => $object,
+            content => $content
+        });
+    }
+
+    if (STF_DEBUG) {
+        debugf("Repair done for entity for object %s on storage %s", $object_id, $storage_id);
+    }
+} 
 
 no Mouse;
 

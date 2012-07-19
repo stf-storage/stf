@@ -17,15 +17,9 @@ sub is_writable {
     #       captain obvious
     #    2) STORAGE_MODE_SPARE:
     #       because this is just a spare in case something happens
-    #    3) STORAGE_MODE_REPAIR(_NOW|_DONE)?:
-    #       'repair' storages are ones that are being repaired, but are
-    #       not necessarily broken. (if it's broken, you should just 'crash' it)
     return
         $mode == STORAGE_MODE_READ_WRITE  ||
-        $mode == STORAGE_MODE_SPARE       ||
-        $mode == STORAGE_MODE_REPAIR      ||
-        $mode == STORAGE_MODE_REPAIR_DONE ||
-        $mode == STORAGE_MODE_REPAIR_NOW
+        $mode == STORAGE_MODE_SPARE 
     ;
 }
 
@@ -36,8 +30,6 @@ sub is_readable {
         $mode == STORAGE_MODE_READ_ONLY   ||
         $mode == STORAGE_MODE_READ_WRITE  ||
         $mode == STORAGE_MODE_SPARE       ||
-        $mode == STORAGE_MODE_REPAIR      ||
-        $mode == STORAGE_MODE_REPAIR_NOW  ||
         $mode == STORAGE_MODE_REPAIR_DONE
 }
 
@@ -99,9 +91,6 @@ sub load_writable_for {
     my @writable_modes = (
        STORAGE_MODE_READ_WRITE,
        STORAGE_MODE_SPARE,
-       STORAGE_MODE_REPAIR,
-       STORAGE_MODE_REPAIR_NOW,
-       STORAGE_MODE_REPAIR_DONE,
     );
     my $storages = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, @writable_modes, $cluster->{id}, $object->{id});
         SELECT s.* FROM storage s

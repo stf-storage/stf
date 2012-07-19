@@ -255,23 +255,28 @@ sub repair {
 
     my $object = $self->lookup( $object_id );
     my $entity_api = $self->get( 'API::Entity' );
+
+    # XXX Object does not exist. Hmm, glitch? either way, there's no
+    # way for anybody to get to this object, so we might as well say
+    # goodbye to the entities that belong to this object, if any
     if (! $object) {
         debugf("No matching object %s", $object_id ) if STF_DEBUG;
 
         my @entities = $entity_api->search( {
             object_id => $object_id 
         } );
-        if (@entities) {
-            if ( STF_DEBUG ) {
-                debugf("Removing orphaned entities in storages:\n");
-                foreach my $entity ( @entities ) {
-                    debugf("+ %s", $entity->{storage_id});
-                }
-            }
-            $entity_api->delete( {
-                object_id => $object_id
-            } );
+        if (! @entities) {
+            return;
         }
+        if ( STF_DEBUG ) {
+            debugf("Removing orphaned entities in storages:\n");
+            foreach my $entity ( @entities ) {
+                debugf("+ %s", $entity->{storage_id});
+            }
+        }
+        $entity_api->delete( {
+            object_id => $object_id
+        } );
         return;
     }
 
