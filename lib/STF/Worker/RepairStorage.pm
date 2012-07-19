@@ -27,7 +27,7 @@ sub work_once {
         # so just pick one
 
         my ($storage) = $api->search( {
-            mode => [ IN => [ STORAGE_MODE_REPAIR_OBJECT, STORAGE_MODE_REPAIR_ENTITY ] ]
+            mode => { IN => [ STORAGE_MODE_REPAIR_OBJECT, STORAGE_MODE_REPAIR_ENTITY ] }
         } );
         if (! $storage) {
             infof("No storage to repair");
