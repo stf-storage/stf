@@ -41,17 +41,30 @@ sub work_once {
         local $SIG{TERM} = $sig->("TERM");
 
         my $bailout = 0;
-        my $limit = 10_000;
+        my $limit = 2_000;
         my $object_id = 0;
         my $processed = 0;
+        my $last_check = 0;
         my $queue_api = $self->get('API::Queue');
         my $storage_api = $self->get('API::Storage');
         my $dbh = $self->get('DB::Master');
         my $sth = $dbh->prepare(<<EOSQL);
             SELECT id FROM object WHERE id > ? ORDER BY id ASC LIMIT $limit
 EOSQL
-        my $size = $queue_api->size( 'repair_object' );
         while ( $loop ) {
+            my $now = time();
+            if ($last_check + 900 > $now) { # only insert every 15 min max
+                next;
+            }
+
+            # Only add to queue if there are no more elements to process
+            # (i.e. this has the lowest priority)
+            my $size = $queue_api->size( 'repair_object' );
+            if ( $size > 0 ) {
+                sleep(60);
+                next;
+            }
+
             # Halt this process for a while if there are pending
             # repairs. 
             my @storages = $storage_api->search( {
@@ -72,20 +85,12 @@ EOSQL
                 next;
             }
 
+            $last_check = $now;
             $sth->bind_columns( \($object_id) );
             while ( $sth->fetchrow_arrayref ) {
                 $queue_api->enqueue( repair_object => "NP:$object_id" );
                 $processed++;
                 $0 = "$o_e0 (object_id: $object_id, $processed)";
-            }
-
-            # wait here until we have processed the rows that we just
-            # inserted into the repair queue
-            my $prev = $size;
-            $size = $queue_api->size( 'repair_object' );
-            while ( $size > $prev && abs($prev - $size) > $limit * 0.05 ) {
-                sleep(60);
-                $size = $queue_api->size( 'repair_object' );
             }
         }
     };
