@@ -73,7 +73,8 @@ has workers => (
             DeleteBucket  => 4,
             DeleteObject  => 4,
             RepairObject  => 4,
-            RepairStorage => 1,
+            RepairStorage => 0, # explicitly enable
+            ContinuousRepair => 0, # explicitly enable
         );
         return \%workers,
     },
