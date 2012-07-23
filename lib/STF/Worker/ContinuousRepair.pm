@@ -41,15 +41,24 @@ sub work_once {
         local $SIG{TERM} = $sig->("TERM");
 
         my $bailout = 0;
-        my $limit = 2_000;
         my $object_id = 0;
         my $processed = 0;
+        my $limit;
         my $queue_api = $self->get('API::Queue');
         my $storage_api = $self->get('API::Storage');
         my $dbh = $self->get('DB::Master');
-        my $sth = $dbh->prepare(<<EOSQL);
-            SELECT id FROM object WHERE id > ? ORDER BY id ASC LIMIT $limit
+
+        # Approximate the number of objects in this system by checking 
+        # getting the difference between max/min object_ids
+        my ($objcount_guess) = $dbh->selectrow_array(<<EOSQL);
+            SELECT (max(id) - min(id) / 1000000000) FROM object
 EOSQL
+        $objcount_guess = int($objcount_guess);
+        if ($objcount_guess <= 0) {
+            $limit = 2000;
+        } else {
+            $limit = int($objcount_guess / 1_000);
+        }
         while ( $loop ) {
             # Only add to queue if there are no more elements to process
             # (i.e. this has the lowest priority)
@@ -74,6 +83,10 @@ EOSQL
                 next;
             }
 
+            my $offset = int rand $limit;
+            my $sth = $dbh->prepare(<<EOSQL);
+                SELECT id FROM object WHERE id > ? ORDER BY id ASC LIMIT 100 OFFSET $offset 
+EOSQL
             if ($sth->execute( $object_id ) <= 0 ) {
                 $loop = 0;
                 next;
