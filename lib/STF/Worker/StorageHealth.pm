@@ -53,7 +53,7 @@ sub work_once {
         if (my $e = $@) {
             # we got an error...
             printf STDERR <<EOM, $uri, $e, $storage->{id}, $storage->{uri}, $res[1];
-[StorageHealth] CRITICAL! FAILED TO GET '%s'
+[StorageHealth] CRITICAL! FAILED TO PUT/HEAD/GET/DELETE '%s'
 [StorageHealth]    error      : %s
 [StorageHealth]    storage id : %d
 [StorageHealth]    storage uri: %s
@@ -67,6 +67,23 @@ EOM
                     updated_at => \'NOW()',
                 }
             );
+            # The above update() should suffice (and we even have tests for it)
+            # but since something wasn't going right, make absolute sure that
+            # the storage is down
+            my $cached = $storage_api->lookup( $storage->{id} );
+            while ($cached->{mode} != STORAGE_MODE_TEMPORARILY_DOWN) {
+                if (STF_DEBUG) {
+                    printf STDERR "Wha?! mode for storage %s is not DOWN ? Trying to update again...\n", $storage->{id};
+                }
+                $storage_api->update($storage->{id}, {
+                    mode => STORAGE_MODE_TEMPORARILY_DOWN
+                });
+                sleep 1;
+                $cached = $storage_api->lookup( $storage->{id} );
+            }
+            if (STF_DEBUG) {
+                printf STDERR "Successfully brough storage %s DOWN", $storage->{id};
+            }
         }
     }
 }
