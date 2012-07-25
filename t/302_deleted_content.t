@@ -98,7 +98,7 @@ EOSQL
 
     my $queue_api = $container->get('API::Queue');
     foreach my $entity (@entities) {
-        $queue_api->enqueue( repair_object => "$entity->{object_id}:$entity->{storage_id}" );
+        $queue_api->enqueue( repair_object => $entity->{object_id} );
     }
 
     {
@@ -106,7 +106,7 @@ EOSQL
             local $SIG{ALRM} = sub { die "RepairObject timeout" };
             alarm(5);
             my $worker = STF::Worker::RepairObject->new(
-                container => $context->container,
+                container => $container,
                 max_works_per_child => scalar @entities,
             );
             $worker->work;
