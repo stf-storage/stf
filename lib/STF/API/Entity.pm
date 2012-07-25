@@ -227,12 +227,13 @@ sub remove {
     my ($self, $args) = @_;
 
     local $STF::Log::PREFIX = "Remove(E)";
-    my $object = $args->{object} or die "XXX no object";
+    my $object   = $args->{object} or die "XXX no object";
     my $storages = $args->{storages} or die "XXX no storages";
-    my $force_logical_delete = $args->{force_logical_delete};
+    my $repair   = $args->{repair};
+    my $storage_api = $self->get('API::Storage');
 
     if (STF_DEBUG) {
-        debugf( "Removing broken entities for %s in", $object->{id});
+        debugf( "Removing entities for %s in", $object->{id});
         foreach my $storage (@$storages) {
             debugf(" - [%d] %s", $storage->{id}, $storage->{uri} || '(null)');
         }
@@ -244,19 +245,25 @@ sub remove {
 
     # Attempt to remove actual bad entities
     foreach my $broken ( @$storages ) {
-        if ($force_logical_delete) {
-            debugf("Storage %s is known to be broken, but proceeding with logical delete anyway", $broken->{uri}) if STF_DEBUG;
-            $self->delete({
-                storage_id => $broken->{id},
-                object_id  => $object->{id},
-            });
-        }
+        $self->delete({
+            storage_id => $broken->{id},
+            object_id  => $object->{id},
+        });
 
         my $cache_key = [ "storage", $broken->{id}, "http_accessible" ];
         my $st        = $self->cache_get( @$cache_key );
         my $mode      = $broken->{mode};
-        if ( ( defined $st && $st == -1 ) || ( $mode != STORAGE_MODE_READ_WRITE ) ) {
-            debugf("Storage %s is known to be broken. Skipping physical delete", $broken->{uri}) if STF_DEBUG;
+        if ( defined $st && $st == -1 ) {
+            if (STF_DEBUG) {
+                debugf("Storage %s was previous unaccessible, skipping physical delete",
+                    $broken->{uri});
+            }
+            next;
+        }
+        if ( ! $storage_api->is_writable( $broken ) ) {
+            if (STF_DEBUG) {
+                debugf("Storage %s is not writable, skipping physical delete", $broken->{uri});
+            }
             next;
         }
 
@@ -265,14 +272,18 @@ sub remove {
         eval {
             my (undef, $code, $msg) = $furl->delete( $url );
 
-            if ( $code eq 404 || HTTP::Status::is_success($code) ) {
-                if (! $force_logical_delete) {
-                    $self->delete( {
-                        storage_id => $broken->{id},
-                        object_id  => $object->{id},
-                    } );
+            if ( $code eq 404 ) {
+                if (STF_DEBUG) {
+                    debugf("%s was not found while deleting. Oh well", $url);
+                }
+            } elsif ( HTTP::Status::is_success($code) ) {
+                if (STF_DEBUG) {
+                    debugf("Successfully deleted %s", $url);
                 }
             } elsif ( HTTP::Status::is_error($code) ) {
+                if (STF_DEBUG) {
+                    debugf("An error occurred while deleting %s: '%s'", $url, $msg );
+                }
                 # XXX This error code is probably not portable.
                 # XXX Remember which hosts would respond to HTTP
                 # This is here to speed up the recovery process
