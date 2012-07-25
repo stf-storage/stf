@@ -185,9 +185,16 @@ sub register_for_object {
     ) if STF_DEBUG;
 
     my $dbh = $self->dbh;
-    $dbh->do( <<EOSQL, undef, $object_id, $cluster_id );
-        REPLACE INTO object_cluster_map (object_id, cluster_id) VALUES (?, ?)
+    my $rv;
+    eval {
+        $rv = $dbh->do( <<EOSQL, undef, $object_id, $cluster_id );
+            REPLACE INTO object_cluster_map (object_id, cluster_id) VALUES (?, ?)
 EOSQL
+    };
+    if ($@) {
+        critf("Error while register object %s to cluster %s: %s", $object_id, $cluster_id, $@);
+    }
+    return $rv;
 }
 
 sub load_for_object {
