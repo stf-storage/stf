@@ -3,6 +3,7 @@ use Mouse;
 use Digest::MD5 ();
 use STF::Constants qw(STF_DEBUG STORAGE_MODE_READ_WRITE STORAGE_CLUSTER_MODE_READ_WRITE);
 use STF::Log;
+use STF::API::Storage;
 
 with 'STF::API::WithDBI';
 
@@ -27,6 +28,7 @@ sub store {
     my $content   = $args->{content}   or die "XXX no content";;
     my $minimum   = $args->{minimum};
     my $force     = $args->{force};
+    my $repair    = $args->{repair};
 
     my $object     = $self->get('API::Object')->lookup($object_id);
     if (! $object) {
@@ -37,13 +39,19 @@ sub store {
         return;
     }
 
+    # If we're being repaired, then it's ok to write to the "in repair"
+    # storages, so we should be looking for all possible modes
+    my $modes = $repair ?
+        \@STF::API::Storage::WRITABLE_MODES_ON_REPAIR :
+        \@STF::API::Storage::WRITABLE_MODES
+    ;
     my @storages = $self->get('API::Storage')->search({
         cluster_id => $cluster->{id},
-        mode       => STORAGE_MODE_READ_WRITE,
+        mode       => { in => $modes },
     });
     if (@storages < 3) { # we MUST have at least 3 storages to write to
         if (STF_DEBUG) {
-            debugf ("Cluster %s does not have enough storages to write to (minimum 3)", $cluster->{id});
+            debugf ("Cluster %s does not have enough storages to write to (minimum 3, got %d)", $cluster->{id}, scalar @storages);
         }
         return;
     }
@@ -103,6 +111,7 @@ sub store {
                 object  => $object,
                 storage => $storage,
                 content => $content,
+                repair  => $repair,
             });
             if ($ok) {
                 $stored++;

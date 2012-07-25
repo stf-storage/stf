@@ -87,13 +87,9 @@ sub delete_for_object_id {
 
         # XXX REPAIR mode is done while the storage is online, so you need to
         # at least attempt to delete the object
-        my $mode = $storage->{mode};
-        if ( $mode != STORAGE_MODE_READ_WRITE &&
-             $mode != STORAGE_MODE_REPAIR_OBJECT_NOW &&
-             $mode != STORAGE_MODE_REPAIR_ENTITY_NOW 
-        ) {
+        if ( ! $storage_api->is_writable($storage) ) {
             debugf(
-                "Storage %s is known to be broken. Skipping physical delete request\n",
+                "Storage %s is known to be un-writable. Skipping physical delete request\n",
                 $storage->{uri}
             ) if STF_DEBUG;
             next;
@@ -137,10 +133,11 @@ sub store {
     my $storage = $args->{storage} or die "XXX no storage";
     my $object  = $args->{object}  or die "XXX no object";
     my $content = $args->{content} or die "XXX no content";
+    my $repair  = $args->{repair};
     my $furl    = $self->get('Furl');
 
     my $storage_api = $self->get('API::Storage');
-    if (! $storage_api->is_writable( $storage ) ) {
+    if (! $storage_api->is_writable( $storage, $repair ) ) {
         if ( STF_DEBUG ) {
             debugf("Storage [%s] is not writable, skipping write", $storage->{id});
         }

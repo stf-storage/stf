@@ -72,10 +72,8 @@ EOSQL
             # repairs. 
             my @storages = $storage_api->search( {
                 mode => { IN => [ 
-                    STORAGE_MODE_REPAIR_OBJECT,
-                    STORAGE_MODE_REPAIR_ENTITY,
-                    STORAGE_MODE_REPAIR_OBJECT_NOW,
-                    STORAGE_MODE_REPAIR_ENTITY_NOW
+                    STORAGE_MODE_REPAIR,
+                    STORAGE_MODE_REPAIR_NOW,
                 ] }
             } );
             if (@storages > 0)  {

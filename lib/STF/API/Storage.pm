@@ -6,21 +6,36 @@ use STF::Log;
 with 'STF::API::WithDBI';
 
 my @META_KEYS = qw(used capacity notes);
+# XXX The storage is writeable in the following cases:
+#    1) STORAGE_MODE_READ_WRITE:
+#       captain obvious
+#    2) STORAGE_MODE_SPARE:
+#       because this is just a spare in case something happens
+#    3) STORAGE_MODE_REPAIR, STORAGE_MODE_REPAIR_NOW, STORAGE_MODE_REPAIR_DONE
+#       If it's going to be repaired, being repaired, or was repaired
+our @WRITABLE_MODES = (
+    STORAGE_MODE_READ_WRITE,
+    STORAGE_MODE_SPARE,
+);
+our @WRITABLE_MODES_ON_REPAIR = (
+    @WRITABLE_MODES,
+    STORAGE_MODE_REPAIR,
+    STORAGE_MODE_REPAIR_NOW,
+    STORAGE_MODE_REPAIR_DONE,
+);
 
 sub is_writable {
-    my ($self, $storage) = @_;
+    my ($self, $storage, $repair) = @_;
 
     my $mode = $storage->{mode};
 
-    # XXX The storage is writeable in the following cases:
-    #    1) STORAGE_MODE_READ_WRITE:
-    #       captain obvious
-    #    2) STORAGE_MODE_SPARE:
-    #       because this is just a spare in case something happens
-    return
-        $mode == STORAGE_MODE_READ_WRITE  ||
-        $mode == STORAGE_MODE_SPARE 
-    ;
+    my $modes = $repair ? \@WRITABLE_MODES_ON_REPAIR : \@WRITABLE_MODES;
+    foreach my $ok_mode (@$modes) {
+        if ($mode == $ok_mode) {
+            return 1;
+        }
+    }
+    return ();
 }
 
 sub is_readable {
@@ -88,13 +103,9 @@ sub load_writable_for {
     my $cluster = $args->{cluster} or die "XXX no cluster";
     my $object  = $args->{object}  or die "XXX no object";
     my $dbh = $self->dbh;
-    my @writable_modes = (
-       STORAGE_MODE_READ_WRITE,
-       STORAGE_MODE_SPARE,
-    );
-    my $storages = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, @writable_modes, $cluster->{id}, $object->{id});
+    my $storages = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, @WRITABLE_MODES, $cluster->{id}, $object->{id});
         SELECT s.* FROM storage s
-            WHERE s.mode in(@{[ join ', ', map { '?' } @writable_modes ]}) AND s.cluster_id = ? AND s.id NOT IN
+            WHERE s.mode in(@{[ join ', ', map { '?' } @WRITABLE_MODES ]}) AND s.cluster_id = ? AND s.id NOT IN
                 (SELECT storage_id FROM entity WHERE object_id = ?)
         ORDER BY rand()
 EOSQL
@@ -113,10 +124,11 @@ sub update_meta {
 around update => sub {
     my ($next, $self, $id, $args) = @_;
     my $rv = $self->$next($id, $args);
-    if (! ref $id ) {
+    eval {
+        my $pk = ref $id ? $id->{id} : $id;
         my $storage = $self->lookup( $id );
         $self->cache_delete( storage_cluster => $storage->{cluster_id} );
-    }
+    };
     return $rv;
 };
 

@@ -27,7 +27,7 @@ sub work_once {
         # so just pick one
 
         my ($storage) = $api->search( {
-            mode => { IN => [ STORAGE_MODE_REPAIR_OBJECT, STORAGE_MODE_REPAIR_ENTITY ] }
+            mode => { IN => [ STORAGE_MODE_REPAIR, STORAGE_MODE_CRASH ] }
         } );
         if (! $storage) {
             infof("No storage to repair");
@@ -35,14 +35,22 @@ sub work_once {
         }
 
         my $o_mode = $storage->{mode};
-        my $new_mode = ($o_mode == STORAGE_MODE_REPAIR_OBJECT) ?
-            STORAGE_MODE_REPAIR_OBJECT_NOW :
-            STORAGE_MODE_REPAIR_ENTITY_NOW
-        ;
-            
+        my ($new_mode, $end_mode);
+        if ($o_mode == STORAGE_MODE_REPAIR) {
+            $new_mode = STORAGE_MODE_REPAIR_NOW;
+            $end_mode = STORAGE_MODE_REPAIR_DONE;
+        } else {
+            $new_mode = STORAGE_MODE_CRASH_RECOVER_NOW;
+            $end_mode = STORAGE_MODE_CRASH_RECOVERED;
+        }
 
         my $storage_id = $storage->{id};
-        infof("Repairing storage %s", $storage_id) if STF_DEBUG;
+        if (STF_DEBUG) {
+            infof("Repairing storage %s (mode was %s)",
+                $storage_id,
+                $o_mode == STORAGE_MODE_REPAIR ? "REPAIR" : "CRASH"
+            );
+        }
         my $ok = $api->update( $storage_id,
             { mode => $new_mode, updated_at => \'NOW()' },
             { updated_at => $storage->{updated_at} }
@@ -115,7 +123,7 @@ EOSQL
         $guard->dismiss;
         infof("Storage %d, processed %d rows", $storage_id, $processed );
         if (! $bailout) {
-            $api->update( $storage_id => { mode => STORAGE_MODE_REPAIR_DONE } );
+            $api->update( $storage_id => { mode => $end_mode } );
         }
     };
     if (my $e = $@) {

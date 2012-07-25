@@ -58,19 +58,17 @@ sub paginate {
 }
 
 my %mode_str = (
-    STF::Constants::STORAGE_MODE_CRASH_RECOVERED() => 'crash_recovered',
-    STF::Constants::STORAGE_MODE_CRASH_RECOVER_NOW() => 'crash_recovering',
-    STF::Constants::STORAGE_MODE_CRASH() => 'crash',
+    STF::Constants::STORAGE_MODE_CRASH_RECOVERED() => 'crashed (repair done)',
+    STF::Constants::STORAGE_MODE_CRASH_RECOVER_NOW() => 'crashed (repairing now)',
+    STF::Constants::STORAGE_MODE_CRASH() => 'crashed (need repair)',
     STF::Constants::STORAGE_MODE_RETIRE() => 'retire',
     STF::Constants::STORAGE_MODE_MIGRATE_NOW() => 'migrating',
     STF::Constants::STORAGE_MODE_MIGRATED() => 'migrated',
     STF::Constants::STORAGE_MODE_READ_WRITE() => 'rw',
     STF::Constants::STORAGE_MODE_READ_ONLY() => 'ro',
     STF::Constants::STORAGE_MODE_TEMPORARILY_DOWN() => 'down',
-    STF::Constants::STORAGE_MODE_REPAIR_OBJECT() => 'need repair (object)',
-    STF::Constants::STORAGE_MODE_REPAIR_ENTITY() => 'need repair (entity)',
-    STF::Constants::STORAGE_MODE_REPAIR_OBJECT_NOW() => 'repairing (object)',
-    STF::Constants::STORAGE_MODE_REPAIR_ENTITY_NOW() => 'repairing (entity)',
+    STF::Constants::STORAGE_MODE_REPAIR() => 'need repair',
+    STF::Constants::STORAGE_MODE_REPAIR_NOW() => 'repairing',
     STF::Constants::STORAGE_MODE_REPAIR_DONE() => 'repair done',
 );
 

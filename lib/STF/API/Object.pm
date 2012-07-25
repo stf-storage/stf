@@ -330,6 +330,7 @@ sub repair {
                 cluster   => $cluster,
                 object_id => $object_id,
                 content   => $master_content,
+                repair    => 1,
             });
             if ($ok) {
                 $designated_cluster = $cluster;
@@ -638,6 +639,18 @@ sub rename {
         name      => $dest_object_name
     } );
 }
+
+# When we receive ->cache_delete( $self->table, $id ), then we should
+# be deleting some other caches as well
+around cache_delete => sub {
+    my ($next, $self, @args) = @_;
+
+    $self->$next(@args);
+    if (@args == 2 && $args[0] eq $self->table) {
+        debugf( "Cache Delete storages_for, too" );
+        $self->cache_delete( "storages_for", $args[1] );
+    }
+};
 
 no Mouse;
 

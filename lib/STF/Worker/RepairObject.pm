@@ -23,28 +23,14 @@ sub work_once {
         $propagate = 0;
     }
 
-    # XXX We're cramming this in the same worker because it's more costly
-    # to create a q4m queue for this
-    if ( $object_id =~ /:/ ) {
-        my $storage_id;
-        ($object_id, $storage_id) = split /:/, $object_id;
-        eval {
-            my $entity_api = $self->get('API::Entity');
-            $entity_api->repair( $object_id, $storage_id );
-        };
-        if ($@) {
-            Carp::confess("Failed to repair entity for object $object_id on storage $storage_id: $@");
+    eval {
+        my $object_api = $self->get('API::Object');
+        if ($object_api->repair( $object_id )) {
+            debugf("Repaired object %s.", $object_id) if STF_DEBUG;
         }
-    } else {
-        eval {
-            my $object_api = $self->get('API::Object');
-            if ($object_api->repair( $object_id )) {
-                debugf("Repaired object %s.", $object_id) if STF_DEBUG;
-            }
-        };
-        if ($@) {
-            Carp::confess("Failed to repair $object_id: $@");
-        }
+    };
+    if ($@) {
+        Carp::confess("Failed to repair $object_id: $@");
     }
 }
 
