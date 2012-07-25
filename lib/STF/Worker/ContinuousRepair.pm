@@ -56,6 +56,8 @@ EOSQL
         $objcount_guess = int($objcount_guess);
         if ($objcount_guess <= 0) {
             $limit = 2000;
+        } elsif ($objcount_guess > 10_000_000) {
+            $limit = 10_000;
         } else {
             $limit = int($objcount_guess / 1_000);
         }
