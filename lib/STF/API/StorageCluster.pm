@@ -143,8 +143,9 @@ sub store {
 
 sub check_entity_health {
     my ($self, $args) = @_;
-    my $object_id = $args->{object_id} or die "XXX no object";
+    my $object_id  = $args->{object_id} or die "XXX no object";
     my $cluster_id = $args->{cluster_id} or die "XXX no cluster";
+    my $repair     = $args->{repair};
 
     my @storages = $self->get('API::Storage')->search({
         cluster_id => $cluster_id
@@ -158,8 +159,9 @@ sub check_entity_health {
     my $entity_api = $self->get('API::Entity');
     foreach my $storage (List::Util::shuffle(@storages)) {
         my $ok = $entity_api->check_health({
-            object_id => $object_id,
+            object_id  => $object_id,
             storage_id => $storage->{id},
+            repair     => $repair,
         });
         if (! $ok) {
             return ();

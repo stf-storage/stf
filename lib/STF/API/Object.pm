@@ -302,6 +302,7 @@ sub repair {
     my $ok = $cluster_api->check_entity_health({
         cluster_id => $clusters[0]->{id},
         object_id  => $object_id,
+        repair     => 1,
     });
 
     my $designated_cluster;

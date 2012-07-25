@@ -305,8 +305,9 @@ sub check_health {
     my ($self, $args) = @_;
 
     local $STF::Log::PREFIX = "Health(E)";
-    my $object_id = $args->{object_id} or die "XXX no object";
+    my $object_id  = $args->{object_id} or die "XXX no object";
     my $storage_id = $args->{storage_id} or die "XXX no storage";
+    my $repair     = $args->{repair};
 
     my ($entity) = $self->get('API::Entity')->search({
         storage_id => $storage_id,
@@ -337,7 +338,7 @@ sub check_health {
     # if this were the case, we DO NOT issue an DELETE on the backend, 
     # as it most likely will not properly respond.
     my $storage_api = $self->get('API::Storage');
-    if (! $storage_api->is_readable($storage)) {
+    if (! $storage_api->is_readable($storage, $repair)) {
         debugf(
             "Storage %s is not readable. Adding to invalid list.",
             $storage->{id}

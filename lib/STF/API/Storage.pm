@@ -38,14 +38,27 @@ sub is_writable {
     return ();
 }
 
+our @READABLE_MODES = (
+    STORAGE_MODE_READ_ONLY,
+    STORAGE_MODE_READ_WRITE,
+);
+our @READABLE_MODES_ON_REPAIR = (
+    @READABLE_MODES,
+    STORAGE_MODE_REPAIR,
+    STORAGE_MODE_REPAIR_NOW,
+    STORAGE_MODE_REPAIR_DONE,
+);
 sub is_readable {
-    my ($self, $storage) = @_;
+    my ($self, $storage, $repair) = @_;
     my $mode = $storage->{mode};
+
+    my $modes = $repair ? \@READABLE_MODES_ON_REPAIR : \@READABLE_MODES;
+    foreach my $ok_mode (@$modes) {
+        if ($mode == $ok_mode) {
+            return 1;
+        }
+    }
     return 
-        $mode == STORAGE_MODE_READ_ONLY   ||
-        $mode == STORAGE_MODE_READ_WRITE  ||
-        $mode == STORAGE_MODE_SPARE       ||
-        $mode == STORAGE_MODE_REPAIR_DONE
 }
 
 # XXX These queries to load meta info should, and can be optimized
