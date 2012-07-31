@@ -92,7 +92,7 @@ sub work_once {
         my $queue_api = $self->get('API::Queue');
         my $dbh = $self->get('DB::Master');
         my $sth = $dbh->prepare(<<EOSQL);
-            SELECT object_id FROM entity WHERE storage_id = ? AND object_id > ? ORDER BY object_id ASC LIMIT $limit
+            SELECT object_id FROM entity FORCE INDEX (PRIMARY) WHERE storage_id = ? AND object_id > ? ORDER BY object_id ASC LIMIT $limit
 EOSQL
         my $size = $queue_api->size( 'repair_object' );
         while ( $loop && $sth->execute( $storage_id, $object_id ) > 0 ) {
