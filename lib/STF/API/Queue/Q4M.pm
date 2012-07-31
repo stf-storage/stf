@@ -99,7 +99,7 @@ EOSQL
         }
 
         if (STF_DEBUG) {
-            debugf(" -> INSERT rv = %s", $rv);
+            debugf(" -> INSERT %s rv = %s", $object_id, $rv);
         }
 
         return $rv;
