@@ -55,17 +55,14 @@ sub entities {
     my $object_id = $c->request->param('since') || 0;
     my $limit = 100;
 
-    my @entities = $c->get('API::Entity')->search(
-        {
-            object_id => { '>' => $object_id },
-            storage_id => $storage_id,
-        },
-        {
-            order_by => 'object_id asc',
-            limit => $limit
-        }
-    );
-
+    my @entities = 
+    my $dbh = $c->get('DB::Master');
+    my $entities = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, $storage_id, $object_id );
+        SELECT * FROM entity FORCE INDEX(PRIMARY)
+            WHERE storage_id = ? AND object_id > ?
+            ORDER BY object_id ASC
+            LIMIT $limit
+EOSQL
     my $sql = <<EOSQL;
         SELECT
             CONCAT_WS( "/", b.name, o.name ) as object_url,
@@ -78,7 +75,7 @@ EOSQL
     my $dbh = $c->get('DB::Master');
     my $sth = $dbh->prepare( $sql );
     my ($object_url, $internal_name, $object_status);
-    foreach my $entity ( @entities ) {
+    foreach my $entity ( @$entities ) {
         $sth->execute( $entity->{object_id} );
         $sth->bind_columns( \($object_url, $internal_name, $object_status) );
         if ($sth->fetchrow_arrayref) {
@@ -90,7 +87,7 @@ EOSQL
     }
 
     my $stash = $c->stash;
-    $stash->{entities} = \@entities;
+    $stash->{entities} = $entities;
 }
 
 sub add {
