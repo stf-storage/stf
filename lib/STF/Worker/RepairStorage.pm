@@ -120,7 +120,9 @@ EOSQL
             }
         }
 
-        $guard->dismiss;
+        if ($guard) {
+            $guard->dismiss;
+        }
         infof("Storage %d, processed %d rows", $storage_id, $processed );
         if (! $bailout) {
             $api->update( $storage_id => { mode => $end_mode } );
