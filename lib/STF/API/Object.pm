@@ -298,7 +298,7 @@ sub repair {
     my $cluster = $cluster_api->load_for_object( $object_id  );
     my @clusters = $cluster_api->load_candidates_for( $object_id );
 
-    # The object should be inthe first cluster found, so run a health check
+    # The object should be in the first cluster found, so run a health check
     my $ok = $cluster_api->check_entity_health({
         cluster_id => $clusters[0]->{id},
         object_id  => $object_id,
