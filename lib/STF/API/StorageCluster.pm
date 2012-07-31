@@ -152,6 +152,12 @@ sub check_entity_health {
     my $cluster_id = $args->{cluster_id} or die "XXX no cluster";
     my $repair     = $args->{repair};
 
+    local $STF::Log::PREFIX = "Cluster" if STF_DEBUG;
+
+    if (STF_DEBUG) {
+        debugf( "Checking entity health for object %s on cluster %s" );
+    }
+
     # Short circuit. If the cluster mode is not rw or ro, then
     # we have a problem.
     my $cluster = $self->lookup($cluster_id);
