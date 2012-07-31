@@ -78,14 +78,8 @@ sub work {
         $sth = $dbh->prepare(<<EOSQL);
             SELECT args FROM $table WHERE queue_wait('$waitcond', 60)
 EOSQL
-        my $rv = $sth->execute();
         $self->incr_processed();
-        if ($rv == 0) { # nothing found
-            $sth->finish;
-            eval { $dbh->do("SELECT queue_end()") };
-            next;
-        }
-
+        my $rv = $sth->execute();
         $sth->bind_columns( \$object_id );
         while ( $self->should_loop && $sth->fetchrow_arrayref ) {
             my $extra_guard;
