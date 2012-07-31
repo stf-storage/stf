@@ -58,7 +58,7 @@ sub entities {
     my @entities = 
     my $dbh = $c->get('DB::Master');
     my $entities = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, $storage_id, $object_id );
-        SELECT * FROM entity FORCE INDEX(PRIMARY)
+        SELECT * FROM entity
             WHERE storage_id = ? AND object_id > ?
             ORDER BY object_id ASC
             LIMIT $limit
