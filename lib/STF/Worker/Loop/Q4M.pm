@@ -81,7 +81,8 @@ EOSQL
         $self->incr_processed();
         my $rv = $sth->execute();
         $sth->bind_columns( \$object_id );
-        while ( $self->should_loop && $sth->fetchrow_arrayref ) {
+        while ( $sth->fetchrow_arrayref ) {
+            eval { $dbh->do("SELECT queue_end()") };
             my $extra_guard;
             if (STF_DEBUG) {
                 my ($row_id) = $dbh->selectrow_array( "SELECT queue_rowid()" );
@@ -108,7 +109,6 @@ EOSQL
                 Time::HiRes::usleep( $interval );
             }
         }
-        eval { $dbh->do("SELECT queue_end()") };
     }
     eval { $dbh->do("SELECT queue_end()") };
 
