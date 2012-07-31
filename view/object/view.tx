@@ -30,6 +30,10 @@
     <td>[% object.num_replica %]</td>
 </tr>
 <tr>
+    <td>Size</td>
+    <td>[% object.size %]</td>
+</tr>
+<tr>
     <td>Last Modified</td>
     <td>[% object.updated_at %]</td>
 </tr>
