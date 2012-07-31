@@ -34,6 +34,11 @@ BEGIN {
 
         STORAGE_CLUSTER_MODE_READ_ONLY  => 0,
         STORAGE_CLUSTER_MODE_READ_WRITE => 1,
+        STORAGE_CLUSTER_MODE_RETIRE     => 2,
+        # Denotes that the cluster has been (or is being) retired.
+        # Read operations on storages are still valid, but upon repair,
+        # the worker(s) will consider this cluster to be unusable, and
+        # will therefore replenish the object in another cluster
 
         STORAGE_MODE_CRASH_RECOVERED => -4,
         STORAGE_MODE_CRASH_RECOVER_NOW => -3,
@@ -71,7 +76,7 @@ BEGIN {
         STORAGE_MODE_MIGRATE_NOW => 3,
         STORAGE_MODE_MIGRATED => 4,
         # These are only used to denote that an automatic migration
-        # is happening
+        # is happening (XXX Unused?)
 
         STORAGE_MODE_REPAIR => 5,
         STORAGE_MODE_REPAIR_NOW => 6,
@@ -100,6 +105,7 @@ my @entity = qw(ENTITY_INACTIVE ENTITY_ACTIVE);
 my @storage = qw(
     STORAGE_CLUSTER_MODE_READ_ONLY
     STORAGE_CLUSTER_MODE_READ_WRITE
+    STORAGE_CLUSTER_MODE_RETIRE
     STORAGE_MODE_REMOVED
     STORAGE_MODE_CRASH_RECOVERED
     STORAGE_MODE_CRASH_RECOVER_NOW

@@ -1,7 +1,12 @@
 package STF::API::StorageCluster;
 use Mouse;
 use Digest::MD5 ();
-use STF::Constants qw(STF_DEBUG STORAGE_MODE_READ_WRITE STORAGE_CLUSTER_MODE_READ_WRITE);
+use STF::Constants qw(
+    STF_DEBUG
+    STORAGE_MODE_READ_WRITE
+    STORAGE_CLUSTER_MODE_READ_WRITE
+    STORAGE_CLUSTER_MODE_READ_ONLY
+);
 use STF::Log;
 use STF::API::Storage;
 
@@ -146,6 +151,18 @@ sub check_entity_health {
     my $object_id  = $args->{object_id} or die "XXX no object";
     my $cluster_id = $args->{cluster_id} or die "XXX no cluster";
     my $repair     = $args->{repair};
+
+    # Short circuit. If the cluster mode is not rw or ro, then
+    # we have a problem.
+    my $cluster = $self->lookup($cluster_id);
+    if ($cluster->{mode} != STORAGE_CLUSTER_MODE_READ_WRITE &&
+        $cluster->{mode} != STORAGE_CLUSTER_MODE_READ_ONLY
+    ) {
+        if (STF_DEBUG) {
+            debugf("Cluster %s is not read-write or read-only, need to move object %s out of this cluster", $cluster_id, $object_id );
+        }
+        return ();
+    }
 
     my @storages = $self->get('API::Storage')->search({
         cluster_id => $cluster_id
