@@ -71,13 +71,15 @@ sub enqueue {
     );
     foreach my $queue_name ( sort { $queues{$a} <=> $queues{$b} } keys %queues) {
         my $dbh = $self->dbh($queue_name);
-        debugf(
-            "INSERT %s into %s for %s on %s",
-            $object_id,
-            $table,
-            $func,
-            $queue_name
-        );
+        if (STF_DEBUG) {
+            debugf(
+                "INSERT %s into %s for %s on %s",
+                $object_id,
+                $table,
+                $func,
+                $queue_name
+            );
+        }
 
         my $rv;
         my $err = STF::Utils::timeout_call(
@@ -94,6 +96,10 @@ EOSQL
             critf(" + func: %s", $func);
             critf(" + object ID = %s", $object_id);
             next;
+        }
+
+        if (STF_DEBUG) {
+            debugf(" -> INSERT rv = %s", $rv);
         }
 
         return $rv;
