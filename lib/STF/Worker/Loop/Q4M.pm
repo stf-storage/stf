@@ -82,7 +82,6 @@ EOSQL
         my $rv = $sth->execute();
         $sth->bind_columns( \$object_id );
         while ( $sth->fetchrow_arrayref ) {
-            eval { $dbh->do("SELECT queue_end()") };
             my $extra_guard;
             if (STF_DEBUG) {
                 my ($row_id) = $dbh->selectrow_array( "SELECT queue_rowid()" );
@@ -94,6 +93,7 @@ EOSQL
                     debugf("---- END %s:%s ----", $table, $row_id) if STF_DEBUG;
                 } );
             }
+            eval { $dbh->do("SELECT queue_end()") };
 
             my $sig_guard = Scope::Guard->new(\&$setsig);
 
