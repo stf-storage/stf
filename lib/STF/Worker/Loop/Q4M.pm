@@ -82,6 +82,7 @@ EOSQL
         $self->incr_processed();
         if ($rv == 0) { # nothing found
             $sth->finish;
+            eval { $dbh->do("SELECT queue_end()") };
             next;
         }
 
@@ -98,7 +99,6 @@ EOSQL
                     debugf("---- END %s:%s ----", $table, $row_id) if STF_DEBUG;
                 } );
             }
-            eval { $dbh->do("SELECT queue_end()") };
 
             my $sig_guard = Scope::Guard->new(\&$setsig);
 
@@ -114,6 +114,7 @@ EOSQL
                 Time::HiRes::usleep( $interval );
             }
         }
+        eval { $dbh->do("SELECT queue_end()") };
     }
     eval { $dbh->do("SELECT queue_end()") };
 

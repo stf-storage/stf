@@ -89,6 +89,7 @@ EOSQL
     } while (@object_names < 10);
 
     {
+        note "Going to work $total_objects times...";
         my $worker = STF::Worker::Replicate->new(
             container => $container,
             max_works_per_child => $total_objects,
@@ -96,6 +97,7 @@ EOSQL
         $worker->work;
     }
 
+    note "Replication done, not checking cluster";
 
     # At this point we know there are at least 10 objects in this cluster
     # Now change the mode of a storage in this cluster to CRASHED.
@@ -104,6 +106,7 @@ EOSQL
         cluster_id => $cluster->{id}
     });
 
+    note "Changing storage $storage->{id} to CRASH";
     $storage_api->update( $storage->{id}, {
         mode => STORAGE_MODE_CRASH
     });
@@ -118,6 +121,7 @@ EOSQL
     # in the worker
 
     {
+        note "Running Repair Storage worker";
         my $worker = STF::Worker::RepairStorage->new(
             container => $container,
             max_works_per_child => 1,
@@ -134,6 +138,7 @@ EOSQL
         # should be processing in order not to block
         my $queue_api = $container->get('API::Queue');
         my $count     = $queue_api->size( "repair_object" );
+        note "Running RepairObject worker $count times";
         my $worker = STF::Worker::RepairObject->new(
             container => $container,
             max_works_per_child => $count,
