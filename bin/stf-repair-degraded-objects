@@ -1,0 +1,95 @@
+#!perl
+use strict;
+use Parallel::ForkManager;
+use STF::Context;
+use STF::Constants qw(STF_DEBUG);
+use STF::Log;
+
+our $DBNAME = "DB::Slave"; # XXX Make it configurable later
+
+main() unless caller();
+
+sub main {
+    my $cxt   = STF::Context->bootstrap;
+    my $pfm   = Parallel::ForkManager->new(10);
+    my $c     = $cxt->container;
+    my $guard = $c->new_scope();
+    my $dbh   = $c->get($DBNAME);
+    my $limit = 500;
+    my $min_object_id = 0;
+    my $max_object_id = 0;
+    my $sth = $dbh->prepare(<<EOSQL);
+        SELECT id FROM object WHERE id >= ? AND status = 1 ORDER BY id ASC LIMIT $limit,1
+EOSQL
+
+    local $dbh->{InactiveDestroy} = 1;
+    while ( defined $max_object_id ) {
+        ($max_object_id) = $dbh->selectrow_array($sth, undef, $min_object_id);
+
+        if (! defined $max_object_id) {
+            last;
+        }
+
+        if ($pfm->start) {
+            if ($min_object_id eq $max_object_id) {
+                last;
+            }
+            $min_object_id = $max_object_id;
+            next;
+        }
+
+        eval {
+            process($cxt, $min_object_id, $max_object_id);
+        };
+        if ($@) {
+            critf("Error while processing %s -> %s: %s", $min_object_id, $max_object_id, $@);
+        }
+        $pfm->finish;
+    }
+
+    $pfm->wait_all_children;
+}
+
+sub process {
+    my ($cxt, $min_object_id, $max_object_id) = @_;
+
+    $0 = "$0 worker $min_object_id -> $max_object_id";
+
+    if (STF_DEBUG) {
+        debugf( "Processing objects between %s to %s", $min_object_id, $max_object_id );
+    }
+
+    my $c     = $cxt->container;
+    my $guard = $c->new_scope(1);
+    my $dbh   = $c->get($DBNAME);
+    my $q_api = $c->get('API::Queue');
+
+    local $dbh->{InactiveDestroy} = 1;
+
+    my $object_id;
+    my $count_sth = $dbh->prepare(<<EOSQL);
+        SELECT COUNT(*) FROM entity WHERE object_id = ? AND status = 1
+EOSQL
+    my $sth = $dbh->prepare(<<EOSQL);
+        SELECT id FROM object WHERE id >= ? AND id < ? ORDER BY id ASC
+EOSQL
+    my $rv = $sth->execute( $min_object_id, $max_object_id );
+    $sth->bind_columns( \($object_id) );
+    while( $sth->fetchrow_arrayref ) {
+        my ($count) = $dbh->selectrow_array($count_sth, undef, $object_id);
+
+        if ($count == 0) {
+            critf( "Object %s has no entities... broken, or deleted. Skipping.", $object_id );
+            next;
+        }
+
+        if ($count < 3) {
+            if (STF_DEBUG) {
+                debugf( "Object %s needs at least 3 entities (have %d). Sending to repair", $object_id, $count );
+            }
+            $q_api->enqueue( repair_object => "NP:$object_id" );
+        }
+    }
+}
+
+1;
