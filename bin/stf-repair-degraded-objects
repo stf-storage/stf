@@ -71,7 +71,7 @@ sub process {
         SELECT COUNT(*) FROM entity WHERE object_id = ? AND status = 1
 EOSQL
     my $sth = $dbh->prepare(<<EOSQL);
-        SELECT id FROM object WHERE id >= ? AND id < ? ORDER BY id ASC
+        SELECT id FROM object WHERE id >= ? AND id < ? AND status = 1 ORDER BY id ASC
 EOSQL
     my $rv = $sth->execute( $min_object_id, $max_object_id );
     $sth->bind_columns( \($object_id) );
