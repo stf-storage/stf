@@ -155,7 +155,7 @@ sub check_entity_health {
     local $STF::Log::PREFIX = "Cluster" if STF_DEBUG;
 
     if (STF_DEBUG) {
-        debugf( "Checking entity health for object %s on cluster %s" );
+        debugf( "Checking entity health for object %s on cluster %s", $object_id, $cluster_id );
     }
 
     # Short circuit. If the cluster mode is not rw or ro, then
