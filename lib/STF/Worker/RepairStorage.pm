@@ -7,10 +7,21 @@ use STF::Log;
 
 extends 'STF::Worker::Base';
 with 'STF::Trait::WithContainer';
+with 'STF::Trait::WithLeaderElection';
 
 has '+interval' => (
     default => 5 * 60 * 1_000_000
 );
+
+around work => sub {
+    my ($next, $self) = @_;
+
+    my $guard = $self->elect_leader();
+    return unless $guard;
+
+    $self->$next();
+    undef $guard;
+};
 
 sub work_once {
     my $self = shift;
