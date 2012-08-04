@@ -68,7 +68,11 @@ sub process {
 
     my $object_id;
     my $count_sth = $dbh->prepare(<<EOSQL);
-        SELECT COUNT(*) FROM entity WHERE object_id = ? AND status = 1
+        SELECT COUNT(*)
+            FROM entity JOIN storage ON entity.storage_id = storage.id
+            WHERE object_id = ?
+                AND status = 1
+                AND storage.status IN (0, 1)
 EOSQL
     my $sth = $dbh->prepare(<<EOSQL);
         SELECT id FROM object WHERE id >= ? AND id < ? AND status = 1 ORDER BY id ASC
