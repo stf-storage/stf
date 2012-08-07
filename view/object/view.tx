@@ -18,6 +18,10 @@
     <td><a href="[% c.stf_uri( bucket, object) %]">[% c.stf_uri( bucket, object) %]</a></td>
 </tr>
 <tr>
+    <td>Internal Name</td>
+    <td>[% object.internal_name %]</td>
+</tr>
+<tr>
     <td>Bucket</td>
     <td><a href="/bucket/[% bucket.id %]">[% bucket.name %]</a></td>
 </tr>
