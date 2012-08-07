@@ -52,12 +52,18 @@
 </thead>
 <tbody>
 <tr>
-    <th>[% loc('Storage ID') %]</th><th>[% loc('Entity URL') %]</th><th>[% loc('Status') %]</th>
+    <th>[% loc('Storage ID') %]</th>
+    <th>[% loc('Entity URL') %]</th>
+    <th>[% loc('Created On') %]</th>
+    <th>[% loc('Updated On') %]</th>
+    <th>[% loc('Status') %]</th>
 </tr>
 [% FOREACH entity IN entities %]
 <tr>
     <td class="digit">[% entity.storage_id %]</td>
     <td class="text"><a href="[% entity.url %]">[% entity.url %]</a></td>
+    <td class="text">[% entity.created_at %]</td>
+    <td class="text">[% entity.updated_at %]</td>
     <td class="digit">[% IF (entity.status == const.OBJECT_ACTIVE) %]Active[% ELSE %]Inactive[% END %]</td>
 </tr>
 [% END %]
