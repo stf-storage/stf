@@ -3,22 +3,7 @@ use Furl::HTTP;
 use String::Urandom;
 use Cache::Memcached::Fast;
 use Class::Load ();
-use STF::API::Bucket;
-use STF::API::Config;
-use STF::API::DeletedObject;
-use STF::API::Entity;
-use STF::API::Object;
-use STF::API::Storage;
-use STF::API::StorageCluster;
 use STF::Constants qw(STF_ENABLE_STORAGE_META STF_ENABLE_OBJECT_META);
-BEGIN {
-    if ( STF_ENABLE_STORAGE_META ) {
-        require STF::API::StorageMeta;
-    }
-    if ( STF_ENABLE_OBJECT_META ) {
-        require STF::API::ObjectMeta;
-    }
-}
 use STF::Constants qw(STF_DEBUG STF_TRACE);
 
 if (STF_TRACE) {
@@ -58,6 +43,7 @@ foreach my $dbkey (qw(DB::Master DB::Queue)) {
     }, { scoped => 1 };
 }
 
+require STF::API::Object;
 register 'API::Object' => sub {
     my $c = shift;
     STF::API::Object->new(
@@ -70,13 +56,17 @@ register 'API::Object' => sub {
 
 my @api_names = qw(API::Bucket API::Config API::Entity API::DeletedObject API::Storage API::StorageCluster);
 if ( STF_ENABLE_STORAGE_META ) {
+    require STF::API::StorageMeta;
     push @api_names, 'API::StorageMeta';
 }
 if ( STF_ENABLE_OBJECT_META ) {
+    require STF::API::ObjectMeta;
     push @api_names, 'API::ObjectMeta';
 }
 foreach my $name (@api_names) {
     my $klass = "STF::$name";
+    eval "require $klass";
+    die if $@;
     register $name => sub {
         my $c = shift;
         $klass->new(

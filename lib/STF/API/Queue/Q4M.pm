@@ -4,17 +4,15 @@ use Digest::MurmurHash ();
 use STF::Constants qw(:func STF_DEBUG);
 use STF::Log;
 
-with 'STF::Trait::WithDBI';
+with qw(
+    STF::Trait::WithDBI
+    STF::API::Queue
+);
 
 has funcmap => (
     is => 'rw',
     lazy => 1,
     builder => 'build_funcmap'
-);
-
-has queue_names => (
-    is => 'rw',
-    required => 1,
 );
 
 sub build_funcmap {
@@ -33,19 +31,14 @@ sub get_func_id {
     $self->funcmap->{$func};
 }
 
-sub size {
-    my ($self, $func) = @_;
-
+sub size_for_queue {
+    my ($self, $func, $queue_name) = @_;
+    my $dbh = $self->dbh($queue_name);
     my $table = "queue_$func";
-    my $total = 0;
-    foreach my $queue_name ( @{ $self->queue_names } ) {
-        my $dbh = $self->dbh($queue_name);
-        my ($count) = $dbh->selectrow_array( <<EOSQL );
-            SELECT COUNT(*) FROM $table
+    my ($count) = $dbh->selectrow_array( <<EOSQL );
+        SELECT COUNT(*) FROM $table
 EOSQL
-        $total += $count;
-    }
-    return $total;
+    return $count;
 }
 
 sub enqueue {

@@ -4,7 +4,10 @@ use STF::Constants qw(STF_DEBUG);
 use TheSchwartz;
 use STF::Log;
 
-with qw(STF::Trait::WithDBI);
+with qw(
+    STF::Trait::WithDBI
+    STF::API::Queue
+);
 
 has ability_map => (
     is => 'rw',
@@ -22,11 +25,9 @@ sub build_ability_map {
     };
 }
 
-sub size {
-    my ($self, $func) = @_;
-
-    my $dbh = $self->get('DB::Queue');
-    my $client = $self->get_client();
+sub size_for_queue {
+    my ($self, $func, $queue_name) = @_;
+    my $dbh = $self->get($queue_name);
     my $ability = $self->get_ability($func);
     my ($count) = $dbh->selectrow_array( <<EOSQL, undef, $ability );
         SELECT COUNT(*) FROM
@@ -43,14 +44,15 @@ sub get_ability {
 }
 
 sub get_client {
-    my ($self) = @_;
+    my ($self, $queue_name) = @_;
 
-    my $client = $self->{client};
+    my $client = $self->{clients}->{$queue_name};
     if (! $client) {
-        my $dbh = $self->get('DB::Queue') or
+        my $dbh = $self->get($queue_name) or
             Carp::confess( "Could not fetch DB::Queue" );
         my $driver = Data::ObjectDriver::Driver::DBI->new( dbh => $dbh );
-        $self->{client} = $client = TheSchwartz->new( databases => [ { driver => $driver } ] );
+        $self->{client}->{$queue_name} = $client =
+            TheSchwartz->new( databases => [ { driver => $driver } ] );
     }
     return $client;
 }
@@ -67,26 +69,38 @@ sub enqueue {
         Carp::confess("No object_id given for $func");
     }
 
-    my $client = $self->get_client();
-    my $rv;
-    my $err = STF::Utils::timeout_call(
-        0.5,
-        sub {
-            $rv = $client->insert( $ability, $object_id );
-        }
+    my $queue_names = $self->queue_names;
+    my %queues = (
+        map {
+            ( $_ => Digest::MurmurHash::murmur_hash( $_ . $object_id ) )
+        } @$queue_names
     );
-    if ( $err ) {
-        # XXX Don't wrap in STF_DEBUG
-        critf("Error while enqueuing: %s\n + func: %s\n + object ID = %s\n",
-            $err,
-            $func,
-            $object_id,
+    foreach my $queue_name ( sort { $queues{$a} <=> $queues{$b} } keys %queues) {
+        my $client = $self->get_client($queue_name);
+        my $rv;
+        my $err = STF::Utils::timeout_call(
+            0.5,
+            sub {
+                $rv = $client->insert( $ability, $object_id );
+            }
         );
-        next;
+        if ( $err ) {
+            # XXX Don't wrap in STF_DEBUG
+            critf("Error while enqueuing: %s\n + func: %s\n + object ID = %s\n",
+                $err,
+                $func,
+                $object_id,
+            );
+            next;
+        }
+
+        if (STF_DEBUG) {
+            debugf("Enqueued %s (%s)", $ability, $object_id);
+        }
+        return $rv;
     }
 
-    debugf("Enqueued %s (%s)", $ability, $object_id) if STF_DEBUG;
-    return $rv;
+    return ();
 }
 
 no Mouse;
