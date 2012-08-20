@@ -101,6 +101,11 @@ sub add_post {
     my $result = $self->validate( $c, storage_add => $params );
     if ($result->success) {
         my $valids = $result->valid;
+        foreach my $key (keys %$valids) {
+            if ($key =~ /^meta_(.+)$/) {
+                $valids->{$1} = delete $valids->{$key};
+            }
+        }
         $c->get('API::Storage')->create( $valids );
         $c->redirect( $c->uri_for('/storage', {done => 1}) );
     } else {
