@@ -78,6 +78,8 @@ around search => sub {
 around lookup => sub {
     my ($next, $self, $id) = @_;
     my $object = $self->$next($id);
+    return () unless $object;
+
     if ( STF_ENABLE_STORAGE_META ) {
         my ($meta) = $self->get('API::StorageMeta')->search({
             storage_id => $object->{id}
