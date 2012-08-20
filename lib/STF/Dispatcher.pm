@@ -518,7 +518,10 @@ sub create_object {
         $self->enqueue( delete_object => $old_object_id );
     }
 
-    $self->enqueue( replicate => $object_id );
+    if ($res) {
+        $self->enqueue( replicate => $object_id );
+    }
+
     if (STF_TIMER) {
         undef $post_timer;
     }
