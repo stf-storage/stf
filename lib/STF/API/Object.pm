@@ -3,6 +3,7 @@ use Mouse;
 use Digest::MurmurHash ();
 use HTTP::Status ();
 use List::Util ();
+use Scope::Guard ();
 use STF::Constants qw(
     :object
     :storage
@@ -212,6 +213,10 @@ sub store {
         replicas      => $replicas, # Unused, stored for back compat
     });
 
+    my $guard = Scope::Guard->new(sub {
+        eval { $self->delete( $object_id ) };
+    });
+
     # Load all possible clusteres, ordered by a consistent hash
     my @clusters = $cluster_api->load_candidates_for( $object_id );
     if (! @clusters) {
@@ -239,6 +244,7 @@ sub store {
                 object_id  => $object_id
             });
             # done
+            $guard->dismiss;
             return 1;
         }
     }
