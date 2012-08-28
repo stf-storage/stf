@@ -4,4 +4,4 @@ perl:
   - "5.12"
 env:
   - STF_QUEUE_TYPE=Schwartz
-
+  - STF_QUEUE_TYPE=Resque
