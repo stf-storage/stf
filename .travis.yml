@@ -5,3 +5,4 @@ perl:
 env:
   - STF_QUEUE_TYPE=Schwartz
   - STF_QUEUE_TYPE=Resque
+  - STF_QUEUE_TYPE=Redis
