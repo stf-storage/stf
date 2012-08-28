@@ -3,6 +3,7 @@ use Test::More;
 
 my $have_sqlite = eval { require DBD::SQLite };
 my $have_schwartz = eval { require TheSchwartz };
+my $have_resque = eval { require Resque };
 my @modules = map {
     my $f = $_;
     $f =~ s{^lib/}{};
@@ -20,6 +21,11 @@ foreach my $module (@modules) {
         if ( $module =~ /Schwartz/ && ! $have_schwartz ) {
             skip "TheSchwartz is not available", 1;
         }
+
+        if ( $module =~ /Resque/ && ! $have_resque ) {
+            skip "Resque is not available", 1;
+        }
+
         use_ok $module;
     }
 }
