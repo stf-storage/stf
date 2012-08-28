@@ -427,7 +427,7 @@ sub get_any_valid_entity_url {
 
         # Got storages, but we need to validate that they are indeed
         # readable, and that the uris match
-        my @storage_ids = map { $_->[0] } @$storages;
+        my @storage_ids = map { "storage.$_->[0]" } @$storages;
         my $storage_api = $self->get('API::Storage');
         my $lookup      = $storage_api->lookup_multi( @storage_ids );
 
