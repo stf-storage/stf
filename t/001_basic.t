@@ -11,7 +11,7 @@ use STF::Constants qw(
     STORAGE_CLUSTER_MODE_READ_ONLY STORAGE_CLUSTER_MODE_READ_WRITE
     STORAGE_MODE_TEMPORARILY_DOWN STORAGE_MODE_READ_WRITE
 );
-use STF::Test qw(clear_queue random_string);
+use STF::Test qw(clear_objects clear_queue random_string);
 
 use_ok "STF::Context";
 use_ok "STF::Worker::DeleteBucket";
