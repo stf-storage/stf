@@ -22,9 +22,9 @@ sub mysql_dsn_to_options {
 }
 
 sub load {
-    diag "Checking for explicit TEST_STF_DSN setup";
+    diag "Checking for explicit STF_MYSQL_DSN setup";
     # do we have an explicit mysql somewhere?
-    if (my $dsn = $ENV{TEST_STF_DSN}) {
+    if (my $dsn = $ENV{STF_MASTER_DSN}) {
         $ENV{TEST_MYSQL_OPTIONS} = mysql_dsn_to_options( $dsn );
         $ENV{TEST_MYSQL_DSN_OPTIONS} = do {
             $dsn =~ s/^[^;]+;//;

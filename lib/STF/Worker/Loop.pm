@@ -11,6 +11,18 @@ has processed => (
     default => 0,
 );
 
+has queue_name => (
+    is => 'rw',
+    lazy => 1,
+    default => sub {
+        my $queue_name =
+            $ENV{STF_WORKER_QUEUE_NAME} ||
+            'DB::Queue'
+        ;
+        return $queue_name;
+    }
+);
+
 has max_works_per_child => (
     is => 'rw',
     default => 1_000

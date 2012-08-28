@@ -9,7 +9,7 @@ BEGIN {
 }
 
 subtest crud => sub {
-    my $context = STF::Context->bootstrap( config => "t/config.pl" );
+    my $context = STF::Context->bootstrap();
     my $api = $context->get('API::Storage');
     ok $api;
 

@@ -54,7 +54,7 @@ my $code = sub {
         }
     }
 
-    my $context = STF::Context->bootstrap( config => "t/config.pl" ) ;
+    my $context = STF::Context->bootstrap() ;
 
     # XXX Find where this object belongs to
     my $container = $context->container;

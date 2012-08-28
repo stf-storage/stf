@@ -26,7 +26,7 @@ subtest 'create ID' => sub {
     note "now time() is " . time();
 
     local $ENV{STF_HOST_ID} = time();
-    my $d = STF::Dispatcher->bootstrap(config => "t/config.pl");
+    my $d = STF::Dispatcher->bootstrap();
 
     my @ids = map { $d->create_id } 1..10;
 
@@ -57,7 +57,7 @@ subtest 'enqueue timeout' => sub {
     SKIP : {
         skip "Unimplemented tests for Schwartz queues", 2;
 
-    my $ctxt = STF::Context->bootstrap(config => "t/config.pl");
+    my $ctxt = STF::Context->bootstrap();
     my $d    = STF::Dispatcher->new(
         cache_expires => 300,
         container => $ctxt->container,

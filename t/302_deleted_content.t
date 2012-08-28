@@ -47,7 +47,7 @@ my $code = sub {
             "Content" => $random_string->(1024)
     );
 
-    my $context = STF::Context->bootstrap( config => "t/config.pl" ) ;
+    my $context = STF::Context->bootstrap() ;
     # XXX Find where this object belongs to
     my $container = $context->container;
     {

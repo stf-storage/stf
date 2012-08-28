@@ -37,7 +37,7 @@ my $code = sub {
     my ($cb) = @_;
     my $res;
     my $bucket_name = $random_string->();
-    my $context = STF::Context->bootstrap( config => "t/config.pl" ) ;
+    my $context = STF::Context->bootstrap() ;
     my $container = $context->container;
     my $storage_api = $container->get('API::Storage');
     my $cluster_api = $container->get('API::StorageCluster');

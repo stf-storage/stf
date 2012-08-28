@@ -14,17 +14,11 @@ my $code = sub {
     my $cb = shift;
 
     my $IS_SCHWARTZ;
-    my $context = STF::Context->bootstrap( config => "t/config.pl" );
+    my $context = STF::Context->bootstrap();
     my $container = $context->container;
-    {
-        my $queue_dbh = $container->get( 'DB::Queue' );
-        # crude way to figure out which check to perform
-        my $list = $queue_dbh->selectall_arrayref( <<EOSQL, undef );
-            SHOW TABLES
-EOSQL
-        $IS_SCHWARTZ = grep { $_->[0] eq 'job' } @$list;
-    }
-    note "Are we using Schwartz? => " . ($IS_SCHWARTZ ? "YES" : "NO");
+
+    my $queue_type = $ENV{STF_QUEUE_TYPE}  || 'Q4M';
+    note "Using queue type $queue_type";
 
     my $bucket = "repair";
     my $content = join ".", $$, time(), {}, rand();
@@ -144,16 +138,24 @@ EOSQL
 
     # Keep requesting until the queue contains at least one repair_object
     # job in it
-    my $queue_dbh = $container->get( 'DB::Queue' );
     my $found_repair = 0;
+    my $queue_dbh = $container->get('DB::Queue');
     for (1..100) {
         $cb->( GET "http://127.0.0.1/$bucket/test" );
 
         my $object;
-        if ( $IS_SCHWARTZ ) {
+        if ( $queue_type eq 'Schwartz' ) {
             $object = $queue_dbh->selectrow_array( <<EOSQL, undef, $target->{id}, "STF::Worker::RepairObject::Proxy" );
                 SELECT job.* FROM job JOIN funcmap ON job.funcid = funcmap.funcid WHERE job.arg = ? AND funcmap.funcname = ?
 EOSQL
+        } elsif ( $queue_type eq 'Resque' ) {
+            my @jobs = $queue_dbh->peek('repair_object');
+            foreach my $job (@jobs) {
+                if ($job->args->[0] eq $target->{id}) {
+                    $object = $job;
+                    last;
+                }
+            }
         } else {
             $object = $queue_dbh->selectrow_array( <<EOSQL, undef, $target->{id});
                 SELECT * FROM queue_repair_object WHERE args = ?
@@ -177,7 +179,6 @@ EOSQL
         my $worker = STF::Worker::RepairObject->new(
             container => $context->container,
             max_works_per_child => 1,
-            breadth => 2,
         );
         $worker->work;
     };

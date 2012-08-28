@@ -69,38 +69,15 @@ sub enqueue {
         Carp::confess("No object_id given for $func");
     }
 
-    my $queue_names = $self->queue_names;
-    my %queues = (
-        map {
-            ( $_ => Digest::MurmurHash::murmur_hash( $_ . $object_id ) )
-        } @$queue_names
-    );
-    foreach my $queue_name ( sort { $queues{$a} <=> $queues{$b} } keys %queues) {
+    $self->enqueue_first_available($func, $object_id, sub {
+        my ($queue_name) = @_;
         my $client = $self->get_client($queue_name);
-        my $rv;
-        my $err = STF::Utils::timeout_call(
-            0.5,
-            sub {
-                $rv = $client->insert( $ability, $object_id );
-            }
-        );
-        if ( $err ) {
-            # XXX Don't wrap in STF_DEBUG
-            critf("Error while enqueuing: %s\n + func: %s\n + object ID = %s\n",
-                $err,
-                $func,
-                $object_id,
-            );
-            next;
-        }
-
+        my $rv = $client->insert( $ability, $object_id );
         if (STF_DEBUG) {
             debugf("Enqueued %s (%s)", $ability, $object_id);
         }
         return $rv;
-    }
-
-    return ();
+    });
 }
 
 no Mouse;

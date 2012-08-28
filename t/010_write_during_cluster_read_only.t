@@ -12,7 +12,7 @@ use Scope::Guard ();
 my $code = sub {
     my $cb = shift;
 
-    my $context = STF::Context->bootstrap( config => "t/config.pl" ) ;
+    my $context = STF::Context->bootstrap() ;
     my $container   = $context->container;
     my $bucket_name = random_string();
     my $object_name = random_string(32);

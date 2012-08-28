@@ -1,4 +1,7 @@
 package STF::Test;
+BEGIN {
+    $ENV{DEPLOY_ENV} = 'test';
+}
 use strict;
 use parent qw(Exporter);
 use Carp;
@@ -9,6 +12,7 @@ use Test::TCP;
 use Test::More;
 use Log::Minimal ();
 $Log::Minimal::LOG_LEVEL ||= "NONE";
+
 
 our @EXPORT_OK = qw(
     clear_queue
@@ -71,12 +75,31 @@ sub start_memcached {
 }
 
 sub clear_queue {
-    my $dbh = DBI->connect( $ENV{TEST_STF_QUEUE_DSN } );
+    no warnings 'redefine';
+    my $queue_type = $ENV{STF_QUEUE_TYPE} || 'Q4M';
+    if ($queue_type eq 'Resque') {
+        *clear_queue = \&clear_queue_redis;
+    } else {
+        *clear_queue = \&clear_queue_dbi;
+    }
+    goto &clear_queue;
+}
+
+sub clear_queue_dbi {
+    my $dbh = DBI->connect( $ENV{STF_QUEUE_DSN } );
     my $sth = $dbh->prepare( "SHOW TABLES" );
     $sth->execute();
     while ( my ($table) = $sth->fetchrow_array ) {
         next unless $table =~ /^queue_|^job$/;
         $dbh->do( "TRUNCATE $table" );
+    }
+}
+
+sub clear_queue_redis {
+    require Resque;
+    my $resque = Resque->new(redis => $ENV{STF_REDIS_HOSTPORT});
+    foreach my $qname ($resque->queues) {
+        $resque->remove_queue($qname);
     }
 }
 

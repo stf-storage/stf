@@ -55,14 +55,9 @@ sub enqueue {
     }
 
     my $table = "queue_$func";
-    # Sort the queue names by the murmur hash value of queue_name + object_id
-    my $queue_names = $self->queue_names;
-    my %queues = (
-        map {
-            ( $_ => Digest::MurmurHash::murmur_hash( $_ . $object_id ) )
-        } @$queue_names
-    );
-    foreach my $queue_name ( sort { $queues{$a} <=> $queues{$b} } keys %queues) {
+
+    $self->enqueue_first_available( $func, $object_id, sub {
+        my ($queue_name, $object_id) = @_;
         my $dbh = $self->dbh($queue_name);
         if (STF_DEBUG) {
             debugf(
@@ -73,32 +68,10 @@ sub enqueue {
                 $queue_name
             );
         }
-
-        my $rv;
-        my $err = STF::Utils::timeout_call(
-            0.5,
-            sub {
-                $rv = $dbh->do(<<EOSQL, undef, $object_id );
-                    INSERT INTO $table ( args, created_at ) VALUES (?, UNIX_TIMESTAMP( NOW() ) )
+        return $dbh->do(<<EOSQL, undef, $object_id );
+            INSERT INTO $table ( args, created_at ) VALUES (?, UNIX_TIMESTAMP( NOW() ) )
 EOSQL
-            }
-        );
-        if ( $err ) {
-            # XXX Don't wrap in STF_DEBUG
-            critf("Error while enqueuing: %s", $err);
-            critf(" + func: %s", $func);
-            critf(" + object ID = %s", $object_id);
-            next;
-        }
-
-        if (STF_DEBUG) {
-            debugf(" -> INSERT %s rv = %s", $object_id, $rv);
-        }
-
-        return $rv;
-    }
-
-    return ();
+    } );
 }
 
 no Mouse;

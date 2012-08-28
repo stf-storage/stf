@@ -24,23 +24,43 @@ register Memcached => sub {
     Cache::Memcached::Fast->new( $config->{'Memcached'} );
 };
 
-my @queue_names;
-foreach my $dbkey (qw(DB::Master DB::Queue)) {
-    # XXX lazy. We need to know which queue databases are available,
-    # so we'll just skim it from the list
-    if ( $dbkey =~ /::Queue/) {
-        push @queue_names, $dbkey;
-    }
-
-    register $dbkey => sub {
+my $register_dbh = sub {
+    my ($key) = @_;
+    register $key => sub {
         my $c = shift;
         my $config = $c->get('config');
-        my $dbh = DBI->connect( @{$config->{$dbkey}} );
+        my $dbh = DBI->connect( @{$config->{$key}} );
         $dbh->{HandleError} = sub {
             our @CARP_NOT = ('STF::API::WithDBI');
             Carp::croak(shift) };
         return $dbh;
     }, { scoped => 1 };
+};
+my $register_resque = sub {
+    my ($key) = @_;
+    register $key => sub {
+        my $c = shift;
+        my $config = $c->get('config');
+        my $resque = Resque->new(%{$config->{$key}});
+        return $resque;
+    }, { scoped => 1 };
+};
+
+$register_dbh->('DB::Master');
+
+my $queue_type = $ENV{ STF_QUEUE_TYPE } || 'Q4M';
+my @queue_names =
+    exists $ENV{STF_QUEUE_NAMES} ? split( /\s*,\s*/, $ENV{STF_QUEUE_NAMES} ) :
+    qw(DB::Queue)
+;
+
+foreach my $dbkey (@queue_names) {
+    if ($queue_type eq 'Resque') {
+        require Resque;
+        $register_resque->($dbkey);
+    } else {
+        $register_dbh->($dbkey);
+    }
 }
 
 require STF::API::Object;
@@ -80,14 +100,13 @@ foreach my $name (@api_names) {
 # Our queue may be switched
 register "API::Queue" => sub {
     my $c = shift;
-    my $type = $ENV{ STF_QUEUE_TYPE } || 'Q4M';
-    my $klass = "STF::API::Queue::$type";
+    my $klass = "STF::API::Queue::$queue_type";
     Class::Load::load_class($klass)
         if ! Class::Load::is_class_loaded($klass);
 
     $klass->new(
         cache_expires => 86400,
-        %{ $c->get('config')->{ "API::Queue::$type" } || {} },
+        %{ $c->get('config')->{ "API::Queue::$queue_type" } || {} },
         container => $c,
         queue_names => \@queue_names,
     );
@@ -106,3 +125,4 @@ register 'AdminWeb::Router' => sub {
     my $c = shift;
     require $c->get('config')->{'AdminWeb::Router'}->{routes};
 };
+

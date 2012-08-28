@@ -46,7 +46,7 @@ my $code = sub {
         }
     }
 
-    my $context = STF::Context->bootstrap( config => "t/config.pl" ) ;
+    my $context = STF::Context->bootstrap() ;
     my $dbh = $context->container->get('DB::Master');
 
     my $object = $dbh->selectrow_hashref( <<EOSQL, undef, $bucket_name, $object_name );

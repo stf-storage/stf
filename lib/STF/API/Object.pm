@@ -437,7 +437,7 @@ sub get_any_valid_entity_url {
             if (! $storage || ! $storage_api->is_readable( $storage ) ) {
                 debugf(
                     "Storage '%s' is not readable anymore. Invalidating cache",
-                    $storage->{id},
+                    $storage_id,
                 ) if STF_DEBUG;
 
                 # Invalidate the cached entry, and set the repair flag

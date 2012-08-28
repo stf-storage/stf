@@ -66,7 +66,7 @@ sub load {
     ;
 
     # install these storages
-    my $dbh = DBI->connect( $ENV{TEST_STF_DSN}, undef,  undef, { RaiseError => 1 } );
+    my $dbh = DBI->connect( $ENV{STF_MYSQL_DSN}, undef,  undef, { RaiseError => 1 } );
     $dbh->do( "DELETE FROM storage" );
     $dbh->do( "DELETE FROM storage_cluster" );
 

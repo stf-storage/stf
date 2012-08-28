@@ -1,5 +1,7 @@
 use Carp ();
 
+my $queue_type = $ENV{STF_QUEUE_TYPE} || 'Q4M';
+
 # Environment variables
 # STF_ENABLE_STORAGE_META
 # STF_HOST_ID
@@ -79,19 +81,24 @@ use Carp ();
             mysql_enable_utf8 => 1,
         }
     ],
-    # The Q4M/Schwartz DB.
-    'DB::Queue' => [
-        $ENV{ STF_QUEUE_DSN } || "dbi:mysql:dbname=stf_queue",
-        $ENV{ STF_QUEUE_USERNAME } || "root",
-        $ENV{ STF_QUEUE_PASSWORD } || undef,
-        {
-            AutoCommit => 1,
-            AutoInactiveDestroy => 1,
-            RaiseError => 1,
-            mysql_enable_utf8 => 1,
-        }
-    ],
-
+    # The Q4M/Schwartz/Resque DB.
+    'DB::Queue' => (
+        $queue_type eq 'Resque' ?
+        +{
+            redis => $ENV{STF_REDIS_HOSTPORT},
+        } :
+        [
+            $ENV{ STF_QUEUE_DSN } || "dbi:mysql:dbname=stf_queue",
+            $ENV{ STF_QUEUE_USERNAME } || "root",
+            $ENV{ STF_QUEUE_PASSWORD } || undef,
+            {
+                AutoCommit => 1,
+                AutoInactiveDestroy => 1,
+                RaiseError => 1,
+                mysql_enable_utf8 => 1,
+            }
+        ]
+    ),
     # The Worker config
     # XXX Need to write more docs here
     'Worker::Drone' => {
@@ -99,18 +106,18 @@ use Carp ();
         spawn_interval => 1,
     },
     'Worker::Replicate' => {
-        loop_class     => $ENV{ STF_QUEUE_TYPE } || "Q4M",
+        loop_class     => $queue_type,
     },
     'Worker::DeleteObject' => {
-        loop_class     => $ENV{ STF_QUEUE_TYPE } || "Q4M",
+        loop_class     => $queue_type,
     },
     'Worker::DeleteBucket' => {
-        loop_class     => $ENV{ STF_QUEUE_TYPE } || "Q4M",
+        loop_class     => $queue_type,
     },
     'Worker::RepairObject' => {
-        loop_class     => $ENV{ STF_QUEUE_TYPE } || "Q4M",
+        loop_class     => $queue_type,
     },
     'Worker::ObjectHealth' => {
-        loop_class     => $ENV{ STF_QUEUE_TYPE } || "Q4M",
+        loop_class     => $queue_type,
     },
 }

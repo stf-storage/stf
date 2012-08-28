@@ -10,10 +10,6 @@ use STF::Log;
 extends 'STF::Worker::Loop';
 with 'STF::Trait::WithDBI';
 
-has queue_name => (
-    is => 'rw'
-);
-
 sub queue_table {
     my ($self, $impl) = @_;
 
@@ -44,11 +40,7 @@ sub work {
 
     my $table = $self->queue_table( $impl );
     my $waitcond = $self->queue_waitcond( $impl );
-    my $queue_name =
-        $self->queue_name ||
-        $ENV{STF_WORKER_QUEUE_NAME} ||
-        'DB::Queue'
-    ;
+    my $queue_name = $self->queue_name;
     my $dbh = $self->get($queue_name) or
         Carp::confess( "Could not fetch $queue_name" );
 
