@@ -6,7 +6,7 @@ my $REDIS;
 my $REDIS_CONF;
 my $REDIS_DIR;
 sub load {
-    if ( ($ENV{STF_QUEUE_TYPE} || '') ne 'Resque') {
+    if ( ($ENV{STF_QUEUE_TYPE} || '') !~ /^Re(dis|sque)/) {
         return;
     }
 

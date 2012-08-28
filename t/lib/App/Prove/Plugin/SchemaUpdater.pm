@@ -88,7 +88,7 @@ sub load {
 
     my @test_dsn;
     my @databases = qw( stf );
-    if ($ENV{STF_QUEUE_TYPE} ne 'Resque') {
+    if ($ENV{STF_QUEUE_TYPE} !~ /^Re(dis|sque)$/) {
         push @databases, 'stf_queue';
     }
     for my $master ( @databases ) {

@@ -156,6 +156,14 @@ EOSQL
                     last;
                 }
             }
+        } elsif ( $queue_type eq 'Redis') {
+            my @jobs = $queue_dbh->lrange('repair_object', 0, 0);
+            foreach my $job (@jobs) {
+                if ($job =~ /\b$target->{id}\b/) {
+                    $object = $job;
+                    last;
+                }
+            }
         } else {
             $object = $queue_dbh->selectrow_array( <<EOSQL, undef, $target->{id});
                 SELECT * FROM queue_repair_object WHERE args = ?

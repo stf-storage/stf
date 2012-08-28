@@ -78,6 +78,8 @@ sub clear_queue {
     no warnings 'redefine';
     my $queue_type = $ENV{STF_QUEUE_TYPE} || 'Q4M';
     if ($queue_type eq 'Resque') {
+        *clear_queue = \&clear_queue_resque;
+    } elsif ($queue_type eq 'Redis') {
         *clear_queue = \&clear_queue_redis;
     } else {
         *clear_queue = \&clear_queue_dbi;
@@ -96,6 +98,14 @@ sub clear_queue_dbi {
 }
 
 sub clear_queue_redis {
+    require Redis;
+    my $redis = Redis->new(server => $ENV{STF_REDIS_HOSTPORT});
+    foreach my $qname (qw(replicate repair_object delete_object delete_bucket)) {
+        $redis->del($qname);
+    }
+}
+
+sub clear_queue_resque {
     require Resque;
     my $resque = Resque->new(redis => $ENV{STF_REDIS_HOSTPORT});
     foreach my $qname ($resque->queues) {

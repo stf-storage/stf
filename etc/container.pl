@@ -3,6 +3,7 @@ use Furl::HTTP;
 use String::Urandom;
 use Cache::Memcached::Fast;
 use Class::Load ();
+use JSON ();
 use STF::Constants qw(STF_ENABLE_STORAGE_META STF_ENABLE_OBJECT_META);
 use STF::Constants qw(STF_DEBUG STF_TRACE);
 
@@ -17,6 +18,7 @@ if (STF_TRACE) {
     };
 }
 
+register JSON => JSON->new->utf8;
 register Furl => Furl::HTTP->new( timeout => 30 );
 register Memcached => sub {
     my $c = shift;
@@ -45,6 +47,15 @@ my $register_resque = sub {
         return $resque;
     }, { scoped => 1 };
 };
+my $register_redis = sub {
+    my ($key) = @_;
+    register $key => sub {
+        my $c = shift;
+        my $config = $c->get('config');
+        my $redis = Redis->new(%{$config->{$key}});
+        return $redis;
+    }, { scoped => 1 };
+};
 
 $register_dbh->('DB::Master');
 
@@ -58,6 +69,9 @@ foreach my $dbkey (@queue_names) {
     if ($queue_type eq 'Resque') {
         require Resque;
         $register_resque->($dbkey);
+    } elsif ($queue_type eq 'Redis') {
+        require Redis;
+        $register_redis->($dbkey);
     } else {
         $register_dbh->($dbkey);
     }

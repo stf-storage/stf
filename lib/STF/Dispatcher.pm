@@ -388,6 +388,8 @@ sub create_object {
 
     local $STF::Log::PREFIX = "Create(D)" if STF_DEBUG;
 
+debugf("Dispatcher->create_object");
+
     my $timer;
     if ( STF_TIMER ) {
         $timer = STF::Utils::timer_guard();
@@ -696,6 +698,7 @@ sub rename_object {
 sub enqueue {
     my ($self, $func, $object_id) = @_;
 
+debugf("Dispatcher->enqueue");
     my $queue_api = $self->get( 'API::Queue' );
     my $rv = $queue_api->enqueue( $func, $object_id );
     return $rv;

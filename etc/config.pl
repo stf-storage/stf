@@ -87,6 +87,13 @@ my $queue_type = $ENV{STF_QUEUE_TYPE} || 'Q4M';
         +{
             redis => $ENV{STF_REDIS_HOSTPORT},
         } :
+        $queue_type eq 'Redis' ?
+        +{
+            server => $ENV{STF_REDIS_HOSTPORT},
+            reconnect => 60,
+            every     => 250,
+            encoding  => undef
+        } :
         [
             $ENV{ STF_QUEUE_DSN } || "dbi:mysql:dbname=stf_queue",
             $ENV{ STF_QUEUE_USERNAME } || "root",
