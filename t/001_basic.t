@@ -502,6 +502,7 @@ foreach my $impl ( qw(MockHTTP Server) ) {
     foreach my $chunk ( 10, 1_024, 2 * 1_024, 4 * 1024, 8 * 1024 ) {
         note sprintf "(%s) Running tests on %s", __FILE__, $impl;
         note sprintf "   Using chunk size %d", $chunk;
+        clear_objects();
         clear_queue();
         test_psgi
             app => $app,

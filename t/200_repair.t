@@ -2,13 +2,14 @@ use strict;
 use Test::More;
 use Plack::Test;
 use HTTP::Request::Common qw(GET PUT);
-use STF::Test qw(clear_queue);
+use STF::Test qw(clear_objects clear_queue);
 
 use_ok "STF::Context";
 use_ok "STF::Worker::RepairObject";
 use_ok "STF::Worker::Replicate";
 
 clear_queue;
+clear_objects;
 
 my $code = sub {
     my $cb = shift;

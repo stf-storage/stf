@@ -15,6 +15,7 @@ $Log::Minimal::LOG_LEVEL ||= "NONE";
 
 
 our @EXPORT_OK = qw(
+    clear_objects
     clear_queue
     deploy_fixtures
     start_plackup
@@ -72,6 +73,31 @@ sub start_memcached {
     $memcached->{port} = $port;
     note "     Started at port " . $memcached->{port};
     return $memcached;
+}
+
+sub clear_objects {
+    my $dbh = DBI->connect( $ENV{STF_MYSQL_DSN } );
+    my $sth = $dbh->prepare(<<EOSQL);
+        SELECT id FROM object
+EOSQL
+
+    my $delete_object = $dbh->prepare(<<EOSQL);
+        DELETE FROM object where id = ?
+EOSQL
+    my $delete_entity = $dbh->prepare(<<EOSQL);
+        DELETE FROM entity WHERE object_id = ?
+EOSQL
+
+    my $object_id;
+    $sth->execute();
+    $sth->bind_columns( \($object_id) );
+    while ( $sth->fetchrow_arrayref ) {
+        # XXX we could "properly" delete, but we might as well
+        # just delete the objects in the database
+        $delete_object->execute( $object_id );
+        $delete_entity->execute( $object_id );
+    }
+    
 }
 
 sub clear_queue {

@@ -8,7 +8,7 @@ use HTTP::Request::Common qw(PUT HEAD GET POST);
 use HTTP::Date;
 use Scope::Guard ();
 use STF::Test;
-use STF::Test qw(clear_queue);
+use STF::Test qw(clear_objects clear_queue);
 BEGIN {
     use_ok "STF::Constants",
         "STF_TRACE",
@@ -70,7 +70,15 @@ EOSQL
     my $find_cluster_id_sth = $dbh->prepare( <<EOSQL );
         SELECT cluster_id FROM object_cluster_map WHERE object_id = ?
 EOSQL
+    # Disable everyting in the specified
+
     my ($cluster) = $cluster_api->load_writable();
+    # At this point we know there are at least 10 objects in this cluster
+    # Now change the mode of a storage in this cluster to CRASHED.
+    my ($storage) = $storage_api->search({
+        cluster_id => $cluster->{id}
+    });
+
     my @object_names;
     my $total_objects = 0;
     do {
@@ -98,13 +106,6 @@ EOSQL
     }
 
     note "Replication done, not checking cluster";
-
-    # At this point we know there are at least 10 objects in this cluster
-    # Now change the mode of a storage in this cluster to CRASHED.
-
-    my ($storage) = $storage_api->search({
-        cluster_id => $cluster->{id}
-    });
 
     note "Changing storage $storage->{id} to CRASH";
     $storage_api->update( $storage->{id}, {
@@ -180,6 +181,7 @@ EOSQL
     }
 };
 
+clear_objects();
 clear_queue();
 my $app = require "t/dispatcher.psgi";
 test_psgi

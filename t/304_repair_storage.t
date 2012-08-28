@@ -8,7 +8,7 @@ use HTTP::Request::Common qw(PUT HEAD GET POST);
 use HTTP::Date;
 use Scope::Guard ();
 use STF::Test;
-use STF::Test qw(clear_queue);
+use STF::Test qw(clear_objects clear_queue);
 BEGIN {
     use_ok "STF::Constants",
         "STF_TRACE",
@@ -176,6 +176,7 @@ EOSQL
 };
 
 clear_queue();
+clear_objects();
 my $app = require "t/dispatcher.psgi";
 test_psgi
     app => $app,
