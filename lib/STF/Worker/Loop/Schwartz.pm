@@ -2,8 +2,9 @@ package STF::Worker::Loop::Schwartz;
 use Mouse;
 use Scalar::Util ();
 use Scope::Guard ();
-use STF::Constants qw(STF_DEBUG);
+use STF::Constants qw(STF_DEBUG STF_TIMER);
 use STF::Log;
+use STF::Utils ();
 use TheSchwartz;
 use Time::HiRes ();
 
@@ -59,6 +60,10 @@ sub work {
 
     my $client = $self->create_client($impl);
     while ( $self->should_loop ) {
+        my $timer;
+        if (STF_TIMER) {
+            $timer = STF::Utils::timer_guard("$impl loop iteration (Schwartz)");
+        }
         if ( $client->work_once ) {
             $self->incr_processed;
         } else {

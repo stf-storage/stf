@@ -77,7 +77,7 @@ EOSQL
     ok $object;
 
     # make sure we have >= 3 entities in filesystem
-    my @physical_entities = glob("t/store*/$object->{internal_name}");
+    my @physical_entities = glob("t/storage*/$object->{internal_name}");
     if (! ok scalar @physical_entities >= 3, "3 entities available") {
         diag explain @physical_entities;
     }

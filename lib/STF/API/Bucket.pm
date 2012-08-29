@@ -25,15 +25,23 @@ EOSQL
 sub rename {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Rename(B)";
     my $name = $args->{name};
     my $bucket_id = $args->{id};
     my $dbh = $self->dbh;
 
+    if (STF_DEBUG) {
+        debugf( "Renaming bucket '%s' to '%s'", $args->{from}, $name );
+    }
+
     my $rv = $dbh->do(<<EOSQL, undef, $name, $bucket_id );
         UPDATE bucket SET name = ? WHERE id = ?
 EOSQL
-    if ($rv) {
+    if ($rv > 1) {
         $self->cache_delete( $self->table => $bucket_id );
+    }
+    if (STF_DEBUG) {
+        debugf("Rename was %s", $rv > 1 ? "SUCCESS" : "FAIL");
     }
     return $rv;
 }
@@ -41,6 +49,7 @@ EOSQL
 sub delete {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Delete(B)";
     my ($id, $recursive) = @$args{ qw(id recursive) };
     my $dbh = $self->dbh;
 

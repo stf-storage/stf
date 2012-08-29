@@ -9,10 +9,12 @@ use STF::Constants qw(
     :storage
     STF_DEBUG
     STF_TRACE
+    STF_TIMER
     STF_ENABLE_OBJECT_META
 );
 use STF::Log;
 use STF::Dispatcher::PSGI::HTTPException;
+use STF::Utils ();
 
 with 'STF::API::WithDBI';
 
@@ -258,6 +260,10 @@ sub repair {
     local $STF::Log::PREFIX = "Repair(O)";
 
     debugf("Repairing object %s", $object_id) if STF_DEBUG;
+    my $timer;
+    if (STF_TIMER) {
+        $timer = STF::Utils::timer_guard();
+    }
 
     my $object = $self->lookup( $object_id );
     my $entity_api = $self->get( 'API::Entity' );
@@ -653,7 +659,7 @@ around cache_delete => sub {
 
     $self->$next(@args);
     if (@args == 2 && $args[0] eq $self->table) {
-        debugf( "Cache Delete storages_for, too" );
+        debugf( "Cache delete 'storages_for.%s', too", $args[1] );
         $self->cache_delete( "storages_for", $args[1] );
     }
 };

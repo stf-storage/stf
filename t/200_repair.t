@@ -123,8 +123,7 @@ EOSQL
     ;
 
     my $target = $sorted[0];
-    my $pattern = "t/store*/$target->{internal_name}";
-
+    my $pattern = "t/storage*/$target->{internal_name}";
 
     my @before;
     {

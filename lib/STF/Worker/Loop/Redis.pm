@@ -3,8 +3,7 @@ use Mouse;
 use Time::HiRes ();
 use Redis;
 use STF::Log;
-use STF::Constants qw(STF_DEBUG);
-use feature 'state';
+use STF::Constants qw(STF_DEBUG STF_TIMER);
 
 extends 'STF::Worker::Loop';
 
@@ -27,15 +26,22 @@ sub work {
         $loop = 0;
     };
     while ( $loop && $self->should_loop ) {
+        my $timer;
+        if (STF_TIMER) {
+            $timer = STF::Utils::timer_guard("$impl loop iteration (Redis)");
+        }
         my $payload = $redis->lpop($func);
         if ($payload) {
             my $job = $decoder->decode($payload);
             eval {
                 $impl->work_once( $job->{args}->[0] );
+            };
+            $self->incr_processed;
+        } else {
+            if ( (my $interval = $self->interval) > 0 ) {
+                Time::HiRes::usleep( $interval );
             }
         }
-        $self->incr_processed;
-        Time::HiRes::usleep($self->interval);
     }
 }
 

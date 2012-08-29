@@ -227,7 +227,7 @@ sub get_bucket {
     my ($bucket) = $self->get('API::Bucket')->lookup_by_name( $args->{bucket_name} );
     if ( STF_DEBUG ) {
         if ( $bucket ) {
-            debugf("Found bucket %s", "Dispatcher", "get_bucket", $args->{bucket_name});
+            debugf("Found bucket %s", $args->{bucket_name});
         } else {
             debugf("Could not find bucket %s", $args->{bucket_name});
         }
@@ -363,12 +363,16 @@ sub rename_bucket {
     my $bucket_api = $self->get('API::Bucket');
     my $dest = $bucket_api->lookup_by_name( $name );
     if ($dest) {
+        if (STF_DEBUG) {
+            debugf( "Destination bucket '%s' already exists", $name );
+        }
         return;
     }
 
     return $bucket_api->rename({
         id => $bucket->{id},
-        name => $name
+        name => $name,
+        from => $bucket->{name},
     }) > 0;
 }
 
@@ -387,8 +391,6 @@ sub create_object {
     my ($self, $args) = @_;
 
     local $STF::Log::PREFIX = "Create(D)" if STF_DEBUG;
-
-debugf("Dispatcher->create_object");
 
     my $timer;
     if ( STF_TIMER ) {
@@ -505,15 +507,13 @@ debugf("Dispatcher->create_object");
 
     if ($old_object_id) {
         debugf(
-            "[%10s] Request %s/%s was for existing content.",
-            "Dispatcher",
+            "Request %s/%s was for existing content.",
             "create",
             $bucket->{name},
             $object_name,
         ) if STF_DEBUG;
         debugf(
-            "[%10s] Will queue request to delete old object (%s)",
-            "Dispatcher",
+            "Will queue request to delete old object (%s)",
             "create",
             $old_object_id
         ) if STF_DEBUG;
@@ -698,7 +698,6 @@ sub rename_object {
 sub enqueue {
     my ($self, $func, $object_id) = @_;
 
-debugf("Dispatcher->enqueue");
     my $queue_api = $self->get( 'API::Queue' );
     my $rv = $queue_api->enqueue( $func, $object_id );
     return $rv;

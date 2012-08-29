@@ -47,7 +47,7 @@ sub load {
         push @STF_STORAGES, Test::TCP->new( code => sub {
             my $port = shift;
 
-            my $name = sprintf "store%03d", $i;
+            my $name = sprintf "storage%03d", $i;
             $0 = "stf storage server '$name' on port $port";
             my $dir = File::Spec->catfile( "t", $name );
             # First, cleanup previous instances
