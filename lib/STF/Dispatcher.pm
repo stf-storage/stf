@@ -562,7 +562,6 @@ sub get_object {
             #     internal;
             #     set $reproxy $upstream_http_x_reproxy_url;
             #     proxy_pass $reproxy;
-            #     proxy_hide_header Content-Type;
             # }
             push @{$args[1]},
                 'X-Accel-Redirect' => STF_NGINX_STYLE_REPROXY_ACCEL_REDIRECT_URL
