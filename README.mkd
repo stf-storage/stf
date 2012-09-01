@@ -4,7 +4,7 @@ STF is a distributed object store (similar to MogileFS), which allows you to sto
 
 Among other things, it currently handles traffic for one of Japan's busiest blogging service, chugging 400Mbps of datas.
 
-STF is built on top of long trusted software like Apache (or nginx), Perl, Q4M (or TheSchwartz), MySQL, and Memcached, with open protocols so it's easy to maintain.
+STF is built on top of long trusted software like Apache (or nginx), Perl, Q4M (or TheSchwartz, Resque, Redis), MySQL, and Memcached, with open protocols so it's easy to maintain.
 
 ## UPGRADING (CLUSTERED STORAGE)
 
