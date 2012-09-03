@@ -5,6 +5,32 @@ use Time::HiRes ();
 use Scope::Guard ();
 use STF::Log;
 
+use parent 'Exporter';
+our @EXPORT_OK = qw(txn_block);
+
+# Creates a reusable coderef bound to '$self', '$txn' (the actual code invoked)
+# and '$dbkey'. $dbkey defaults to DB::Master
+sub txn_block(&;$) {
+    my ($txn, $dbkey) = @_;
+
+    $dbkey ||= 'DB::Master';
+    return sub {
+        my ($ctx, @args) = @_;
+        my $dbh = $ctx->get($dbkey);
+        if (! $dbh) {
+            Carp::confess("Could not get $dbkey from container");
+        }
+        $dbh->begin_work;
+        my $guard = Scope::Guard->new(sub {
+            eval { $dbh->rollback }
+        });
+        my @res = $txn->($ctx, @args);
+        $dbh->commit;
+        $guard->dismiss;
+        return @res ;
+    };
+}
+
 sub merge_hashes {
     my ($left, $right) = @_;
     return { %$left, %$right };

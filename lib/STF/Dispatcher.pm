@@ -23,6 +23,7 @@ use STF::Constants qw(
 use STF::Context;
 use STF::Dispatcher::PSGI::HTTPException;
 use STF::Log;
+use STF::Utils qw(txn_block);
 use Time::HiRes ();
 
 # XXX Don't need this?
@@ -305,16 +306,16 @@ sub create_id {
 sub create_bucket {
     my ($self, $args) = @_;
 
-    state $txn = $self->txn_block(sub {
+    state $txn = txn_block {
         my ($self, $id, $bucket_name) = @_;
         my $bucket_api = $self->get('API::Bucket');
         $bucket_api->create({
             id   => $id,
             name => $bucket_name,
         } );
-    });
+    };
 
-    my $res = $txn->( $self->create_id, $args->{bucket_name} );
+    my $res = $txn->( $self, $self->create_id, $args->{bucket_name} );
     if (my $e = $@) {
         critf("Failed to create bucket: %s", $e);
         $self->handle_exception($e);
@@ -326,7 +327,7 @@ sub create_bucket {
 sub delete_bucket {
     my ($self, $args) = @_;
 
-    state $txn = $self->txn_block(sub {
+    state $txn = txn_block {
         my ($self, $id ) = @_;
         my $bucket_api = $self->get('API::Bucket');
 
@@ -337,10 +338,10 @@ sub delete_bucket {
         }
 
         return 1;
-    });
+    };
 
     my ($bucket, $recursive) = @$args{ qw(bucket) };
-    my $res = $txn->( $bucket->{id} );
+    my $res = $txn->( $self, $bucket->{id} );
     if (my $e = $@) {
         critf("Failed to delete bucket: %s", $e);
         $self->handle_exception($e);
@@ -397,7 +398,7 @@ sub create_object {
         $timer = STF::Utils::timer_guard();
     }
 
-    state $txn = $self->txn_block( sub {
+    state $txn = txn_block {
         my $txn_timer;
         if ( STF_TIMER ) {
             $txn_timer = STF::Utils::timer_guard( "create_object (txn closure)");
@@ -480,7 +481,7 @@ sub create_object {
         }
 
         return (1, $old_object_id);
-    } );
+    };
 
     my ($bucket, $replicas, $object_name, $size, $consistency, $suffix, $input) = 
         @$args{ qw( bucket replicas object_name size consistency suffix input) };
@@ -493,6 +494,7 @@ sub create_object {
     my $object_id = $self->create_id();
 
     my ($res, $old_object_id) = $txn->(
+        $self,
         $object_id, $bucket->{id}, $replicas, $object_name, $size, $consistency, $suffix, $input );
     if (my $e = $@) {
         critf("Error while creating object: %s", $e);
@@ -583,7 +585,7 @@ sub delete_object {
         $timer = STF::Utils::timer_guard();
     }
 
-    state $txn = $self->txn_block( sub {
+    state $txn = txn_block {
         my ($self, $bucket_id, $object_name) = @_;
         my $object_api = $self->get( 'API::Object' );
         my $object_id = $object_api->find_object_id( {
@@ -601,10 +603,10 @@ sub delete_object {
         }
 
         return (1, $object_id);
-    } );
+    };
 
     my ($bucket, $object_name) = @$args{ qw(bucket object_name) };
-    my ($res, $object_id) = $txn->( $bucket->{id}, $object_name);
+    my ($res, $object_id) = $txn->( $self, $bucket->{id}, $object_name);
     if (my $e = $@) {
         critf("Failed to delete object: %s", $e);
         $self->handle_exception($e);
@@ -630,7 +632,7 @@ sub modify_object {
         $replicas
     ) if STF_DEBUG;
 
-    state $txn = $self->txn_block( sub {
+    state $txn = txn_block {
         my ($self, $bucket_id, $object_name, $replicas) = @_;
         my $object_api = $self->get('API::Object');
         my $object_id = $object_api->find_active_object_id( {
@@ -648,9 +650,9 @@ sub modify_object {
         debugf("Updated %s to num_replica = %d", $object_id, $replicas) if STF_DEBUG;
 
         return $object_id;
-    });
+    };
 
-    my ($object_id) = $txn->( $bucket->{id}, $object_name, $replicas);
+    my ($object_id) = $txn->( $self, $bucket->{id}, $object_name, $replicas);
     if (my $e = $@) {
         critf("Failed to modify object: %s", $e);
         $self->handle_exception($e);
@@ -667,7 +669,7 @@ sub modify_object {
 sub rename_object {
     my ($self, $args) = @_;
 
-    state $txn = $self->txn_block( sub {
+    state $txn = txn_block {
         my ($self, $source_bucket_id, $source_object_name, $dest_bucket_id, $dest_object_name) = @_;
         my $object_api = $self->get('API::Object');
         my $object_id = $object_api->rename( {
@@ -677,9 +679,10 @@ sub rename_object {
             destination_object_name => $dest_object_name
         });
         return $object_id;
-    } );
+    };
 
     my $object_id = $txn->(
+        $self,
         $args->{source_bucket}->{id},
         $args->{source_object_name},
         $args->{destination_bucket}->{id},
