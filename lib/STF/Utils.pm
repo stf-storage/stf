@@ -22,11 +22,15 @@ sub txn_block(&;$) {
         }
         $dbh->begin_work;
         my $guard = Scope::Guard->new(sub {
+            local $@;
             eval { $dbh->rollback }
         });
-        my @res = $txn->($ctx, @args);
-        $dbh->commit;
-        $guard->dismiss;
+        my @res;
+        eval {
+            @res = $txn->($ctx, @args);
+            $dbh->commit;
+            $guard->dismiss;
+        };
         return @res ;
     };
 }
