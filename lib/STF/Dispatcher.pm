@@ -26,8 +26,7 @@ use STF::Log;
 use STF::Utils qw(txn_block);
 use Time::HiRes ();
 
-# XXX Don't need this?
-with 'STF::Trait::WithDBI';
+with 'STF::Trait::WithContainer';
 
 has context => (
     is => 'ro',
