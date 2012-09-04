@@ -427,9 +427,9 @@ sub get_any_valid_entity_url {
     my $cache_key = [ storages_for => $object_id ];
     my $storages = $self->cache_get( @$cache_key );
     if ($storages) {
-        debugf(
-            "Cache HIT for storages, checking if cached contents are still readable."
-        ) if STF_DEBUG;
+        if (STF_DEBUG) {
+            debugf( "Cache HIT for storages (object_id = %s)", $object_id );
+        }
 
         # Got storages, but we need to validate that they are indeed
         # readable, and that the uris match
@@ -454,6 +454,11 @@ sub get_any_valid_entity_url {
                 }
                 last;
             }
+        }
+
+        if (STF_DEBUG) {
+            debugf( "Cached storages for object_id = %s are %s",
+                $storages, $storages ? "OK" : "NOT OK");
         }
     } 
 
