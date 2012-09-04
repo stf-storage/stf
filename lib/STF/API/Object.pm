@@ -458,7 +458,7 @@ sub get_any_valid_entity_url {
 
         if (STF_DEBUG) {
             debugf( "Cached storages for object_id = %s are %s",
-                $storages, $storages ? "OK" : "NOT OK");
+                $object_id, $storages ? "OK" : "NOT OK");
         }
     } 
 
