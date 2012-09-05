@@ -215,7 +215,7 @@ sub register_for_object {
 EOSQL
     };
     if ($@) {
-        critf("Error while register object %s to cluster %s: %s", $object_id, $cluster_id, $@);
+        critf("Error while registering object %s to cluster %s: %s", $object_id, $cluster_id, $@);
     }
     return $rv;
 }
