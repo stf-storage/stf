@@ -47,7 +47,8 @@ EOSQL
 EOSQL
 
     my $loop = 1;
-    while ($loop) {
+    my $timeout = time() + 60 * 10;
+    while ($loop && $timeout > time()) {
         my $id;
         $sth->execute( $name );
         $sth->bind_columns( \($id) );
