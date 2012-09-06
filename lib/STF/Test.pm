@@ -76,28 +76,23 @@ sub start_memcached {
 }
 
 sub clear_objects {
-    my $dbh = DBI->connect( $ENV{STF_MYSQL_DSN } );
+    my $ctx = STF::Context->bootstrap;
+    my $c   = $ctx->container;
+    my $dbh = $c->get('DB::Master');
     my $sth = $dbh->prepare(<<EOSQL);
         SELECT id FROM object
 EOSQL
 
-    my $delete_object = $dbh->prepare(<<EOSQL);
-        DELETE FROM object where id = ?
-EOSQL
-    my $delete_entity = $dbh->prepare(<<EOSQL);
-        DELETE FROM entity WHERE object_id = ?
-EOSQL
+    my $object_api = $ctx->get('API::Object');
+    my $entity_api = $ctx->get('API::Entity');
 
     my $object_id;
     $sth->execute();
     $sth->bind_columns( \($object_id) );
     while ( $sth->fetchrow_arrayref ) {
-        # XXX we could "properly" delete, but we might as well
-        # just delete the objects in the database
-        $delete_object->execute( $object_id );
-        $delete_entity->execute( $object_id );
+        $object_api->delete( $object_id );
+        $entity_api->delete_for_object_id( $object_id );
     }
-    
 }
 
 sub clear_queue {
