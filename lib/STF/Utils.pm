@@ -6,7 +6,15 @@ use Scope::Guard ();
 use STF::Log;
 
 use parent 'Exporter';
-our @EXPORT_OK = qw(txn_block);
+our @EXPORT_OK = qw(txn_block add_resource_guard);
+my @RESOURCE_DESTRUCTION_GUARDS;
+END {
+    undef @RESOURCE_DESTRUCTION_GUARDS;
+}
+
+sub add_resource_guard(@) {
+    push @RESOURCE_DESTRUCTION_GUARDS, @_;
+}
 
 # Creates a reusable coderef bound to '$self', '$txn' (the actual code invoked)
 # and '$dbkey'. $dbkey defaults to DB::Master

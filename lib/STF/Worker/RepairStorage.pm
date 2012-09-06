@@ -7,7 +7,6 @@ use STF::Log;
 
 extends 'STF::Worker::Base';
 with 'STF::Trait::WithContainer';
-with 'STF::Worker::WithLeaderElection';
 
 has '+interval' => (
     default => 5 * 60 * 1_000_000

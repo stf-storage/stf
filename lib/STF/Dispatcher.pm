@@ -23,7 +23,7 @@ use STF::Constants qw(
 use STF::Context;
 use STF::Dispatcher::PSGI::HTTPException;
 use STF::Log;
-use STF::Utils qw(txn_block);
+use STF::Utils qw(txn_block add_resource_guard);
 use Time::HiRes ();
 
 with 'STF::Trait::WithContainer';
@@ -124,12 +124,6 @@ sub _unpack_head {
     }
 }
 
-# XXX use hash so we can de-register ourselves?
-my @RESOURCE_DESTRUCTION_GUARDS;
-END {
-    undef @RESOURCE_DESTRUCTION_GUARDS;
-}
-
 sub BUILD {
     my $self = shift;
 
@@ -161,13 +155,15 @@ sub BUILD {
     #
     # To avoid this, we keep a guard object that makes sure that the resources
     # are cleaned up at END {} time
-    push @RESOURCE_DESTRUCTION_GUARDS, (sub {
-        my $SELF = shift;
-        Scalar::Util::weaken($SELF);
-        Scope::Guard->new(sub {
-            eval { $SELF->cleanup };
-        });
-    })->($self);
+    add_resource_guard(
+        (sub {
+            my $SELF = shift;
+            Scalar::Util::weaken($SELF);
+            Scope::Guard->new(sub {
+                eval { $SELF->cleanup };
+            });
+        })->($self)
+    );
 
     $self;
 }

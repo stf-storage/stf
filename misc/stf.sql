@@ -109,6 +109,8 @@ CREATE TABLE entity (
 CREATE TABLE election (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    KEY (name)
+    expires_at INT NOT NULL,
+    KEY (name),
+    KEY (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET = 'utf8';
 

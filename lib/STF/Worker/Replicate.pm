@@ -2,7 +2,7 @@ package STF::Worker::Replicate;
 use Mouse;
 
 extends 'STF::Worker::Base';
-with 'STF::Trait::WithDBI';
+with 'STF::Trait::WithContainer';
 
 has '+loop_class' => (
     default => sub {

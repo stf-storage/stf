@@ -109,7 +109,12 @@ my $queue_type = $ENV{STF_QUEUE_TYPE} || 'Q4M';
     # The Worker config
     # XXX Need to write more docs here
     'Worker::Drone' => {
+        # XXX The number of max workers and the number of workers for
+        # each server needs to be configured in a central location, not
+        # in these static files. Otherwise, how are we to change the number
+        # workers dynamically, when we need to?
         pid_file       => '/tmp/worker-drone.pid',
+        max_workers    => 20,
         spawn_interval => 1,
     },
     'Worker::Replicate' => {
