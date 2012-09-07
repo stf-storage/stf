@@ -131,6 +131,11 @@ sub start {
     )->work;
 }
 
+sub associate_pid {
+    my ($self, $id, $pid) = @_;
+    $self->election_ids->{$id} = $pid;
+}
+
 sub unregister {
     my $self = shift;
 
@@ -337,8 +342,8 @@ sub run {
     });
     $pp->run_on_start(sub {
         my ($pid, $data) = @_;
-
-        $data->[1]->election_ids->{$data->[0]} = $pid;
+        my ($id, $worker) = @$data;
+        $worker->associate_pid($id, $pid);
         $signal_received = '';
     });
 
@@ -351,9 +356,29 @@ sub run {
         };
     }
 
+    my $spawn_timeout = 0;
     while ( $signal_received !~ /^(?:TERM|INT)$/ ) {
-        $pp->wait_one_child(POSIX::WNOHANG());
-        next if scalar keys %pids >= $self->max_workers;
+        if ($pp->wait_one_child(POSIX::WNOHANG()) > 0) {
+            $spawn_timeout = 0;
+        }
+
+        my $now = time();
+        if ($spawn_timeout > $now) {
+            my $remaining = $spawn_timeout - $now;
+            if (STF_DEBUG) {
+                debugf("Spawn timeout is set for %d seconds...", $remaining);
+            }
+            select(undef, undef, undef, rand($remaining > 5 ? 5 : $remaining));
+            next;
+        }
+
+        if (scalar keys %pids >= $self->max_workers) {
+            if (STF_DEBUG) {
+                debugf("Already spawned max %d workers", scalar keys %pids);
+            }
+            select(undef, undef, undef, rand(5));
+            next;
+        }
 
         # First, find a worker that may be spawned. The worker must
         # win the leader-election (note that this may not be "a" leader,
@@ -368,7 +393,10 @@ sub run {
         }
 
         if (! $to_spawn) {
-            sleep $self->spawn_interval;
+            # There was nothing to spawn ... to save us from having to
+            # send useless queries to the database, sleep for an extended
+            # amount of time
+            $spawn_timeout = $now + 30;
             next;
         }
 
