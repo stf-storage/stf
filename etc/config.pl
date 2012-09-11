@@ -114,7 +114,7 @@ my $queue_type = $ENV{STF_QUEUE_TYPE} || 'Q4M';
         # in these static files. Otherwise, how are we to change the number
         # workers dynamically, when we need to?
         pid_file       => '/tmp/worker-drone.pid',
-        max_workers    => 20,
+#        max_workers    => 20,
         spawn_interval => 1,
     },
     'Worker::Replicate' => {

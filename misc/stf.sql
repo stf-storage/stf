@@ -106,11 +106,15 @@ CREATE TABLE entity (
        FOREIGN KEY(storage_id) REFERENCES storage(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
-CREATE TABLE election (
+CREATE TABLE worker_election (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
+    drone_id VARCHAR(255) NOT NULL,
+    local_pid INT,
     expires_at INT NOT NULL,
+    KEY (local_pid),
     KEY (name),
+    KEY (drone_id),
     KEY (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET = 'utf8';
 

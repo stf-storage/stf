@@ -1,9 +1,15 @@
 package STF::Worker::Process;
 use Mouse;
+use Math::Round ();
 use Scalar::Util ();
 use STF::Constants qw(STF_DEBUG);
 use STF::Log;
 use STF::Utils qw(add_resource_guard);
+
+has drone_id => (
+    is => 'ro',
+    required => 1,
+);
 
 has context => (
     is => 'ro',
@@ -20,13 +26,27 @@ has name => (
     required => 1,
 );
 
-has election_ids => (
+has election_tokens => (
     is => 'ro',
-    default => sub { +{} }
+    default => sub { +[] }
 );
 
-has election_count => (
-    is => 'ro',
+# the max number of instances in the entire system.
+# should not be changed except for by reloading the config
+has total_instances => (
+    is => 'rw', 
+    required => 1,
+);
+
+# the number of instances that this particular worker type
+# currently thinks it should spawn. this changes depending
+# on the number of workers available
+has local_instances => (
+    is => 'rw',
+    lazy => 1,
+    default => sub {
+        $_[0]->total_instances;
+    }
 );
 
 sub BUILD {
@@ -42,78 +62,207 @@ sub BUILD {
     );
 }
 
-sub register {
+sub renew_instances {
     my $self = shift;
 
-    my $ids = $self->election_ids;
-    if ($self->election_count <= scalar keys %$ids) {
-        return;
-    }
+    my ($id, $drone_id, $local_pid);
 
+    my $total_instances = $self->total_instances;
     my $dbh = $self->get('DB::Master');
-    $dbh->do(<<EOSQL, undef, $self->name, time() + 86400);
-        INSERT INTO election (name, expires_at) VALUES (?, ?)
+    my $sth = $dbh->prepare( <<EOSQL );
+        SELECT id, drone_id, local_pid FROM worker_election 
+            WHERE name = ?
+            ORDER BY id ASC
+            LIMIT $total_instances
 EOSQL
-    my $my_id = $dbh->{mysql_insertid};
-    $ids->{$my_id} = undef;
-    if (STF_DEBUG) {
-        debugf("Registered election token %d for %s", $my_id, $self->name);
-    }
+    $sth->execute($self->name);
+    $sth->bind_columns(\($id, $drone_id, $local_pid));
 
-    return $my_id;
-}
+    my $mine = 0;
+    my $local_instances = $self->local_instances;
+    while ($sth->fetchrow_arrayref) {
+        if ($drone_id ne $self->drone_id) {
+            next;
+        }
 
-sub get { shift->context->container->get(@_) }
-
-sub elect {
-    my $self = shift;
-
-    my $ids         = $self->election_ids;
-    my $active_ids  = scalar grep { defined($ids->{$_}) } keys %$ids;
-    my $active_want = $self->election_count;
-    if ( $active_ids >= $active_want ) {
-        return;
-    }
-
-    my $dbh = $self->get('DB::Master');
-    # Make sure that our key actually exists
-    {
-        my $sth = $dbh->prepare(<<EOSQL);
-            SELECT 1 FROM election WHERE id = ?
+        if (++$mine > $local_instances) {
+            if ( ! $local_pid) {
+                my ($expires_at) = $dbh->selectrow_array(<<EOSQL, undef, $id);
+                    SELECT expires_at FROM worker_election WHERE id = ?
 EOSQL
-        foreach my $id (keys %$ids) {
-            if ($sth->execute($id) < 1) {
-                if (my $pid = $ids->{$id}) {
-                    kill TERM => $pid;
-                } else {
-                    $self->unregister($id);
+                $expires_at ||= 0;
+                if ($expires_at < time()) {
+                    if (STF_DEBUG) {
+                        debugf("Renew: Expiring token %s", $id);
+                    }
+                    $self->remove_token($id);
+                    $self->create_token();
                 }
             }
         }
     }
-
-    my $limit = $self->election_count;
-    my $sth = $dbh->prepare(<<EOSQL);
-        SELECT id FROM election WHERE name = ? ORDER BY id ASC LIMIT $limit
-EOSQL
-
-    my $id;
-    $sth->execute( $self->name );
-    $sth->bind_columns( \($id) );
-    while ($sth->fetchrow_arrayref) {
-        next if ! exists $ids->{$id};
-        next if $ids->{$id}; # already used
-
-        if (STF_DEBUG) {
-            debugf("Elected %s as leader of %s", $id, $self->name);
-        }
-        return $id;
-    }
-
-    # unregsiter $my_id, because we failed to elect ourselves
-    return;
 }
 
+sub create_token {
+    my $self = shift;
+
+    my $tokens = $self->election_tokens;
+    my $total_instances = $self->total_instances;
+    my $dbh = $self->get('DB::Master');
+
+    my ($count) = $dbh->selectrow_array(<<EOSQL, undef, $self->name, $self->drone_id);
+        SELECT COUNT(*) FROM worker_election WHERE name = ? AND drone_id = ?
+EOSQL
+
+    if ($count >= $total_instances) {
+        return;
+    }
+
+    $dbh->do(<<EOSQL, undef, $self->name, $self->drone_id, time() + 60);
+        INSERT INTO worker_election (name, drone_id, expires_at) VALUES (?, ?, ?)
+EOSQL
+    my $my_id = $dbh->{mysql_insertid};
+    if (STF_DEBUG) {
+        debugf("Registered election token %d for %s", $my_id, $self->name);
+    }
+}
+
+sub get { shift->context->container->get(@_) }
+
+sub active_tokens {
+    my $self   = shift;
+    my $list = $self->get('DB::Master')->selectall_arrayref(<<EOSQL, { Slice => {} }, $self->drone_id, $self->name);
+        SELECT * FROM worker_election WHERE drone_id = ? AND name = ? AND local_pid IS NOT NULL
+EOSQL
+    return wantarray ? @$list : $list;
+}
+
+sub balance_load {
+    my $self = shift;
+
+    $self->create_token;
+
+    my $total_instances = $self->total_instances;
+    my $local_instances = $self->local_instances;
+
+    my $dbh = $self->get('DB::Master');
+    my ($availability) = $dbh->selectrow_array(<<EOSQL, undef, $self->name);
+        SELECT count(*) FROM worker_election WHERE name = ?
+EOSQL
+
+
+    if ($total_instances > 1) {
+        my $ratio = Math::Round::round( $availability / $total_instances );
+        if ($ratio < 1) {
+            $ratio = 1;
+        }
+
+        $local_instances =
+            int( $total_instances / $ratio ) +
+            ($total_instances % $ratio ? 1 : 0);
+    }
+
+    if (STF_DEBUG) {
+        debugf("Balance: %s total = %d, limit = %d, availability = %d",
+            $self->name, $total_instances, $local_instances, $availability);
+    }
+
+    my $prev = $self->local_instances();
+    if ($prev != $local_instances) {
+        if (STF_DEBUG) {
+            debugf("Balance: Re-calculated limit for %s (%d)",
+                 $self->name, $local_instances );
+        }
+        $self->local_instances($local_instances);
+    }
+
+    my @active_tokens = $self->active_tokens();
+    if (@active_tokens > $local_instances) {
+        # clearly somebody else is also wanting to run the same worker.
+        # kill excess workers
+        $self->reduce_instances();
+    }
+    return 1;
+}
+
+sub reduce_instances {
+    my $self = shift;
+
+    my $local_instances = $self->local_instances;
+    my @active_tokens = $self->active_tokens;
+
+    my $howmany = scalar @active_tokens - $local_instances;
+    if ($howmany == 0) {
+        # see if we have tokens to renew
+        $self->renew_instances();
+        return;
+    }
+
+    # kill youngest ones until we reach the desired amount
+    while ($howmany-- > 0) {
+        my $token = shift @active_tokens;
+        $self->remove_token($token->{id});
+    }
+}
+
+sub elect {
+    my $self = shift;
+
+    my $total_instances = $self->total_instances;
+    my $local_instances = $self->local_instances;
+    my $active_tokens = $self->active_tokens;
+    if (@$active_tokens >= $local_instances) {
+        debugf( "%s already have %d (want %d)", $self->name, scalar @$active_tokens, $local_instances);
+        $self->reduce_instances();
+        return;
+    }
+
+    # We want more workers! See if we can register a new token
+    $self->create_token;
+
+    # Now do the leader election 
+    my $dbh = $self->get('DB::Master');
+    my $sth = $dbh->prepare( <<EOSQL );
+        SELECT id, drone_id, local_pid FROM worker_election 
+            WHERE name = ?
+            ORDER BY id ASC
+            LIMIT $total_instances
+EOSQL
+
+    my $mine = 0;
+    my $tokens = $self->election_tokens;
+    my ($token, $drone_id, $pid);
+    $sth->execute($self->name);
+    $sth->bind_columns(\($token, $drone_id, $pid));
+    while ($sth->fetchrow_arrayref) {
+        if ($drone_id ne $self->drone_id) {
+            # XXX not me. go next
+            next;
+        }
+
+        last if ($mine++ >= $local_instances);
+        if ($pid) {
+            # it's already running something, go next
+            if (! kill 0 => $pid) {
+                # WTF, the process does not exist?
+                $self->remove_token($token);
+            }
+            next;
+        }
+
+        # This is us!
+        $dbh->do(<<EOSQL, undef, $token);
+            UPDATE worker_election SET local_pid = -1 WHERE id = ?
+EOSQL
+
+        if (STF_DEBUG) {
+            debugf("Elected token %s for %s", $token, $self->name);
+        }
+        return $token;
+    }
+    return;
+}
+        
 sub start {
     my $self = shift;
 
@@ -132,40 +281,42 @@ sub start {
 }
 
 sub associate_pid {
-    my ($self, $id, $pid) = @_;
-    $self->election_ids->{$id} = $pid;
+    my ($self, $token, $pid) = @_;
+    my $dbh = $self->get('DB::Master');
+    $dbh->do(<<EOSQL, undef, $pid, $token);
+        UPDATE worker_election SET local_pid = ? WHERE id = ?
+EOSQL
+    debugf("Associated pid %d for token %s", $pid, $token);
 }
 
-sub unregister {
-    my $self = shift;
-
-    my $ids = $self->election_ids;
-    my $id;
-    if (@_>0) {
-        $id = shift;
-    } else {
-        foreach my $x_id (keys %$ids) {
-            next if ! exists $ids->{$x_id};
-            next if ! $ids->{$x_id};
-            $id = $x_id;
-            last;
-        }
-    }
-    return unless $id;
-
-    if (STF_DEBUG) {
-        debugf("Attempting to unregister worker %s (%s) from election",
-            $self->name, $id);
-    }
-    eval { 
-        my $dbh = $self->get('DB::Master');
-        $dbh->do(<<EOSQL, undef, $id, $self->name);
-            DELETE FROM election WHERE id = ? AND name = ?
+sub reap {
+    my ($self, $token) = @_;
+    $self->get('DB::Master')->do(<<EOSQL, undef, $token);
+        DELETE FROM worker_election WHERE id = ?
 EOSQL
-        delete $ids->{$id};
-    }; 
-    if ($@) {
-        critf($@);
+}
+
+sub remove_token {
+    my ($self, $token) = @_;
+
+    return unless $token;
+
+    my $tokens = $self->election_tokens;
+    if (STF_DEBUG) {
+        debugf("Attempting to remove token for worker %s (%s) from election",
+            $self->name, $token);
+    }
+
+    my $dbh = $self->get('DB::Master');
+    my ($pid) = $dbh->selectrow_array(<<EOSQL, undef, $token);
+        SELECT local_pid FROM worker_election WHERE id = ?
+EOSQL
+    if ($pid) {
+        kill TERM => $pid;
+    } else {
+        $dbh->do(<<EOSQL, undef, $token);
+            DELETE FROM worker_election WHERE id = ?
+EOSQL
     }
 }
 
@@ -174,12 +325,22 @@ sub DEMOLISH { $_[0]->cleanup }
 sub cleanup {
     my $self = shift;
 
+debugf("cleanup (parent %d, me %d)", $self->parent_pid, $$);
+
     if ($self->parent_pid != $$) {
         return;
     }
 
-    for my $key (keys %{$self->election_ids}) {
-        $self->unregister($key) 
+    my $dbh = $self->get('DB::Master');
+    my $sth = $dbh->prepare( <<EOSQL );
+        SELECT id FROM worker_election WHERE drone_id = ? AND name = ?
+EOSQL
+
+    my $token;
+    $sth->execute( $self->drone_id, $self->name );
+    $sth->bind_columns( \($token) );
+    while ($sth->fetchrow_arrayref) {
+        $self->remove_token($token);
     }
 }
 
@@ -197,11 +358,6 @@ use STF::Context;
 use STF::Constants qw(STF_DEBUG);
 use STF::Log;
 
-my @RESOURCE_DESTRUCTION_GUARDS;
-BEGIN {
-    undef @RESOURCE_DESTRUCTION_GUARDS;
-}
-
 has context => (
     is => 'rw',
     required => 1,
@@ -209,6 +365,14 @@ has context => (
 
 has pid_file => (
     is => 'rw',
+);
+
+has id => (
+    is => 'ro',
+    default => sub {
+        require Sys::Hostname;
+        join '.', Sys::Hostname::hostname(), $$;
+    }
 );
 
 has process_manager => (
@@ -233,34 +397,40 @@ has workers => (
         my $context = $self->context;
         [
             STF::Worker::Process->new(
-                name           => "Replicate",
-                context        => $context,
-                election_count => 8,
+                name            => "Replicate",
+                context         => $context,
+                drone_id        => $self->id,
+                total_instances => 8,
             ),
             STF::Worker::Process->new(
                 name           => "DeleteBucket",
                 context        => $context,
-                election_count => 4,
+                drone_id        => $self->id,
+                total_instances => 4,
             ),
             STF::Worker::Process->new(
                 name           => "DeleteObject",
                 context        => $context,
-                election_count => 4,
+                drone_id        => $self->id,
+                total_instances => 4,
             ),
             STF::Worker::Process->new(
                 name           => "RepairObject",
                 context        => $context,
-                election_count => 4,
+                drone_id        => $self->id,
+                total_instances => 4,
             ),
             STF::Worker::Process->new(
                 name           => "RepairStorage",
                 context        => $context,
-                election_count => 1,
+                drone_id        => $self->id,
+                total_instances => 1,
             ),
             STF::Worker::Process->new(
                 name           => "ContinuousRepair",
                 context        => $context,
-                election_count => 1,
+                drone_id        => $self->id,
+                total_instances => 1,
             ),
         ];
     }
@@ -273,7 +443,7 @@ has max_workers => (
         my $workers = $self->workers;
         my $n = 0;
         for my $v ( @$workers ) {
-            $n += $v->election_count;
+            $n += $v->total_instances;
         }
         $n;
     }
@@ -306,6 +476,10 @@ sub cleanup {
         unlink $pid_file or
             warn "Could not unlink PID file $pid_file: $!";
     }
+
+    foreach my $worker (@{$self->workers}) {
+        $worker->cleanup;
+    }
 }
 
 sub run {
@@ -330,14 +504,18 @@ sub run {
             debugf( "Reaped worker process %d", $pid);
         }
 
-        delete $pids{$pid};
+        if (! delete $pids{$pid}) {
+            local $Log::Minimal::AUTODUMP = 1;
+            critf("What the...? didn't find pid %d in list of children", $pid);
+            critf("%s", \%pids);
+        }
         # Tell the worker that a process belonging to the worker has
         # finished. Note that this releases an election id assocciated 
         # with the worker. This may not be necessarily matching the
         # $id that spawned the $pid, but it's okay, because
         # all we care is the number of workers spawned
         if ($data) {
-            $data->[1]->unregister($data->[0]);
+            $data->[1]->reap($data->[0]);
         }
     });
     $pp->run_on_start(sub {
@@ -357,6 +535,7 @@ sub run {
     }
 
     my $spawn_timeout = 0;
+    my $balance_timeout = 0;
     while ( $signal_received !~ /^(?:TERM|INT)$/ ) {
         if ($pp->wait_one_child(POSIX::WNOHANG()) > 0) {
             $spawn_timeout = 0;
@@ -365,11 +544,27 @@ sub run {
         my $now = time();
         if ($spawn_timeout > $now) {
             my $remaining = $spawn_timeout - $now;
-            if (STF_DEBUG) {
-                debugf("Spawn timeout is set for %d seconds...", $remaining);
-            }
             select(undef, undef, undef, rand($remaining > 5 ? 5 : $remaining));
             next;
+        }
+
+        my $workers = $self->workers;
+        if ($balance_timeout <= $now) {
+            $balance_timeout = $now + int rand 30;
+            # Query how many workers are available. This will determine
+            # the number of max workers and average worker instances per
+            # worker group
+            my $killed = 0;
+            foreach my $worker (@$workers) {
+                $killed += $worker->balance_load;
+            }
+            if ($killed) {
+                # give the drone a chance to collect the children
+                # before spawning new instances
+                $spawn_timeout = 0;
+                select(undef, undef, undef, rand(5));
+                next;
+            }
         }
 
         if (scalar keys %pids >= $self->max_workers) {
@@ -380,14 +575,12 @@ sub run {
             next;
         }
 
-        # First, find a worker that may be spawned. The worker must
         # win the leader-election (note that this may not be "a" leader,
         # it could be multiple leaders)
         my $to_spawn;
-        my $election_id;
-        foreach my $process (List::Util::shuffle(@{$self->workers})) {
-            $process->register;
-            next unless $election_id = $process->elect;
+        my $token;
+        foreach my $process (List::Util::shuffle(@$workers)) {
+            next unless $token = $process->elect;
             $to_spawn = $process;
             last;
         }
@@ -396,12 +589,12 @@ sub run {
             # There was nothing to spawn ... to save us from having to
             # send useless queries to the database, sleep for an extended
             # amount of time
-            $spawn_timeout = $now + 30;
+            $spawn_timeout = $now + int rand 30;
             next;
         }
 
         # Now that we have a winner spawn it
-        if (my $pid = $pp->start([$election_id, $to_spawn])) {
+        if (my $pid = $pp->start([$token, $to_spawn])) {
             $pids{$pid}++;
             sleep $self->spawn_interval;
             next;
