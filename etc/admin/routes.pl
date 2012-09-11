@@ -6,6 +6,21 @@ router {
         action     => 'index',
     };
 
+    connect '/config/list' => {
+        controller => 'Config',
+        action     => 'list',
+    };
+
+    connect '/config/update' => {
+        controller => 'Config',
+        action     => 'update',
+    }, { method => 'POST' };
+
+    connect '/ajax/config/reload.json' => {
+        controller => 'Config',
+        action     => 'reload',
+    };
+
     my %namespace = (
         Storage => 'storage',
         Cluster => 'cluster'

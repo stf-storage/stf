@@ -482,7 +482,7 @@ sub reload {
     my $self = shift;
 
     my $last_reload = $self->last_reload;
-    my $when_to_reload = $self->get('Memcached')->get("stf.worker.reload");
+    my $when_to_reload = $self->get('Memcached')->get("stf.config.reload");
     $when_to_reload ||= 0;
     if ($last_reload >= $when_to_reload) {
         # no need to relead
@@ -496,13 +496,14 @@ sub reload {
     my ($name, $instances) = @_;
     my $dbh = $self->get('DB::Master');
     my $sth = $dbh->prepare(<<EOSQL);
-        SELECT name, instances FROM workers
+        SELECT varname, varvalue FROM config WHERE varname LIKE 'stf.worker.%.instances'
 EOSQL
     $sth->execute();
     $sth->bind_columns(\($name, $instances));
 
     my $max_workers = 0;
     while ($sth->fetchrow_arrayref) {
+        $name =~ s/^stf\.worker\.([^\.]+)\.instances$/$1/;
         my $worker = delete $map{ $name };
 
         # If this doesn't exist in the map, then it's new. create an

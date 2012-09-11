@@ -3,6 +3,19 @@ CREATE TABLE config (
     varvalue TEXT
 ) ENGINE=InnoDB;
 
+REPLACE INTO config (varname, varvalue)
+    VALUES ("stf.worker.Replicate.instances", 8);
+REPLACE INTO config (varname, varvalue)
+    VALUES ("stf.worker.RepairObject.instances", 4);
+REPLACE INTO config (varname, varvalue)
+    VALUES ("stf.worker.DeleteBucket.instances", 2);
+REPLACE INTO config (varname, varvalue)
+    VALUES ("stf.worker.DeleteObject.instances", 2);
+REPLACE INTO config (varname, varvalue)
+    VALUES ("stf.worker.RepairStorage.instances", 1);
+REPLACE INTO config (varname, varvalue)
+    VALUES ("stf.worker.ContinuousRepair.instances", 1);
+
 CREATE TABLE storage_cluster (
     id INT NOT NULL PRIMARY KEY,
     name VARCHAR(128),
@@ -105,18 +118,6 @@ CREATE TABLE entity (
        KEY(storage_id),
        FOREIGN KEY(storage_id) REFERENCES storage(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
-
-CREATE TABLE workers (
-    name      VARCHAR(255) NOT NULL,
-    instances INT NOT NULL DEFAULT 0,
-    UNIQUE KEY(name)
-) ENGINE=InnoDB;
-REPLACE INTO workers (name, instances) VALUES ("Replicate", 8);
-REPLACE INTO workers (name, instances) VALUES ("RepairObject", 4);
-REPLACE INTO workers (name, instances) VALUES ("DeleteBucket", 2);
-REPLACE INTO workers (name, instances) VALUES ("DeleteObject", 2);
-REPLACE INTO workers (name, instances) VALUES ("RepairStorage", 1);
-REPLACE INTO workers (name, instances) VALUES ("ContinuousRepair", 1);
 
 CREATE TABLE worker_election (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
