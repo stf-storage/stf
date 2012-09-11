@@ -2,13 +2,19 @@ package STF::Worker::Process;
 use Mouse;
 use Math::Round ();
 use Scalar::Util ();
+use Time::HiRes ();
 use STF::Constants qw(STF_DEBUG);
 use STF::Log;
 use STF::Utils qw(add_resource_guard);
 
-has drone_id => (
+has drone => (
     is => 'ro',
     required => 1,
+    handles => {
+        drone_id       => 'id',
+        get            => 'get',
+        update_lastmod => 'update_lastmod',
+    }
 );
 
 has context => (
@@ -24,11 +30,6 @@ has parent_pid => (
 has name => (
     is => 'ro',
     required => 1,
-);
-
-has election_tokens => (
-    is => 'ro',
-    default => sub { +[] }
 );
 
 # the max number of instances in the entire system.
@@ -106,7 +107,6 @@ EOSQL
 sub create_token {
     my $self = shift;
 
-    my $tokens = $self->election_tokens;
     my $total_instances = $self->total_instances;
     my $dbh = $self->get('DB::Master');
 
@@ -125,9 +125,9 @@ EOSQL
     if (STF_DEBUG) {
         debugf("Registered election token %d for %s", $my_id, $self->name);
     }
-}
 
-sub get { shift->context->container->get(@_) }
+    $self->update_lastmod();
+}
 
 sub active_tokens {
     my $self   = shift;
@@ -168,21 +168,24 @@ EOSQL
     }
 
     my $prev = $self->local_instances();
-    if ($prev != $local_instances) {
-        if (STF_DEBUG) {
-            debugf("Balance: Re-calculated limit for %s (%d)",
-                 $self->name, $local_instances );
-        }
-        $self->local_instances($local_instances);
+    if ($prev == $local_instances) {
+        return 0;
     }
+
+    if (STF_DEBUG) {
+        debugf("Balance: Re-calculated limit for %s (%d)",
+             $self->name, $local_instances );
+    }
+    $self->local_instances($local_instances);
 
     my @active_tokens = $self->active_tokens();
     if (@active_tokens > $local_instances) {
         # clearly somebody else is also wanting to run the same worker.
         # kill excess workers
         $self->reduce_instances();
+        return 1;
     }
-    return 1;
+    return 0;
 }
 
 sub reduce_instances {
@@ -230,7 +233,6 @@ sub elect {
 EOSQL
 
     my $mine = 0;
-    my $tokens = $self->election_tokens;
     my ($token, $drone_id, $pid);
     $sth->execute($self->name);
     $sth->bind_columns(\($token, $drone_id, $pid));
@@ -301,7 +303,6 @@ sub remove_token {
 
     return unless $token;
 
-    my $tokens = $self->election_tokens;
     if (STF_DEBUG) {
         debugf("Attempting to remove token for worker %s (%s) from election",
             $self->name, $token);
@@ -325,7 +326,9 @@ sub DEMOLISH { $_[0]->cleanup }
 sub cleanup {
     my $self = shift;
 
-debugf("cleanup (parent %d, me %d)", $self->parent_pid, $$);
+    if (STF_DEBUG) {
+        debugf("cleanup (parent %d, me %d)", $self->parent_pid, $$);
+    }
 
     if ($self->parent_pid != $$) {
         return;
@@ -342,6 +345,7 @@ EOSQL
     while ($sth->fetchrow_arrayref) {
         $self->remove_token($token);
     }
+    $self->drone->update_lastmod;
 }
 
 
@@ -399,37 +403,37 @@ has workers => (
             STF::Worker::Process->new(
                 name            => "Replicate",
                 context         => $context,
-                drone_id        => $self->id,
+                drone           => $self,
                 total_instances => 8,
             ),
             STF::Worker::Process->new(
                 name           => "DeleteBucket",
                 context        => $context,
-                drone_id        => $self->id,
+                drone           => $self,
                 total_instances => 4,
             ),
             STF::Worker::Process->new(
                 name           => "DeleteObject",
                 context        => $context,
-                drone_id        => $self->id,
+                drone           => $self,
                 total_instances => 4,
             ),
             STF::Worker::Process->new(
                 name           => "RepairObject",
                 context        => $context,
-                drone_id        => $self->id,
+                drone           => $self,
                 total_instances => 4,
             ),
             STF::Worker::Process->new(
                 name           => "RepairStorage",
                 context        => $context,
-                drone_id        => $self->id,
+                drone           => $self,
                 total_instances => 1,
             ),
             STF::Worker::Process->new(
                 name           => "ContinuousRepair",
                 context        => $context,
-                drone_id        => $self->id,
+                drone           => $self,
                 total_instances => 1,
             ),
         ];
@@ -447,6 +451,11 @@ has max_workers => (
         }
         $n;
     }
+);
+
+has lastmod => (
+    is => 'rw',
+    default => 0,
 );
 
 sub bootstrap {
@@ -480,6 +489,25 @@ sub cleanup {
     foreach my $worker (@{$self->workers}) {
         $worker->cleanup;
     }
+}
+
+sub get { shift->context->container->get(@_) }
+
+sub update_lastmod {
+    my $self = shift;
+    my $time = Time::HiRes::time();
+    $self->get('Memcached')->set("stf.worker.lastmod", $time);
+    $self->lastmod($time);
+}
+
+sub check_lastmod {
+    my $self = shift;
+    my $time = $self->get('Memcached')->get("stf.worker.lastmod");
+    if ($time > $self->lastmod) {
+        $self->lastmod($time);
+        return 1;
+    }
+    return;
 }
 
 sub run {
@@ -541,16 +569,15 @@ sub run {
             $spawn_timeout = 0;
         }
 
-        my $now = time();
-        if ($spawn_timeout > $now) {
-            my $remaining = $spawn_timeout - $now;
-            select(undef, undef, undef, rand($remaining > 5 ? 5 : $remaining));
-            next;
-        }
+        # if the somebody has updated the lastmod counter, then we probably
+        # need to re-calculate our numbers
+        if ($self->check_lastmod) {
+            if (STF_DEBUG) {
+                debugf("Last modified has been updated, clearing spawn_timeout");
+            }
+            $spawn_timeout = 0;
 
-        my $workers = $self->workers;
-        if ($balance_timeout <= $now) {
-            $balance_timeout = $now + int rand 30;
+            my $workers = $self->workers;
             # Query how many workers are available. This will determine
             # the number of max workers and average worker instances per
             # worker group
@@ -561,10 +588,15 @@ sub run {
             if ($killed) {
                 # give the drone a chance to collect the children
                 # before spawning new instances
-                $spawn_timeout = 0;
-                select(undef, undef, undef, rand(5));
                 next;
             }
+        }
+
+        my $now = time();
+        if ($spawn_timeout > $now) {
+            my $remaining = $spawn_timeout - $now;
+            select(undef, undef, undef, rand($remaining > 5 ? 5 : $remaining));
+            next;
         }
 
         if (scalar keys %pids >= $self->max_workers) {
@@ -579,6 +611,7 @@ sub run {
         # it could be multiple leaders)
         my $to_spawn;
         my $token;
+        my $workers = $self->workers;
         foreach my $process (List::Util::shuffle(@$workers)) {
             next unless $token = $process->elect;
             $to_spawn = $process;
