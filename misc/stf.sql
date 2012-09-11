@@ -106,6 +106,18 @@ CREATE TABLE entity (
        FOREIGN KEY(storage_id) REFERENCES storage(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
+CREATE TABLE workers (
+    name      VARCHAR(255) NOT NULL,
+    instances INT NOT NULL DEFAULT 0,
+    UNIQUE KEY(name)
+) ENGINE=InnoDB;
+REPLACE INTO workers (name, instances) VALUES ("Replicate", 8);
+REPLACE INTO workers (name, instances) VALUES ("RepairObject", 4);
+REPLACE INTO workers (name, instances) VALUES ("DeleteBucket", 2);
+REPLACE INTO workers (name, instances) VALUES ("DeleteObject", 2);
+REPLACE INTO workers (name, instances) VALUES ("RepairStorage", 1);
+REPLACE INTO workers (name, instances) VALUES ("ContinuousRepair", 1);
+
 CREATE TABLE worker_election (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,

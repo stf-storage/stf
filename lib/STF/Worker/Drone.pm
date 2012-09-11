@@ -17,11 +17,6 @@ has drone => (
     }
 );
 
-has context => (
-    is => 'ro',
-    required => 1,
-);
-
 has parent_pid => (
     is => 'ro',
     default => $$
@@ -150,8 +145,11 @@ sub balance_load {
         SELECT count(*) FROM worker_election WHERE name = ?
 EOSQL
 
-
-    if ($total_instances > 1) {
+    if ($total_instances < 1) {
+        $local_instances = 0;
+    } elsif ($total_instances == 1) {
+        $local_instances = 1;
+    } elsif ($total_instances > 1) {
         my $ratio = Math::Round::round( $availability / $total_instances );
         if ($ratio < 1) {
             $ratio = 1;
@@ -186,6 +184,12 @@ EOSQL
         return 1;
     }
     return 0;
+}
+
+sub stop_instances {
+    my $self = shift;
+    my @active_tokens = $self->active_tokens;
+
 }
 
 sub reduce_instances {
@@ -278,7 +282,7 @@ sub start {
         if ! Mouse::Util::is_class_loaded($klass);
 
     $klass->new(
-        container => $self->context->container,
+        container => $self->drone->context->container,
     )->work;
 }
 
@@ -345,7 +349,7 @@ EOSQL
     while ($sth->fetchrow_arrayref) {
         $self->remove_token($token);
     }
-    $self->drone->update_lastmod;
+    $self->update_lastmod;
 }
 
 
@@ -396,48 +400,7 @@ has spawn_interval => (
 
 has workers => (
     is => 'rw',
-    default => sub {
-        my $self = shift;
-        my $context = $self->context;
-        [
-            STF::Worker::Process->new(
-                name            => "Replicate",
-                context         => $context,
-                drone           => $self,
-                total_instances => 8,
-            ),
-            STF::Worker::Process->new(
-                name           => "DeleteBucket",
-                context        => $context,
-                drone           => $self,
-                total_instances => 4,
-            ),
-            STF::Worker::Process->new(
-                name           => "DeleteObject",
-                context        => $context,
-                drone           => $self,
-                total_instances => 4,
-            ),
-            STF::Worker::Process->new(
-                name           => "RepairObject",
-                context        => $context,
-                drone           => $self,
-                total_instances => 4,
-            ),
-            STF::Worker::Process->new(
-                name           => "RepairStorage",
-                context        => $context,
-                drone           => $self,
-                total_instances => 1,
-            ),
-            STF::Worker::Process->new(
-                name           => "ContinuousRepair",
-                context        => $context,
-                drone           => $self,
-                total_instances => 1,
-            ),
-        ];
-    }
+    default => sub { [] },
 );
 
 has max_workers => (
@@ -453,7 +416,12 @@ has max_workers => (
     }
 );
 
-has lastmod => (
+has last_modified => (
+    is => 'rw',
+    default => 0,
+);
+
+has last_reload => (
     is => 'rw',
     default => 0,
 );
@@ -497,17 +465,67 @@ sub update_lastmod {
     my $self = shift;
     my $time = Time::HiRes::time();
     $self->get('Memcached')->set("stf.worker.lastmod", $time);
-    $self->lastmod($time);
+    $self->last_modified($time);
 }
 
 sub check_lastmod {
     my $self = shift;
     my $time = $self->get('Memcached')->get("stf.worker.lastmod");
-    if ($time > $self->lastmod) {
-        $self->lastmod($time);
+    if ($time > $self->last_modified) {
+        $self->last_modified($time);
         return 1;
     }
     return;
+}
+
+sub reload {
+    my $self = shift;
+
+    my $last_reload = $self->last_reload;
+    my $when_to_reload = $self->get('Memcached')->get("stf.worker.reload");
+    $when_to_reload ||= 0;
+    if ($last_reload >= $when_to_reload) {
+        # no need to relead
+        return;
+    }
+
+    # create a map so it's easier to tweak
+    my $workers = $self->workers;
+    my %map = map { ($_->name, $_) } @$workers;
+
+    my ($name, $instances) = @_;
+    my $dbh = $self->get('DB::Master');
+    my $sth = $dbh->prepare(<<EOSQL);
+        SELECT name, instances FROM workers
+EOSQL
+    $sth->execute();
+    $sth->bind_columns(\($name, $instances));
+
+    my $max_workers = 0;
+    while ($sth->fetchrow_arrayref) {
+        my $worker = delete $map{ $name };
+
+        # If this doesn't exist in the map, then it's new. create an
+        # instance
+        if ($worker) {
+            $worker->total_instances( $instances );
+        } else {
+            push @$workers, STF::Worker::Process->new(
+                name            => $name,
+                drone           => $self,
+                total_instances => $instances,
+            );
+        }
+        $max_workers += $instances;
+    }
+
+    $self->max_workers($max_workers);
+    $self->process_manager()->set_max_procs($max_workers);
+    $self->last_reload($when_to_reload);
+    $self->last_modified(0);
+    if (STF_DEBUG) {
+        debugf("Reloaded worker config");
+    }
 }
 
 sub run {
@@ -569,6 +587,9 @@ sub run {
             $spawn_timeout = 0;
         }
 
+        # check if we should reload our config
+        $self->reload();
+
         # if the somebody has updated the lastmod counter, then we probably
         # need to re-calculate our numbers
         if ($self->check_lastmod) {
@@ -596,14 +617,6 @@ sub run {
         if ($spawn_timeout > $now) {
             my $remaining = $spawn_timeout - $now;
             select(undef, undef, undef, rand($remaining > 5 ? 5 : $remaining));
-            next;
-        }
-
-        if (scalar keys %pids >= $self->max_workers) {
-            if (STF_DEBUG) {
-                debugf("Already spawned max %d workers", scalar keys %pids);
-            }
-            select(undef, undef, undef, rand(5));
             next;
         }
 
