@@ -471,6 +471,7 @@ sub update_lastmod {
 sub check_lastmod {
     my $self = shift;
     my $time = $self->get('Memcached')->get("stf.worker.lastmod");
+    $time ||= 0;
     if ($time > $self->last_modified) {
         $self->last_modified($time);
         return 1;
