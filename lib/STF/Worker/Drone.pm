@@ -114,7 +114,7 @@ EOSQL
     }
 
     $dbh->do(<<EOSQL, undef, $self->name, $self->drone_id);
-        INSERT INTO worker_election (name, drone_id, expires_at) VALUES (?, ?, UNIX_TIMESTAMP() + 300)
+        INSERT INTO worker_election (name, drone_id, expires_at) VALUES (?, ?, UNIX_TIMESTAMP() + 60)
 EOSQL
     my $my_id = $dbh->{mysql_insertid};
     if (STF_DEBUG) {
@@ -214,15 +214,29 @@ sub reduce_instances {
 }
 
 sub update_expiry {
-    my ($self, $token) = @_;
+    my $self = shift;
 
-    if (STF_DEBUG) {
-        debugf("Updating expiry for token %s", $token);
-    }
+    my ($token, $local_pid);
     my $dbh = $self->get('DB::Master');
-    $dbh->do(<<EOSQL, undef, $token)
-        UPDATE worker_election SET expires_at = UNIX_TIMESTAMP() + 300 WHERE id = ?
+    my $sth = $dbh->prepare(<<EOSQL);
+        SELECT id, local_pid FROM worker_election WHERE 
+            name = ? AND drone_id = ? AND local_pid IS NOT NULL
 EOSQL
+    $sth->execute($self->name, $self->drone_id);
+    $sth->bind_columns(\($token, $local_pid));
+    while ($sth->fetchrow_arrayref) {
+        if (! kill 0 => $local_pid) {
+            # wtf?
+            $self->remove_token($token);
+            $self->create_token();
+        }
+        if (STF_DEBUG) {
+            debugf("Updating expiry for token %s", $token);
+        }
+        $dbh->do(<<EOSQL, undef, $token)
+            UPDATE worker_election SET expires_at = UNIX_TIMESTAMP() + 300 WHERE id = ?
+EOSQL
+    }
 }
 
 sub elect {
@@ -264,6 +278,7 @@ EOSQL
             if (! kill 0 => $pid) {
                 # WTF, the process does not exist?
                 $self->remove_token($token);
+                $self->create_token;
             }
             next;
         }
@@ -286,23 +301,8 @@ EOSQL
 sub clean_slate {
     my $self = shift;
     my $dbh = $self->get('DB::Master');
-
-    my $sth;
     my ($token, $drone_id, $local_pid);
-
-    $sth = $dbh->prepare(<<EOSQL);
-        SELECT id, local_pid FROM worker_election WHERE 
-            name = ? AND local_pid IS NOT NULL
-EOSQL
-    $sth->execute($self->name);
-    $sth->bind_columns(\($token, $local_pid));
-    while ($sth->fetchrow_arrayref) {
-        if (kill 0 => $local_pid) {
-            $self->update_expiry($token);
-        }
-    }
-
-    $sth = $dbh->prepare(<<EOSQL);
+    my $sth = $dbh->prepare(<<EOSQL);
         SELECT id, drone_id, local_pid FROM worker_election WHERE expires_at < UNIX_TIMESTAMP()
 EOSQL
 
@@ -638,6 +638,7 @@ sub run {
 
     my $spawn_timeout = 0;
     my $balance_timeout = 0;
+    my $expiry_timeout = 0;
     while ( $signal_received !~ /^(?:TERM|INT)$/ ) {
         if ($pp->wait_one_child(POSIX::WNOHANG()) > 0) {
             $spawn_timeout = 0;
@@ -670,6 +671,15 @@ sub run {
         }
 
         my $now = time();
+
+        my $workers = $self->workers;
+        if ($now > $expiry_timeout) {
+            foreach my $process (@$workers) {
+                $process->update_expiry();
+            }
+            $expiry_timeout = $now + 30;
+        }
+
         if ($spawn_timeout > $now) {
             my $remaining = $spawn_timeout - $now;
             select(undef, undef, undef, rand($remaining > 5 ? 5 : $remaining));
@@ -680,7 +690,6 @@ sub run {
         # it could be multiple leaders)
         my $to_spawn;
         my $token;
-        my $workers = $self->workers;
         foreach my $process (List::Util::shuffle(@$workers)) {
             next unless $token = $process->elect;
             $to_spawn = $process;
