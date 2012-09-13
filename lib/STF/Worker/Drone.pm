@@ -183,7 +183,7 @@ EOSQL
         $self->reduce_instances();
         return 1;
     }
-    $self->clean_slate();
+    $self->remove_expired();
     return 0;
 }
 
@@ -285,7 +285,10 @@ EOSQL
 
         # This is us!
         $dbh->do(<<EOSQL, undef, $token);
-            UPDATE worker_election SET local_pid = -1 WHERE id = ?
+            UPDATE worker_election 
+                SET local_pid = -1,
+                    expires_at = UNIX_TIMESTAMP() + 300
+                WHERE id = ?
 EOSQL
 
         if (STF_DEBUG) {
@@ -294,24 +297,31 @@ EOSQL
         return $token;
     }
 
-    $self->clean_slate();
+    $self->remove_expired();
     return;
 }
 
-sub clean_slate {
+sub remove_expired {
     my $self = shift;
+
+    if (STF_DEBUG) {
+        debugf("Checking for expired tokens");
+    }
     my $dbh = $self->get('DB::Master');
-    my ($token, $drone_id, $local_pid);
+    my ($token, $drone_id, $local_pid, $expires_at);
     my $sth = $dbh->prepare(<<EOSQL);
-        SELECT id, drone_id, local_pid FROM worker_election WHERE expires_at < UNIX_TIMESTAMP()
+        SELECT id, drone_id, local_pid, expires_at FROM worker_election WHERE
+            local_pid IS NOT NULL AND expires_at < UNIX_TIMESTAMP()
 EOSQL
 
     $sth->execute();
-    $sth->bind_columns(\($token, $drone_id, $local_pid));
+    $sth->bind_columns(\($token, $drone_id, $local_pid, $expires_at));
     while ($sth->fetchrow_arrayref) {
         if ($drone_id ne $self->drone_id) {
             if (STF_DEBUG) {
-                debugf("EXPIRE: somebody else left a mess... removing token %s belonging to (%s)", $token, $drone_id);
+                debugf("===================");
+                debugf("EXPIRE: somebody else left a mess... removing token %s belonging to %s (pid = %d, expires_at = %d, now = %d)", $token, $drone_id, $local_pid, $expires_at, time());
+                debugf("===================");
             }
             # just delete old stuff that's not ours
             $dbh->do("DELETE FROM worker_election WHERE id = ?", undef, $token);
