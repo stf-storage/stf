@@ -221,7 +221,7 @@ sub update_expiry {
     }
     my $dbh = $self->get('DB::Master');
     $dbh->do(<<EOSQL, undef, $token)
-        UPDATE worker_election SET expires_at = UNIX_TIMESTAMP() + 300
+        UPDATE worker_election SET expires_at = UNIX_TIMESTAMP() + 300 WHERE id = ?
 EOSQL
 }
 
