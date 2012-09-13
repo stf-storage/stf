@@ -291,9 +291,10 @@ sub clean_slate {
     my ($token, $drone_id, $local_pid);
 
     $sth = $dbh->prepare(<<EOSQL);
-        SELECT id, local_pid FROM worker_election WHERE local_pid IS NOT NULL
+        SELECT id, local_pid FROM worker_election WHERE 
+            name = ? AND local_pid IS NOT NULL
 EOSQL
-    $sth->execute();
+    $sth->execute($self->name);
     $sth->bind_columns(\($token, $local_pid));
     while ($sth->fetchrow_arrayref) {
         if (kill 0 => $local_pid) {
@@ -318,6 +319,7 @@ EOSQL
         }
 
         $self->remove_token($token);
+        $self->create_token;
     }
 }
         
