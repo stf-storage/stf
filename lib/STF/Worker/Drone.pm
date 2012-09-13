@@ -484,7 +484,7 @@ sub reload {
 
     my $last_reload = $self->last_reload;
     my $when_to_reload = $self->get('Memcached')->get("stf.config.reload");
-    $when_to_reload ||= -1;
+    $when_to_reload ||= time();
     if ($last_reload >= $when_to_reload) {
         # no need to relead
         return;
