@@ -1,6 +1,7 @@
 package STF::Worker::Replicate;
 use Mouse;
 use STF::Constants qw(STF_DEBUG);
+use STF::Log;
 
 extends 'STF::Worker::Base';
 with 'STF::Trait::WithContainer';
