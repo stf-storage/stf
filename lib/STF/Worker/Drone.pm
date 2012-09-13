@@ -471,7 +471,7 @@ sub update_lastmod {
 sub check_lastmod {
     my $self = shift;
     my $time = $self->get('Memcached')->get("stf.worker.lastmod");
-    $time ||= 0;
+    $time ||= -1;
     if ($time > $self->last_modified) {
         $self->last_modified($time);
         return 1;
@@ -484,7 +484,7 @@ sub reload {
 
     my $last_reload = $self->last_reload;
     my $when_to_reload = $self->get('Memcached')->get("stf.config.reload");
-    $when_to_reload ||= 0;
+    $when_to_reload ||= -1;
     if ($last_reload >= $when_to_reload) {
         # no need to relead
         return;
