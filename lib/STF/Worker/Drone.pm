@@ -212,6 +212,14 @@ sub reduce_instances {
     }
 }
 
+sub update_expiry {
+    my ($self, $token) = @_;
+    my $dbh = $self->get('DB::Master');
+    $dbh->do(<<EOSQL, undef, $token)
+        UPDATE worker_election SET expires_at = expires_at + 300
+EOSQL
+}
+
 sub elect {
     my $self = shift;
 
@@ -248,7 +256,6 @@ EOSQL
 
         last if ($mine++ >= $local_instances);
         if ($pid) {
-            # it's already running something, go next
             if (! kill 0 => $pid) {
                 # WTF, the process does not exist?
                 $self->remove_token($token);
@@ -266,7 +273,34 @@ EOSQL
         }
         return $token;
     }
+
+    $self->clean_slate();
     return;
+}
+
+sub clean_slate {
+    my $self = shift;
+    my $dbh = $self->get('DB::Master');
+    my $sth = $dbh->prepare(<<EOSQL);
+        SELECT id, drone_id, local_pid FROM worker_election WHERE expires_at < ?
+EOSQL
+
+    $sth->execute(time());
+    my ($token, $drone_id, $local_pid);
+    $sth->bind_columns(\($token, $drone_id, $local_pid));
+    while ($sth->fetchrow_arrayref) {
+        if ($drone_id ne $self->drone_id) {
+            # just delete old stuff that's not ours
+            $dbh->do("DELETE FROM worker_election WHERE expires_at = ?", undef, $token);
+            next;
+        }
+
+        if (kill 0 => $local_pid) {
+            $self->update_expires($token);
+        } else {
+            $self->remove_token($token);
+        }
+    }
 }
         
 sub start {
