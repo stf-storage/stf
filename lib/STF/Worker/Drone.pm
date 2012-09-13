@@ -291,7 +291,7 @@ sub clean_slate {
     my ($token, $drone_id, $local_pid);
 
     $sth = $dbh->prepare(<<EOSQL);
-        SELECT id, local_pid FROM worker_electio WHERE local_pid IS NOT NULL
+        SELECT id, local_pid FROM worker_election WHERE local_pid IS NOT NULL
 EOSQL
     $sth->execute();
     $sth->bind_columns(\($token, $local_pid));
