@@ -217,7 +217,7 @@ sub update_expiry {
     my ($self, $token) = @_;
     my $dbh = $self->get('DB::Master');
     $dbh->do(<<EOSQL, undef, $token)
-        UPDATE worker_election SET expires_at = expires_at + 300
+        UPDATE worker_election SET expires_at = UNIX_TIMESTAMP() + 300
 EOSQL
 }
 
@@ -283,16 +283,16 @@ sub clean_slate {
     my $self = shift;
     my $dbh = $self->get('DB::Master');
     my $sth = $dbh->prepare(<<EOSQL);
-        SELECT id, drone_id, local_pid FROM worker_election WHERE expires_at < ?
+        SELECT id, drone_id, local_pid FROM worker_election WHERE expires_at < UNIX_TIMESTAMP()
 EOSQL
 
-    $sth->execute(time());
+    $sth->execute();
     my ($token, $drone_id, $local_pid);
     $sth->bind_columns(\($token, $drone_id, $local_pid));
     while ($sth->fetchrow_arrayref) {
         if ($drone_id ne $self->drone_id) {
             if (STF_DEBUG) {
-                debugf("EXPIRE: somebody else left a mess... removing token %s", $token);
+                debugf("EXPIRE: somebody else left a mess... removing token %s belonging to (%s)", $token, $drone_id);
             }
             # just delete old stuff that's not ours
             $dbh->do("DELETE FROM worker_election WHERE id = ?", undef, $token);
