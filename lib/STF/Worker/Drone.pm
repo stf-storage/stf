@@ -183,6 +183,7 @@ EOSQL
         $self->reduce_instances();
         return 1;
     }
+    $self->clean_slate();
     return 0;
 }
 
