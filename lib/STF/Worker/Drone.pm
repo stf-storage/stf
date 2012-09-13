@@ -654,11 +654,20 @@ sub run {
         }
         eval { $to_spawn->start };
         if ($@) { critf($@) }
+        if (STF_DEBUG) {
+            debugf("Child exiting for %s (%d)", $to_spawn->name, $$);
+        }
         $pp->finish;
     }
 
     foreach my $pid (keys %pids) {
+        if (STF_DEBUG) {
+            debugf("Sending TERM to %d", $$);
+        }
         kill TERM => $pid;
+    }
+    if (STF_DEBUG) {
+        debugf("Terminating drone... calling cleanup()");
     }
     $self->cleanup();
 }
