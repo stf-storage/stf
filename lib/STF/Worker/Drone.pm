@@ -295,7 +295,7 @@ sub clean_slate {
 EOSQL
     $sth->execute();
     $sth->bind_columns(\($token, $local_pid));
-    while ($sth->fechrow_arrayref) {
+    while ($sth->fetchrow_arrayref) {
         if (kill 0 => $local_pid) {
             $self->update_expiry($token);
         }
