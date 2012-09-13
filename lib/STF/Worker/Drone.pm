@@ -291,8 +291,11 @@ EOSQL
     $sth->bind_columns(\($token, $drone_id, $local_pid));
     while ($sth->fetchrow_arrayref) {
         if ($drone_id ne $self->drone_id) {
+            if (STF_DEBUG) {
+                debugf("EXPIRE: somebody else left a mess... removing token %s", $token);
+            }
             # just delete old stuff that's not ours
-            $dbh->do("DELETE FROM worker_election WHERE expires_at = ?", undef, $token);
+            $dbh->do("DELETE FROM worker_election WHERE id = ?", undef, $token);
             next;
         }
 
