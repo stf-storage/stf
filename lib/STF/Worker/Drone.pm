@@ -113,8 +113,8 @@ EOSQL
         return;
     }
 
-    $dbh->do(<<EOSQL, undef, $self->name, $self->drone_id, time() + 60);
-        INSERT INTO worker_election (name, drone_id, expires_at) VALUES (?, ?, ?)
+    $dbh->do(<<EOSQL, undef, $self->name, $self->drone_id);
+        INSERT INTO worker_election (name, drone_id, expires_at) VALUES (?, ?, UNIX_TIMESTAMP() + 300)
 EOSQL
     my $my_id = $dbh->{mysql_insertid};
     if (STF_DEBUG) {
@@ -215,6 +215,10 @@ sub reduce_instances {
 
 sub update_expiry {
     my ($self, $token) = @_;
+
+    if (STF_DEBUG) {
+        debugf("Updating expiry for token %s", $token);
+    }
     my $dbh = $self->get('DB::Master');
     $dbh->do(<<EOSQL, undef, $token)
         UPDATE worker_election SET expires_at = UNIX_TIMESTAMP() + 300
@@ -282,12 +286,26 @@ EOSQL
 sub clean_slate {
     my $self = shift;
     my $dbh = $self->get('DB::Master');
-    my $sth = $dbh->prepare(<<EOSQL);
+
+    my $sth;
+    my ($token, $drone_id, $local_pid);
+
+    $sth = $dbh->prepare(<<EOSQL);
+        SELECT id, local_pid FROM worker_electio WHERE local_pid IS NOT NULL
+EOSQL
+    $sth->execute();
+    $sth->bind_columns(\($token, $local_pid));
+    while ($sth->fechrow_arrayref) {
+        if (kill 0 => $local_pid) {
+            $self->update_expiry($token);
+        }
+    }
+
+    $sth = $dbh->prepare(<<EOSQL);
         SELECT id, drone_id, local_pid FROM worker_election WHERE expires_at < UNIX_TIMESTAMP()
 EOSQL
 
     $sth->execute();
-    my ($token, $drone_id, $local_pid);
     $sth->bind_columns(\($token, $drone_id, $local_pid));
     while ($sth->fetchrow_arrayref) {
         if ($drone_id ne $self->drone_id) {
@@ -299,11 +317,7 @@ EOSQL
             next;
         }
 
-        if (kill 0 => $local_pid) {
-            $self->update_expires($token);
-        } else {
-            $self->remove_token($token);
-        }
+        $self->remove_token($token);
     }
 }
         
