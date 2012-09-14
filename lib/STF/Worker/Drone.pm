@@ -365,6 +365,11 @@ sub elect_leader {
     my ($drone_id) = $dbh->selectrow_array(<<EOSQL);
         SELECT drone_id FROM worker_election ORDER BY id ASC LIMIT 1
 EOSQL
+
+    if (STF_DEBUG) {
+        debugf("Election: elected %s, my id is %s", $drone_id || '(null)', $self->id);
+    }
+
     # XXX Can't happen, but just in case...
     if (! defined $drone_id) {
         $self->is_leader(0);
