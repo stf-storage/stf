@@ -469,6 +469,9 @@ EOSQL
     }
 
     $self->get('Memcached')->set( "stf.worker.reload", time() );
+    # We came to rebalance, we should reload
+    $self->gstate( $self->gstate ^ BIT_RELOAD );
+    $self->reload;
 }
 
 sub get_processes_by_name {
