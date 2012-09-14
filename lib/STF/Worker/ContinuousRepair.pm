@@ -105,7 +105,7 @@ EOSQL
             }
 
             $sth->bind_columns( \($object_id) );
-            while ( $sth->fetchrow_arrayref ) {
+            while ( $loop && $sth->fetchrow_arrayref ) {
                 $queue_api->enqueue( repair_object => "NP:$object_id" );
                 $processed++;
                 $0 = "$o_e0 (object_id: $object_id, $processed)";

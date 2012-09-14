@@ -97,7 +97,7 @@ EOSQL
         my $size = $queue_api->size( 'repair_object' );
         while ( $loop && $sth->execute( $storage_id, $object_id ) > 0 ) {
             $sth->bind_columns( \($object_id) );
-            while ( $sth->fetchrow_arrayref ) {
+            while ( $loop && $sth->fetchrow_arrayref ) {
                 $queue_api->enqueue( repair_object => "NP:$object_id" );
                 $processed++;
                 $0 = "$o_e0 (object_id: $object_id, $processed)";
@@ -107,7 +107,7 @@ EOSQL
             # inserted into the repair queue
             my $prev = $size;
             $size = $queue_api->size( 'repair_object' );
-            while ( $size > $prev && abs($prev - $size) > $limit * 0.05 ) {
+            while ( $loop && $size > $prev && abs($prev - $size) > $limit * 0.05 ) {
                 my $timeout = time() + 60;
                 while ($timeout > time()) {
                     select(undef, undef, undef, rand 5);
