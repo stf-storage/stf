@@ -109,7 +109,7 @@ EOSQL
                 $queue_api->enqueue( repair_object => "NP:$object_id" );
                 $processed++;
                 $0 = "$o_e0 (object_id: $object_id, $processed)";
-                select(undef, undef, undef rand 1);
+                select(undef, undef, undef, rand 1);
             }
         }
     };
