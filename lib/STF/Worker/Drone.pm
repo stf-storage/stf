@@ -5,49 +5,9 @@ use Mouse;
 has name => (is => 'ro', required => 1);
 has instances => (is => 'rw', default => 0);
 
-package
-    STF::Worker::Process;
-use Mouse;
-use STF::Constants qw(STF_DEBUG);
-use STF::Log;
-
-has worker_type => (is => 'ro', required => 1);
-has pid => (is => 'rw', default => sub { $$ });
-
-sub start {
-    my ($self, $container) = @_;
-
-    my $klass = $self->worker_type;
-    $0 = sprintf '%s [%s]', $0, $klass;
-    if ($klass !~ s/^\+//) {
-        $klass = "STF::Worker::$klass";
-    }
-
-    Mouse::Util::load_class($klass)
-        if ! Mouse::Util::is_class_loaded($klass);
-    
-    $klass->new(
-        container => $container,
-    )->work;
-}
-
-sub terminate {
-    my $self = shift;
-    if (STF_DEBUG) {
-        debugf("Terminating worker process %d for %s", $self->pid, $self->worker_type);
-    }
-    kill TERM => $self->pid;
-}
-
-sub DEBLISH {
-    my $self = shift;
-    $self->terminate;
-}
-
-
 package STF::Worker::Drone;
 use Mouse;
-
+use Config ();
 use File::Spec;
 use File::Temp ();
 use Getopt::Long ();
@@ -157,8 +117,8 @@ sub cleanup {
     local $SIG{PIPE} = 'IGNORE';
     my $worker_processes = $self->worker_processes;
     foreach my $worker_type (keys %$worker_processes) {
-        foreach my $process (@{$worker_processes->{$worker_type}}) {
-            $process->terminate;
+        foreach my $pid (@{$worker_processes->{$worker_type}}) {
+            $self->terminate_child($worker_type, $pid);
         }
     }
 
@@ -501,8 +461,8 @@ sub spawn_children {
 
         my @processes = $self->get_processes_by_name($name);
         while (@processes > $count) {
-            my $process = shift @processes;
-            $process->terminate;
+            my $pid = shift @processes;
+            $self->terminate_child($name, $pid);
         }
 
         my $remaining = $count - @processes;
@@ -520,16 +480,13 @@ sub spawn_child {
     if (STF_DEBUG) {
         debugf("Spawning child process for %s", $worker_type);
     }
-    my $process = STF::Worker::Process->new(
-        worker_type => $worker_type,
-    );
     my $pp = $self->process_manager;
-    if ($pp->start($process)) {
+    if ($pp->start($worker_type)) {
         return;
     }
     eval {
         local $ENV{PERL5LIB} = join ":", @INC;
-        exec $^X, '-e', <<EOM;
+        exec $Config::Config{perlpath}, '-e', <<EOM;
 use strict;
 use STF::Context;
 use STF::Worker::$worker_type;
@@ -555,34 +512,39 @@ sub build_forkmanager {
 
     my $pp = Parallel::ForkManager->new;
     $pp->run_on_start(sub {
-        my ($pid, $process) = @_;
+        my ($pid, $worker_type) = @_;
 
-        $process->pid($pid);
-
-        my $worker_type = $process->worker_type;
         my $list = $self->worker_processes->{$worker_type} ||= [];
-        push @$list, $process;
+        push @$list, $pid;
         $self->pid_to_worker_type->{$pid} = $worker_type;
     });
     $pp->run_on_finish(sub {
-        my ($pid, $code, $process) = @_;
+        my ($pid, $code, $worker_type) = @_;
 
-        my $worker_type = $process->worker_type;
         my $list = $self->worker_processes->{$worker_type} ||= [];
         foreach my $i (1..@$list) {
-            if ($list->[$i - 1]->pid == $pid) {
+            if ($list->[$i - 1] == $pid) {
                 splice @$list, $i - 1, 1;
                 last;
             }
         }
-
         delete $self->pid_to_worker_type->{$pid};
+
         if (STF_DEBUG) {
-            debugf("Reap pid %d worker %s", $pid, $process->worker_type);
+            debugf("Reap pid %d worker %s", $pid, $worker_type);
         }
     });
     return $pp;
 }
+
+sub terminate_child {
+    my ($self, $worker_type, $pid) = @_;
+    if (STF_DEBUG) {
+        debugf("Terminating worker process %d for %s", $pid, $worker_type);
+    }
+    kill TERM => $pid;
+}
+
 
 no Mouse;
 
