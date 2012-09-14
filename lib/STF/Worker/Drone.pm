@@ -282,11 +282,11 @@ sub run {
             }
             $self->set_now;
             $self->check_state;
+            $self->announce;
 
             if ($self->now < $self->spawn_timeout) {
                 select(undef, undef, undef, rand 5);
             } else {
-                $self->announce;
                 $self->elect_leader;
                 $self->reload;
                 if ($self->is_leader) {
