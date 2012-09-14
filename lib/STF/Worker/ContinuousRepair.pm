@@ -23,7 +23,7 @@ sub work_once {
     my $guard = Scope::Guard->new(sub {
         $0 = $o_e0;
     });
-    local $STF::Log::PREFIX = "Repair(S)" if STF_DEBUG;
+    local $STF::Log::PREFIX = "Repair(CS)" if STF_DEBUG;
     eval {
         # Signals terminate the process, but don't allow us to fire the
         # guard object, so we manually fire it up
@@ -31,9 +31,11 @@ sub work_once {
         my $sig   = sub {
             my $sig = shift;
             return sub {
+                if (STF_DEBUG) {
+                    debugf("Received signal $sig");
+                }
                 $loop = 0;
                 undef $guard;
-                croakf("Received signal, stopping repair");
             };
         };
         local $SIG{INT}  = $sig->("INT");
@@ -53,6 +55,7 @@ sub work_once {
         my ($objcount_guess) = $dbh->selectrow_array(<<EOSQL);
             SELECT (max(id) - min(id) / 1000000000) FROM object
 EOSQL
+        $objcount_guess ||= 0;
         $objcount_guess = int($objcount_guess);
         if ($objcount_guess <= 0) {
             $limit = 2000;
