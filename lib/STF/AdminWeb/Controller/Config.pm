@@ -23,7 +23,7 @@ sub reload {
 
     my $memd = $c->get('Memcached');
     foreach my $key (qw(election reload rebalance)) {
-        $memd->set("stf.config.$key", Time::HiRes::time());
+        $memd->set("stf.worker.$key", Time::HiRes::time());
     }
 
     my $response = $c->response;
