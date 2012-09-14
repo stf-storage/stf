@@ -32,10 +32,10 @@ sub work_once {
             my $sig = shift;
             return sub {
                 if (STF_DEBUG) {
-                    debugf("Received signal $sig");
+                    debugf("Received signal %s", $sig);
                 }
                 $loop = 0;
-                undef $guard;
+                croakf("Received signal %s", $sig);
             };
         };
         local $SIG{INT}  = $sig->("INT");
