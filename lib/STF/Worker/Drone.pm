@@ -441,9 +441,25 @@ sub rebalance {
             if (STF_DEBUG) {
                 debugf("Balance: drone = %s, worker = %s, instances = %d", $drone->{drone_id}, $worker->name, $actual);
             }
-            $dbh->do(<<EOSQL, undef, $drone->{drone_id}, $worker->name, $actual);
-                REPLACE INTO worker_instances (drone_id, worker_type, instances) VALUES (?, ?, ?)
+
+            my ($current) = $dbh->selectrow_array(<<EOSQL, undef, $drone->{drone_id}, $worker->name);
+                SELECT instances FROM worker_instances WHERE drone_id = ? AND worker_type = ?
 EOSQL
+            if (defined $current) {
+                if (STF_DEBUG) {
+                    debugf("Balance: UPDATE %s, %s, %d (was %d)", $drone->{drone_id}, $worker->name, $actual, $current);
+                }
+                $dbh->do(<<EOSQL, undef, $actual, $drone->{drone_id}, $worker->name);
+                    UPDATE worker_instances SET instances = ? WHERE drone_id = ? AND worker_type = ?
+EOSQL
+            } else {
+                if (STF_DEBUG) {
+                    debugf("Balance: UPDATE %s, %s, %d", $drone->{drone_id}, $worker->name, $actual);
+                }
+                $dbh->do(<<EOSQL, undef, $drone->{drone_id}, $worker->name, $actual);
+                    INSERT INTO worker_instances (drone_id, worker_type, instances) VALUES (?, ?, ?)
+EOSQL
+            }
             $remaining -= $actual;
         }
     }
