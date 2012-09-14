@@ -356,6 +356,10 @@ sub elect_leader {
         return;
     }
 
+    if (STF_DEBUG) {
+        debugf("Running election for leader...");
+    }
+
     $self->last_election($self->now);
     my $dbh = $self->get('DB::Master');
     my ($drone_id) = $dbh->selectrow_array(<<EOSQL);
@@ -363,6 +367,7 @@ sub elect_leader {
 EOSQL
     # XXX Can't happen, but just in case...
     if (! defined $drone_id) {
+        $self->is_leader(0);
         return;
     }
 
