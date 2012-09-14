@@ -206,13 +206,18 @@ sub check_state {
     }
 
     my $when_to_elect = $h->{"stf.worker.election"} || 0;
-    if ($self->last_election < 0 || $self->last_election < $when_to_elect) {
+    my $last_election = $self->last_election;
+    if ($last_election < 0 ||                 # first time
+        $self->now - $last_election > 300 ||  # it has been 5 minutes since last election
+        $self->last_election < $when_to_elect # explicitly told that election should be held
+    ) {
         $state |= BIT_ELECTION;
     }
 
     if ($self->is_leader) {
         my $when_to_balance = $h->{"stf.worker.balance"} || 0;
-        if ($self->last_balance < 0 || $self->last_balance < $when_to_balance) {
+        my $last_balance = $self->last_balance;
+        if ($last_balance < 0 || $last_balance < $when_to_balance) {
             $state |= BIT_BALANCE;
         }
     }
