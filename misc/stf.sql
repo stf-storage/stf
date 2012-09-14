@@ -15,6 +15,8 @@ REPLACE INTO config (varname, varvalue)
     VALUES ("stf.worker.RepairStorage.instances", 1);
 REPLACE INTO config (varname, varvalue)
     VALUES ("stf.worker.ContinuousRepair.instances", 1);
+REPLACE INTO config (varname, varvalue)
+    VALUES ("stf.worker.StorageHealth.instances", 1);
 
 CREATE TABLE storage_cluster (
     id INT NOT NULL PRIMARY KEY,
