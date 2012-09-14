@@ -446,11 +446,10 @@ sub rebalance {
     my @drones = $self->get_all_drones();
     my $drone_count = scalar @drones;
 
-    # We got to clear the entire thing to do this
+    # XXX Currently we assume that the entire set of workers
+    # that we care about are going to be available in the 
+    # config database
     my $dbh = $self->get('DB::Master');
-    $dbh->do(<<EOSQL);
-        DELETE FROM worker_instances;
-EOSQL
 
     # for each registered worker types, balance it between each drone
     foreach my $worker (@{$self->worker_types}) {
