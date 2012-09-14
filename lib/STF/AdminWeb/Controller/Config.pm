@@ -21,7 +21,10 @@ sub list {
 sub reload {
     my ($self, $c) = @_;
 
-    $c->get('Memcached')->set("stf.config.reload", Time::HiRes::time());
+    my $memd = $c->get('Memcached');
+    foreach my $key (qw(election reload rebalance)) {
+        $memd->set("stf.config.$key", Time::HiRes::time());
+    }
 
     my $response = $c->response;
     $response->code( 200 );
