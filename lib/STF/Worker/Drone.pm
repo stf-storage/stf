@@ -154,15 +154,21 @@ sub cleanup {
         debugf("Cleanup");
     }
 
-    foreach my $pid (keys %{$self->pid_to_worker_type}) {
-        kill TERM => $pid;
+    local $SIG{PIPE} = 'IGNORE';
+    my $worker_processes = $self->worker_processes;
+    foreach my $worker_type (keys %$worker_processes) {
+        foreach my $process (@{$worker_processes->{$worker_type}}) {
+            $process->terminate;
+        }
     }
 
     $self->process_manager->wait_all_children();
 
     if ( my $pid_file = $self->pid_file ) {
-        unlink $pid_file or
-            warn "Could not unlink PID file $pid_file: $!";
+        if (-f $pid_file) {
+            unlink $pid_file or
+                warn "Could not unlink PID file $pid_file: $!";
+        }
     }
     local $@;
     eval {
