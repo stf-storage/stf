@@ -478,6 +478,38 @@ EOSQL
     return $content;
 }
 
+sub fetch_content_from_all {
+    my ($self, $args) = @_;
+
+    my $object = $args->{object} or die "XXX no object";
+
+    my $dbh = $self->dbh;
+    my $storages = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, STORAGE_MODE_READ_ONLY, STORAGE_MODE_READ_WRITE );
+        SELECT s.id, s.uri
+            FROM storage s
+            WHERE s.mode IN (?, ?)
+            ORDER BY rand()
+EOSQL
+
+    if ( scalar( @$storages ) == 0) {
+        debugf("No storage matching object %s found", $object->{id}) if STF_DEBUG;
+        return;
+    }
+
+    my $content;
+    foreach my $storage ( @$storages ) {
+        # XXX We KNOW that these are readable.
+        local $storage->{mode} = STORAGE_MODE_READ_ONLY;
+        $content = $self->fetch_content( {
+            object => $object,
+            storage => $storage,
+        } );
+        last if defined $content;
+    }
+
+    return $content;
+}
+
 sub repair {
     my ($self, $object_id, $storage_id) = @_;
 

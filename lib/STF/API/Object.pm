@@ -297,11 +297,16 @@ sub repair {
         object => $object,
     });
     if (! $master_content) {
-        critf(
-            "PANIC: No content for %s could be fetched!! Cannot proceed with repair.",
-            $object->{id}
-        );
-        return;
+        $master_content = $entity_api->fetch_content_from_all_storage({
+            object => $object
+        });
+        if (! $master_content) {
+            critf(
+                "PANIC: No content for %s could be fetched!! Cannot proceed with repair.",
+                $object->{id}
+            );
+            return;
+        }
     }
 
     my $cluster_api = $self->get( 'API::StorageCluster' );
