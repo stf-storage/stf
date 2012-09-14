@@ -478,7 +478,7 @@ EOSQL
     return $content;
 }
 
-sub fetch_content_from_all {
+sub fetch_content_from_all_storage {
     my ($self, $args) = @_;
 
     my $object = $args->{object} or die "XXX no object";
