@@ -328,9 +328,18 @@ sub announce {
 
     # if this is our initial announce, we should tell the leader to reload
     my $dbh = $self->get('DB::Master');
-    $dbh->do(<<EOSQL, undef, $self->id);
-        REPLACE INTO worker_election (drone_id, expires_at) VALUES (?, UNIX_TIMESTAMP() + 300)
+    my ($id) = $dbh->selectrow_array(<<EOSQL, undef, $self->id);
+        SELECT id FROM worker_election WHERE drone_id = ?
 EOSQL
+    if (defined $id) {
+        $dbh->do(<<EOSQL, undef, $id);
+            UPDATE worker_election SET expires_at = UNIX_TIMESTAMP() + 300 WHERE id = ?
+EOSQL
+    } else {
+        $dbh->do(<<EOSQL, undef, $self->id);
+            INSERT worker_election (drone_id, expires_at) VALUES (?, UNIX_TIMESTAMP() + 300)
+EOSQL
+    }
     if ($next_announce == 0) {
         $self->get("Memcached")->set("stf.worker.balance", $self->now);
     }
