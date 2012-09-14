@@ -528,8 +528,21 @@ sub spawn_child {
         return;
     }
     eval {
-        $SIG{$_} = 'DEFAULT' for keys %SIG;
-        $process->start($self->context->container);
+        local $ENV{PERL5LIB} = join ":", @INC;
+        exec $^X, '-e', <<EOM;
+use strict;
+use STF::Context;
+use STF::Worker::$worker_type;
+
+\$0 = "$0 [$worker_type]";
+
+my \$cxt = STF::Context->bootstrap;
+my \$container = \$cxt->container;
+my \$worker = STF::Worker::${worker_type}->new(
+    container => \$container
+);
+\$worker->work;
+EOM
     };
     if ($@) {
         critf("Failed to run child %s", $@);
