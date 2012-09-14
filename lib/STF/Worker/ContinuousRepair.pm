@@ -64,12 +64,21 @@ EOSQL
         } else {
             $limit = int($objcount_guess / 1_000);
         }
+
+        my $timeout = 0;
+
         while ( $loop ) {
+            my $now = time();
+            if ($timeout > $now) {
+                select(undef, undef, undef, rand(5));
+                next;
+            }
+
             # Only add to queue if there are no more elements to process
             # (i.e. this has the lowest priority)
             my $size = $queue_api->size( 'repair_object' );
             if ( $size > 0 ) {
-                sleep(60);
+                $timeout = $now + 60;
                 next;
             }
 
@@ -82,7 +91,7 @@ EOSQL
                 ] }
             } );
             if (@storages > 0)  {
-                sleep( 5 * 60 ); # check every 5 minutes
+                $timeout = $now + 300; # check every 5 minutes
                 next;
             }
 
@@ -100,7 +109,7 @@ EOSQL
                 $queue_api->enqueue( repair_object => "NP:$object_id" );
                 $processed++;
                 $0 = "$o_e0 (object_id: $object_id, $processed)";
-                sleep 1;
+                select(undef, undef, undef rand 1);
             }
         }
     };

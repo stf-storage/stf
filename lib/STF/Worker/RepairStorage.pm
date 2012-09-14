@@ -108,7 +108,10 @@ EOSQL
             my $prev = $size;
             $size = $queue_api->size( 'repair_object' );
             while ( $size > $prev && abs($prev - $size) > $limit * 0.05 ) {
-                sleep(60);
+                my $timeout = time() + 60;
+                while ($timeout > time()) {
+                    select(undef, undef, undef, rand 5);
+                }
                 $size = $queue_api->size( 'repair_object' );
             }
 
