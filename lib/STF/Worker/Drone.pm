@@ -167,7 +167,11 @@ sub check_state {
 
     my $state = 0;
     my $when_to_reload = $h->{"stf.worker.reload"} || 0;
-    if ($self->last_reload < 0 || $self->last_reload < $when_to_reload) {
+    my $last_reload = $self->last_reload;
+    if ($last_reload < 0 ||                # first time
+        $self->now - $last_reload > 600 || # it has been 10 minutes since last reload
+        $last_reload < $when_to_reload     # explicitly told that election should be held
+    ) {
         $state |= BIT_RELOAD;
     }
 
