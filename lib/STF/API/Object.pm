@@ -418,7 +418,13 @@ sub get_any_valid_entity_url {
             "Object %s forcefully being sent to repair (probably harmless)",
             $object_id
         ) if STF_DEBUG;
-        eval { $self->get('API::Queue')->enqueue( repair_object => $object_id ) };
+        eval {
+            my $memd = $self->get('Memcached');
+            if (! $memd->get("repair_from_dispatcher.$object_id")) {
+                $self->get('API::Queue')->enqueue( repair_object => $object_id );
+                $memd->set("repair_from_dispatcher.$object_id", 1, 300);
+            }
+        };
     }
 
     # We cache
@@ -558,11 +564,16 @@ EOSQL
     };
 
     if ($repair) { # Whoa!
-        debugf("Object %s needs repair", $object_id) if STF_DEBUG;
-        eval { $self->get('API::Queue')->enqueue( repair_object => $object_id ) };
-
-        # Also, kill the cache
-        eval { $self->cache_delete( @$cache_key ) };
+        my $memd = $self->get('Memcached');
+        if (! $memd->get("repair_from_dispatcher.$object_id")) {
+            debugf("Object %s needs repair", $object_id) if STF_DEBUG;
+            eval {
+                $self->get('API::Queue')->enqueue( repair_object => $object_id );
+                $memd->set("repair_from_dispatcher.$object_id", 1, 300);
+                # Also, kill the cache
+                $self->cache_delete( @$cache_key );
+            };
+        }
     }
 
     if ( STF_DEBUG ) {
