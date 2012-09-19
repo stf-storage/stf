@@ -20,20 +20,16 @@ sub list {
     # Load the current state of leader election
     # XXX Wrap in ::API ?
     my $dbh = $c->get('DB::Master');
-    {
-        my $list = $dbh->selectrow_arrayref(<<EOSQL, { Slice => {} });
-            SELECT * FROM worker_election ORDER BY id ASC
+    my $list = $dbh->selectrow_arrayref(<<EOSQL, { Slice => {} });
+        SELECT * FROM worker_election ORDER BY id ASC
 EOSQL
-        $c->stash->{election} = $list;
-    }
+    $c->stash->{election} = $list;
 
-    {
-        my $memd = $c->get('DB::Master');
-        my $h = $memd->get_multi(
-            map { "stf.worker.$_" } qw(election reload balance)
-        );
-        $c->stash->{states} = $h;
-    }
+    my $memd = $c->get('Memcached');
+    my $h = $memd->get_multi(
+        map { "stf.worker.$_" } qw(election reload balance)
+    );
+    $c->stash->{states} = $h;
 }
 
 sub reload {
