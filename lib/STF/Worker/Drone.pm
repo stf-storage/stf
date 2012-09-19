@@ -205,6 +205,9 @@ sub reload {
         return;
     }
 
+    if (STF_DEBUG) {
+        debugf("Reloading worker configuration");
+    }
     $self->last_reload($self->now);
 
     # create a map so it's easier to tweak
