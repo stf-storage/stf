@@ -38,7 +38,7 @@
 [% FOREACH st IN states.keys() %]
 <tr>
     <td>[% st %]</td>
-    <td>[% states.item(st) %]</td>
+    <td>[% states.$st %]</td>
 </tr>
 [% END %]
 </table>
