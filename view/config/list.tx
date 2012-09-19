@@ -49,13 +49,12 @@
 [% FOREACH el IN election %]
 <tr>
     <td>[% el.id %]</td>
-    <td>[% el.name %]</td>
+    <td>[% el.drone_id %]</td>
     <td>[% el.expires_at %]</td>
 </tr>
 [% END %]
 </table>
 
-<h3>Election</h3>
 <h3>Configuration</h3>
 
 <form action="/config/update" method="POST">
