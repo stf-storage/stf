@@ -20,7 +20,7 @@ sub list {
     # Load the current state of leader election
     # XXX Wrap in ::API ?
     my $dbh = $c->get('DB::Master');
-    my $list = $dbh->selectrow_arrayref(<<EOSQL, { Slice => {} });
+    my $list = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} });
         SELECT * FROM worker_election ORDER BY id ASC
 EOSQL
     $c->stash->{election} = $list;
