@@ -191,11 +191,12 @@ EOSQL
 
 # We used to use replicate() for both the initial write and the actual
 # replication, but it has been separated out so that you can make sure
-# that we make sure we do a double-write in the initial store(), and
-# replication that happens afterwards runs with a different logic
+# that we do a double-write in the initial store(), and replication that
+# happens afterwards runs with a different logic
 sub store {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Store(O)";
     my $object_id     = $args->{id}            or die "XXX no id";
     my $bucket_id     = $args->{bucket_id}     or die "XXX no bucket_id";
     my $object_name   = $args->{object_name}   or die "XXX no object_name";
@@ -216,6 +217,9 @@ sub store {
     });
 
     my $guard = Scope::Guard->new(sub {
+        if (STF_DEBUG) {
+            debugf("Guard for API::Object->store($object_id) triggered");
+        }
         eval { $self->delete( $object_id ) };
     });
 
@@ -223,7 +227,7 @@ sub store {
     my @clusters = $cluster_api->load_candidates_for( $object_id );
     if (! @clusters) {
         critf(
-            "[%10s] No cluster defined for object %s, and could not any load cluster for it\n",
+            "No cluster defined for object %s, and could not any load cluster for it\n",
             "Object",
             $object_id
         );
