@@ -69,7 +69,7 @@ sub store {
         );
         debugf("Going to store %s in:", $object_id);
         foreach my $storage (@storages) {
-            debugf(" + [%s] %s (%s)", $storage->{uri}, $storage->{id}, $object_id);
+            debugf(" + [%s] %s (%s)", $storage->{id}, $storage->{uri}, $object_id);
         }
     }
 
