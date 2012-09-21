@@ -149,25 +149,27 @@ sub store {
     # Handle the case where the destination already exists. If the
     # storage allows us to overwrite it then fine, but if it doesn't
     # we need to delete it
-    if (STF_DEBUG) {
-        debugf(
-            "Sending DELETE %s (storage = %s, cluster = %s)",
-            $uri, $storage->{id}, $storage->{cluster_id},
-        );
-    }
-    eval {
-        local $furl->{timeout} = 5;
-        my (undef, $code) = $furl->delete($uri);
+    if (! $repair) {
         if (STF_DEBUG) {
-            my $ok = HTTP::Status::is_success($code);
             debugf(
-                "        DELETE %s was %s (%s)",
-                $uri,
-                ($ok ? "OK" : "FAIL (harmless)"),
-                $code
+                "Sending DELETE %s (storage = %s, cluster = %s)",
+                $uri, $storage->{id}, $storage->{cluster_id},
             );
         }
-    };
+        eval {
+            local $furl->{timeout} = 5;
+            my (undef, $code) = $furl->delete($uri);
+            if (STF_DEBUG) {
+                my $ok = HTTP::Status::is_success($code);
+                debugf(
+                    "        DELETE %s was %s (%s)",
+                    $uri,
+                    ($ok ? "OK" : "FAIL (harmless)"),
+                    $code
+                );
+            }
+        };
+    }
 
     debugf(
         "Sending PUT %s (object = %s, storage = %s, cluster = %s)",
