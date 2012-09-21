@@ -235,7 +235,7 @@ sub remove {
     if (STF_DEBUG) {
         debugf( "Removing entities for %s in", $object->{id});
         foreach my $storage (@$storages) {
-            debugf(" - [%d] %s", $storage->{id}, $storage->{uri} || '(null)');
+            debugf(" - [%d] %s (%s)", $storage->{id}, $storage->{uri} || '(null)', $object->{id});
         }
     }
 
