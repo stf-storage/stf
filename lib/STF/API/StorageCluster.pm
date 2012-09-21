@@ -35,7 +35,7 @@ sub store {
     my $force     = $args->{force};
     my $repair    = $args->{repair};
 
-    my $object     = $self->get('API::Object')->lookup($object_id);
+    my $object    = $self->get('API::Object')->lookup($object_id);
     if (! $object) {
         debugf(
             "Could not load object to store (object_id = %s)n",
@@ -67,9 +67,9 @@ sub store {
             $cluster->{id},
             defined $minimum ? $minimum : scalar @storages,
         );
-        debugf("Going to store in:");
+        debugf("Going to store %s in:", $object_id);
         foreach my $storage (@storages) {
-            debugf(" + %s (id = %s)", $storage->{uri}, $storage->{id});
+            debugf(" + [%s] %s (%s)", $storage->{uri}, $storage->{id}, $object_id);
         }
     }
 
