@@ -394,8 +394,9 @@ sub fetch_content {
 
     my $object = $args->{object} or die "XXX no object";
     my $storage = $args->{storage} or die "XXX no object";
+    my $repair = $args->{repair};
 
-    if (! $self->get('API::Storage')->is_readable($storage)) {
+    if (! $self->get('API::Storage')->is_readable($storage, $repair)) {
         debugf("Storage %s is not readable", $storage->{id}) if STF_DEBUG;
         return;
     }
@@ -452,6 +453,7 @@ sub fetch_content_from_any {
     my ($self, $args) = @_;
 
     my $object = $args->{object} or die "XXX no object";
+    my $repair = $args->{repair};
 
     my $dbh = $self->dbh;
     my $storages = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, STORAGE_MODE_READ_ONLY, STORAGE_MODE_READ_WRITE, $object->{id} );
@@ -473,6 +475,7 @@ EOSQL
         $content = $self->fetch_content( {
             object => $object,
             storage => $storage,
+            repair => $repair,
         } );
         last if defined $content;
     }
@@ -484,12 +487,12 @@ sub fetch_content_from_all_storage {
     my ($self, $args) = @_;
 
     my $object = $args->{object} or die "XXX no object";
+    my $repair = $args->{repair};
 
     my $dbh = $self->dbh;
-    my $storages = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, STORAGE_MODE_READ_ONLY, STORAGE_MODE_READ_WRITE );
+    my $storages = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} } );
         SELECT s.id, s.uri
             FROM storage s
-            WHERE s.mode IN (?, ?)
             ORDER BY rand()
 EOSQL
 
@@ -505,6 +508,7 @@ EOSQL
         $content = $self->fetch_content( {
             object => $object,
             storage => $storage,
+            repair => $repair,
         } );
         last if defined $content;
     }
@@ -566,7 +570,8 @@ sub repair {
 
     my $content = $self->fetch_content({
         storage => $storage,
-        object => $object
+        object => $object,
+        repair => 1,
     });
     if (! $content) {
         if (STF_DEBUG) {
@@ -575,6 +580,7 @@ sub repair {
         }
         $content = $self->fetch_content_from_any({
             object => $object,
+            repair => 1,
         });
         if (! $content) {
             if (STF_DEBUG) {
@@ -587,7 +593,8 @@ sub repair {
         $self->store({
             storage => $storage,
             object => $object,
-            content => $content
+            content => $content,
+            repair => 1,
         });
     }
 

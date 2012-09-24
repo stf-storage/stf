@@ -299,10 +299,12 @@ sub repair {
     # Attempt to read from any given resource
     my $master_content = $entity_api->fetch_content_from_any({
         object => $object,
+        repair => 1,
     });
     if (! $master_content) {
         $master_content = $entity_api->fetch_content_from_all_storage({
-            object => $object
+            object => $object,
+            repair => 1,
         });
         if (! $master_content) {
             critf(
