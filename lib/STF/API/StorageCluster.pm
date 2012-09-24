@@ -89,6 +89,7 @@ sub store {
             $fetched = $entity_api->fetch_content({
                 object => $object,
                 storage => $storage,
+                repair => 1,
             });
         }
         if ($fetched) {
