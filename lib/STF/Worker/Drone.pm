@@ -46,6 +46,7 @@ has now => (
     is => 'rw'
 );
 
+has cleanup_completed => (is => 'rw', default => 0);
 has my_pid => (is => 'ro', default => sub {$$});
 has is_leader => (is => 'rw', default => 0);
 has next_announce => (is => 'rw', default => 0);
@@ -100,7 +101,9 @@ sub bootstrap {
 
 sub DEMOLISH {
     my $self = shift;
-    $self->cleanup;
+    if (! $self->cleanup_completed) {
+        $self->cleanup;
+    }
 }
 
 sub cleanup {
@@ -111,10 +114,25 @@ sub cleanup {
 
     local $STF::Log::PREFIX = "Drone";
     if (STF_DEBUG) {
-        debugf("Cleanup");
+        debugf("Commencing cleanup for drone");
     }
 
     local $SIG{PIPE} = 'IGNORE';
+
+    my $pm = $self->process_manager;
+    local %SIG = %SIG;
+    if (!$pm) {
+        # What what what what?! 
+        $SIG{CHLD} = sub { 
+            while (1) {
+                my $pid = waitpid(-1, POSIX::WNOHANG());
+                if ($pid == 0 || $pid == -1) {
+                    last;
+                }
+                debugf("Reaped %d (after process manager has been released)", $pid);
+            }
+        };
+    }
     my $worker_processes = $self->worker_processes;
     foreach my $worker_type (keys %$worker_processes) {
         foreach my $pid (@{$worker_processes->{$worker_type}}) {
@@ -122,26 +140,48 @@ sub cleanup {
         }
     }
 
-    $self->process_manager->wait_all_children();
+    if ($pm) {
+        $pm->wait_all_children();
+    }
 
     if ( my $pid_file = $self->pid_file ) {
+        if (STF_DEBUG) {
+            debugf("Releasing pid file %s", $pid_file);
+        }
+
         if (-f $pid_file) {
             unlink $pid_file or
                 warn "Could not unlink PID file $pid_file: $!";
         }
     }
-    local $@;
-    eval {
-        my $dbh = $self->get('DB::Master');
-        $dbh->do(<<EOSQL, undef, $self->id);
-            DELETE FROM worker_election WHERE drone_id = ?
+
+    {
+        local $@;
+        eval {
+            if (STF_DEBUG) {
+                debugf("Deleting id %s from worker_election", $self->id);
+            }
+            my $dbh = $self->get('DB::Master');
+            $dbh->do(<<EOSQL, undef, $self->id);
+                DELETE FROM worker_election WHERE drone_id = ?
 EOSQL
-    };
+        };
+        if ($@) {
+            critf("Error whle deleting my ID %s from worker_election", $self->id);
+        }
+    }
 
     my $memd = $self->get("Memcached");
     $memd->set("stf.worker.balance", Time::HiRes::time());
     if ($self->is_leader) {
         $memd->set("stf.worker.election", Time::HiRes::time());
+    }
+
+    wait;
+
+    $self->cleanup_completed(1);
+    if (STF_DEBUG) {
+        debugf("Cleanup complete");
     }
 }
 
@@ -278,6 +318,7 @@ sub run {
                 debugf("Drone: received signal %s", $signal);
             }
             $signal_received = $signal;
+            die "Received signal during loop\n";
         };
     }
 
@@ -306,8 +347,12 @@ sub run {
             }
         };
         if (my $e = $@) {
-            critf("Error during drone loop: %s", $e);
-            last;
+            if ($e =~ /^Received signal during loop$/) {
+                next;
+            } else {
+                critf("Error during drone loop: %s", $e);
+                last;
+            }
         }
     }
 
