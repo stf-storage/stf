@@ -438,16 +438,15 @@ sub create_object {
             $insert_object_timer = STF::Utils::timer_guard( "create_object (insert)" );
         }
 
-        my $internal_name = $object_api->create_internal_name( { suffix => $suffix } );
         # Create an object entry. This is the "master" reference to the object.
         my $ok = $object_api->store({
             id            => $object_id,
             bucket_id     => $bucket_id,
             object_name   => $object_name,
-            internal_name => $internal_name,
             size          => $size,
             replicas      => $replicas, # Unused, stored for back compat
             input         => $input,
+            suffix        => $suffix,
             force         => 1,
         });
 

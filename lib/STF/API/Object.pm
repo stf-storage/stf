@@ -200,22 +200,50 @@ sub store {
     my $object_id     = $args->{id}            or die "XXX no id";
     my $bucket_id     = $args->{bucket_id}     or die "XXX no bucket_id";
     my $object_name   = $args->{object_name}   or die "XXX no object_name";
-    my $internal_name = $args->{internal_name} or die "XXX no internal_name";
     my $input         = $args->{input}         or die "XXX no input";;
     my $size          = $args->{size} || 0;
     my $replicas      = $args->{replicas} || 3; # XXX unused, stored for compat
+    my $suffix        = $args->{suffix} || 'dat';
     my $force         = $args->{force};
-
     my $cluster_api = $self->get('API::StorageCluster');
-    $self->create({
-        id            => $object_id,
-        bucket_id     => $bucket_id,
-        object_name   => $object_name,
-        internal_name => $internal_name,
-        size          => $size,
-        replicas      => $replicas, # Unused, stored for back compat
-    });
 
+    # XXX If this fails because internal_name is not unique, try for at least 10 times
+    my $create_ok = 0;
+    for my $try (1..10) {
+        my $internal_name = $self->create_internal_name( { suffix => $suffix } );
+        eval {
+            $self->create({
+                id            => $object_id,
+                bucket_id     => $bucket_id,
+                object_name   => $object_name,
+                internal_name => $internal_name,
+                size          => $size,
+                replicas      => $replicas, # Unused, stored for back compat
+            });
+            $create_ok = 1;
+        };
+        if (my $e = $@) {
+            # XXX Retry only if internal_name is a conflict
+            if ($e =~ /Duplicate entry '[^']+' for key 'internal_name'/) {
+                if (STF_DEBUG) {
+                    debugf("Object internal_name (%s) was a duplicate, trying again (#%d)", $internal_name, $try);
+                }
+                next;
+            }
+            Carp::croak($e);
+        }
+        last if $create_ok;
+    }
+    if (! $create_ok) {
+        if (STF_DEBUG) {
+            debugf("Failed to create a unique internal_name for object. Bailing out");
+        }
+        Carp::croak("Failed to create objet");
+    }
+
+    # After this point if something wicked happens and we bail out,
+    # we don't want to keep this object laying around in a half-baked
+    # state. So make sure to get rid of it
     my $guard = Scope::Guard->new(sub {
         if (STF_DEBUG) {
             debugf("Guard for API::Object->store($object_id) triggered");
