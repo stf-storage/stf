@@ -65,6 +65,7 @@ sub work_once {
                 eval {
                     $api->update( $storage_id,
                         { mode => $o_mode, updated_at => \'NOW()' },
+                        { mode => $new_mode }
                     );
                 };
             } );
