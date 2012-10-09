@@ -26,6 +26,10 @@ sub work_once {
         # There may be multiple storages, but we only process one at a time,
         # so just pick one
 
+        if (STF_DEBUG) {
+            debugf("Looking for storages with STORAGE_MODE_REPAIR or STORAGE_MODE_CRASH");
+        }
+
         my ($storage) = $api->search( {
             mode => { IN => [ STORAGE_MODE_REPAIR, STORAGE_MODE_CRASH ] }
         } );
@@ -94,7 +98,7 @@ sub work_once {
         my $dbh = $self->get('DB::Master');
         # find the largest object_id currently allocated, and make sure to
         # stop there
-        my ($max_object_id) = $dbh->selectrow_array(<<EOSQL, undef, $storage_id);
+        my ($max_object_id) = $dbh->selectrow_array(<<EOSQL);
             SELECT max(id) FROM object
 EOSQL
 
