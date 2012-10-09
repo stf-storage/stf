@@ -499,7 +499,7 @@ sub rebalance {
             # Do we need to detect this?
             my $actual =
                 $remaining < $instance_per_drone ? $remaining :
-                $last == $drone ? $ramaining :
+                $last == $drone ? $remaining :
                 $instance_per_drone
             ;
 
