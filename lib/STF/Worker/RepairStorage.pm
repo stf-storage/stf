@@ -86,18 +86,18 @@ sub work_once {
         local $SIG{QUIT} = $sig->("QUIT");
         local $SIG{TERM} = $sig->("TERM");
 
-        # find the largest object_id currently allocated, and make sure to
-        # stop there
-        my ($max_object_id) = $dbh->selectrow_array(<<EOSQL, undef, $storage_id);
-            SELECT max(id) FROM object
-EOSQL
-
         my $bailout = 0;
         my $limit = 10_000;
         my $object_id = 0;
         my $processed = 0;
         my $queue_api = $self->get('API::Queue');
         my $dbh = $self->get('DB::Master');
+        # find the largest object_id currently allocated, and make sure to
+        # stop there
+        my ($max_object_id) = $dbh->selectrow_array(<<EOSQL, undef, $storage_id);
+            SELECT max(id) FROM object
+EOSQL
+
         my $sth = $dbh->prepare(<<EOSQL);
             SELECT object_id FROM entity WHERE storage_id = ? AND object_id > ? ORDER BY object_id ASC LIMIT $limit
 EOSQL
