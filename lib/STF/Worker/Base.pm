@@ -1,6 +1,7 @@
 package STF::Worker::Base;
 use Mouse;
 use STF::Constants qw(STF_DEBUG);
+use STF::Log;
 
 has interval => (
     is => 'rw',
@@ -37,14 +38,12 @@ sub create_loop {
 
 sub work {
     my $self = shift;
-    if ( STF_DEBUG ) {
-        print STDERR "[    Worker] Starting $self worker...\n";
-    }
+
+    local $STF::Log::PREFIX = "Worker";
+    infof("Starting %s worker...", $self);
 
     my $loop = $self->create_loop;
-    if ( STF_DEBUG ) {
-        print STDERR "[    Worker] Instantiated loop: $loop\n";
-    }
+    debugf("Starting %s worker...", $self) if STF_DEBUG;
 
     $loop->work( $self );
 }

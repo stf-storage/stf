@@ -1,8 +1,47 @@
 package STF::Utils;
 use strict;
-use Guard ();
 use POSIX ':signal_h';
 use Time::HiRes ();
+use Scope::Guard ();
+use STF::Log;
+
+use parent 'Exporter';
+our @EXPORT_OK = qw(txn_block add_resource_guard);
+my @RESOURCE_DESTRUCTION_GUARDS;
+END {
+    undef @RESOURCE_DESTRUCTION_GUARDS;
+}
+
+sub add_resource_guard(@) {
+    push @RESOURCE_DESTRUCTION_GUARDS, @_;
+}
+
+# Creates a reusable coderef bound to '$self', '$txn' (the actual code invoked)
+# and '$dbkey'. $dbkey defaults to DB::Master
+sub txn_block(&;$) {
+    my ($txn, $dbkey) = @_;
+
+    $dbkey ||= 'DB::Master';
+    return sub {
+        my ($ctx, @args) = @_;
+        my $dbh = $ctx->get($dbkey);
+        if (! $dbh) {
+            Carp::confess("Could not get $dbkey from container");
+        }
+        $dbh->begin_work;
+        my $guard = Scope::Guard->new(sub {
+            local $@;
+            eval { $dbh->rollback }
+        });
+        my @res;
+        eval {
+            @res = $txn->($ctx, @args);
+            $dbh->commit;
+            $guard->dismiss;
+        };
+        return @res ;
+    };
+}
 
 sub merge_hashes {
     my ($left, $right) = @_;
@@ -32,8 +71,8 @@ sub human_readable_size {
         $unit = $u;
     } 
     return sprintf '%.1f%s', $val, $unit;
-}   
-    
+}
+
 sub as_bytes {
     my $v = shift;
     if ($v =~ s/TB?$//i) {
@@ -52,15 +91,12 @@ sub timer_guard {
     my $sub = $_[0] || (caller(1))[0,3];
     require Time::HiRes;
     my $t0 = [ Time::HiRes::gettimeofday() ];
-    return Guard::guard {
+    return Scope::Guard->new(sub {
         my $elapsed = Time::HiRes::tv_interval($t0);
         undef $t0;
-        printf STDERR "[     TIMER] (%05d) %s took %0.6f seconds\n",
-            $$,
-            $sub,
-            $elapsed
-        ;
-    };
+        local $STF::Log::PREFIX = "TIMER";
+        debugf("%s took %0.6f seconds", $sub, $elapsed);
+    } );
 }
 
 # This is a rather forceful timeout wrapper that allows us to, for example,

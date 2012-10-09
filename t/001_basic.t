@@ -5,37 +5,47 @@ use Test::More;
 use Plack::Test;
 use HTTP::Request::Common qw(PUT HEAD GET DELETE POST);
 use HTTP::Date;
-use STF::Constants qw(STF_ENABLE_OBJECT_META);
-use STF::Test qw(clear_queue);
+use Scope::Guard ();
+use STF::Constants qw(
+    STF_ENABLE_OBJECT_META 
+    STORAGE_CLUSTER_MODE_READ_ONLY STORAGE_CLUSTER_MODE_READ_WRITE
+    STORAGE_MODE_TEMPORARILY_DOWN STORAGE_MODE_READ_WRITE
+);
+use STF::Test qw(clear_objects clear_queue random_string);
 
 use_ok "STF::Context";
 use_ok "STF::Worker::DeleteBucket";
 use_ok "STF::Worker::DeleteObject";
 use_ok "STF::Worker::Replicate";
 
-# String::URandomとか使っても良いけど面倒くさい
-my $random_string = sub {
-    my @chars = ('a'..'z');
-    join "", map { $chars[ rand @chars ] } 1..($_[0] || 8);
-};
-
 my $create_data = sub {
     my $chunks = shift;
     my $content;
     my $md5 = Digest::MD5->new;
     for (1..$chunks) {
-        my $piece = $random_string->(1024);
+        my $piece = random_string(1024);
         $md5->add($piece);
         $content .= $piece;
     }
     return ($content, $md5->hexdigest);
 };
 
+my $get_entity_count = sub {
+    my ($dbh, $bucket_name, $object_name) = @_;
+    my ($e_count) = $dbh->selectrow_array( <<EOSQL, undef, $bucket_name, $object_name);
+        SELECT count(*) FROM entity e
+            JOIN object o ON e.object_id = o.id 
+            JOIN bucket b ON o.bucket_id = b.id
+            WHERE b.name = ? AND o.name = ?
+EOSQL
+    return $e_count;
+};
+
 my $code = sub {
     my ($chunks, $cb) = @_;
     my $res;
-    my $bucket_name = $random_string->();
-    my $object_name = $random_string->();
+    my $bucket_name = random_string();
+    my $object_name = random_string();
 
     $res = $cb->(
         PUT "http://127.0.0.1/$bucket_name"
@@ -75,18 +85,19 @@ my $code = sub {
         diag $res->as_string;
     }
 
-    my $context = STF::Context->bootstrap( config => "t/config.pl" ) ;
+    my $context = STF::Context->bootstrap() ;
+    my $container = $context->container;
 
     { # find object ID and such
-        my $guard = $context->container->new_scope();
-        my $dbh = $context->container->get('DB::Master');
+        my $guard = $container->new_scope();
+        my $dbh = $container->get('DB::Master');
 
         my $object = $dbh->selectrow_hashref( <<EOSQL, undef, $bucket_name, $object_name );
             SELECT o.* FROM object o
                 JOIN bucket b ON o.bucket_id = b.id
                 WHERE b.name = ? AND o.name = ?
 EOSQL
-        ok $object, "found object matchin $bucket_name + $object_name";
+        ok $object, "found object matching $bucket_name + $object_name";
 
         if ( STF_ENABLE_OBJECT_META ) {
             my $meta = $dbh->selectrow_hashref( <<EOSQL, undef, $object->{id} );
@@ -94,26 +105,30 @@ EOSQL
 EOSQL
             is $meta->{hash}, $content_hash, "content has is properly stoerd";
         }
-    }
 
-    {
-        my $guard = $context->container->new_scope();
-        my $dbh = $context->container->get('DB::Queue');
-        my $worker = STF::Worker::Replicate->new(
-            container => $context->container,
-            max_works_per_child => 1,
-        );
-        $worker->work;
+        my $cluster = $container->get('API::StorageCluster')->load_for_object( $object->{id} );
+        note "object $object->{id} is in cluster $cluster->{id}";
 
-        # Check that we have exactly 2 entities
-        my $dbh = $context->container->get('DB::Master');
-        my ($e_count) = $dbh->selectrow_array( <<EOSQL, undef, $bucket_name, $object_name);
-            SELECT count(*) FROM entity e
-                JOIN object o ON e.object_id = o.id 
-                JOIN bucket b ON o.bucket_id = b.id
-                WHERE b.name = ? AND o.name = ?
+        # Make sure that only a double write (entity = 2) happend before
+        # the replication worker arrives
+        is $get_entity_count->( $dbh, $bucket_name, $object_name ), 2, "We have exactly 2 entities";
+
+        my ($storage_count) = $dbh->selectrow_array(<<EOSQL, undef, $cluster->{id});
+            SELECT COUNT(*) FROM storage WHERE cluster_id = ?
 EOSQL
-        is $e_count, 2, "After replication, there are exactly 2 entities created by the worker";
+
+        {
+            my $guard = $container->new_scope();
+            my $dbh = $container->get('DB::Queue');
+            my $worker = STF::Worker::Replicate->new(
+                container => $container,
+                max_works_per_child => 1,
+            );
+            $worker->work;
+        }
+
+        # Check that we have exactly $storage_count entities
+        is $get_entity_count->($dbh, $bucket_name, $object_name), $storage_count, "After replication, there are exactly $storage_count entities created by the worker";
     }
 
     # GET / HEAD multiple times to make sure no stupid caching errors exist
@@ -178,6 +193,45 @@ EOSQL
         }
     }
 
+    {
+        # check proper clustering: basically make a storage not writable,
+        # and then make sure that repeated writes to STF keeps writing to
+        # the cluster that's alive
+
+        my $cluster_api = $container->get('API::StorageCluster');
+        my $storage_api = $container->get('API::Storage');
+        my @storages    = $storage_api->search();
+        my $broken      = $storages[ rand @storages ];
+
+        $storage_api->update( $broken->{id}, { mode => STORAGE_MODE_TEMPORARILY_DOWN });
+        $cluster_api->update( $broken->{cluster_id}, { mode => STORAGE_CLUSTER_MODE_READ_ONLY } );
+       my $guard = Scope::Guard->new(sub {
+            $storage_api->update( $broken->{id}, { mode => STORAGE_MODE_READ_WRITE } );
+            $cluster_api->update( $broken->{cluster_id}, { mode => STORAGE_CLUSTER_MODE_READ_WRITE } );
+        } );
+
+        my $dbh = $container->get('DB::Master');
+        my @objects = map { random_string() } 1..30;
+        foreach my $a_object_name ( @objects ) {
+            $res = $cb->( PUT "http://127.0.0.1/$bucket_name/$a_object_name", "Content-Type" => "text/plain", Content => $create_data->(1) );
+
+            if (! ok $res->is_success, "PUT while a storage is down is successful") {
+                diag $res->as_string;
+            }
+            my $clusters = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, $bucket_name, $a_object_name );
+                SELECT s.cluster_id
+                    FROM storage s
+                        JOIN entity e ON s.id = e.storage_id
+                        JOIN object o ON o.id = e.object_id
+                        JOIN bucket b ON b.id = o.bucket_id
+                    WHERE b.name = ? AND o.name = ?
+EOSQL
+            my @match = grep { $_->{cluster_id} == $broken->{cluster_id} } @$clusters;
+            ok !@match, "object $bucket_name/$a_object_name does not belong to cluster $broken->{cluster_id}";
+        }
+    }
+
+    clear_queue();
     note "POST /$bucket_name/$object_name";
     $res = $cb->(
         POST "http://127.0.0.1/$bucket_name/$object_name",
@@ -187,17 +241,20 @@ EOSQL
         diag $res->as_string;
     }
 
+# diag explain [ $container->get('DB::Queue')->peek('replicate', -1) ];
+
     {
+        note "Starting Replicate worker";
         my $backends = $ENV{ STF_STORAGE_SIZE } ||= 3;
-        my $guard = $context->container->new_scope();
+        my $guard = $container->new_scope();
         my $worker = STF::Worker::Replicate->new(
-            container => $context->container,
+            container => $container,
             max_works_per_child => 1,
         );
         $worker->work;
 
         # Check that we have exactly $backends entities
-        my $dbh = $context->container->get('DB::Master');
+        my $dbh = $container->get('DB::Master');
         my ($e_count) = $dbh->selectrow_array( <<EOSQL, undef, $bucket_name, $object_name);
             SELECT count(*) FROM entity e
                 JOIN object o ON e.object_id = o.id 
@@ -210,7 +267,7 @@ EOSQL
     for my $make_inactive ( 0, 1, 0 ) {
         if ($make_inactive) {
             note "Making object $bucket_name/$object_name inactive...";
-            my $dbh = $context->container->get('DB::Master');
+            my $dbh = $container->get('DB::Master');
             my ($object_id) = $dbh->selectrow_array( <<EOSQL, undef, $bucket_name, $object_name );
                 SELECT o.id FROM object o
                     JOIN bucket b ON o.bucket_id = b.id
@@ -335,15 +392,15 @@ EOSQL
     }
 
     {
-        my $guard = $context->container->new_scope();
+        my $guard = $container->new_scope();
         my $worker = STF::Worker::DeleteObject->new(
-            container => $context->container,
+            container => $container,
             max_works_per_child => 1,
         );
         $worker->work;
 
         # Check that we have exactly $backends entities
-        my $dbh = $context->container->get('DB::Master');
+        my $dbh = $container->get('DB::Master');
         my ($e_count) = $dbh->selectrow_array( <<EOSQL, undef, $bucket_name, $object_name);
             SELECT count(*) FROM entity e
                 JOIN object o ON e.object_id = o.id 
@@ -361,6 +418,53 @@ EOSQL
         diag $res->as_string;
     }
 
+    # if the cluster is not in READ/WRITE mode, then we shouldn't be 
+    # writing to that cluster.
+    my $verify_cluster_is_not_written_to = sub {
+        my ($ro_cluster, $extra_message) = @_;
+
+        my $base = random_string(16);
+        $cb->( PUT "http://127.0.0.1/$base" );
+        for my $i (1..10) {
+            my $res = $cb->(
+                PUT "http://127.0.0.1/$base/$i",
+                    Content => random_string(512)
+            );
+
+            if ( ! ok $res->is_success, "PUT is success ($extra_message)" ) {
+                diag $res->as_string;
+            }
+        }
+
+        my $bucket = $container->get('API::Bucket')->lookup_by_name( $base );
+        my @objects = $container->get('API::Object')->search({
+            bucket_id => $bucket->{id},
+        });
+        my $cluster_api = $container->get('API::StorageCluster');
+        foreach my $object (@objects) {
+            my $cluster = $cluster_api->load_for_object( $object->{id} );
+            isnt $cluster->{id}, $ro_cluster->{id}, "writes are not happening to readonly cluster $ro_cluster->{id} ($extra_message)";
+        }
+    };
+
+    {
+        my $cluster_api = $container->get('API::StorageCluster');
+        my @clusters    = $cluster_api->search({}, { order_by => 'rand()' });
+        my $ro_cluster  = $clusters[0];
+
+        $cluster_api->update( $ro_cluster->{id}, {
+            mode => STORAGE_CLUSTER_MODE_READ_ONLY,
+        } );
+
+        my $guard = Scope::Guard->new(sub {
+            $cluster_api->update( $ro_cluster->{id}, {
+                mode => STORAGE_CLUSTER_MODE_READ_WRITE,
+            } );
+        });
+
+        $verify_cluster_is_not_written_to->( $ro_cluster, "cluster disabled directly" );
+    }
+
     note "DELETE /$bucket_name";
     $res = $cb->(
         DELETE "http://127.0.0.1/$bucket_name"
@@ -370,15 +474,15 @@ EOSQL
     }
 
     {
-        my $guard = $context->container->new_scope();
+        my $guard = $container->new_scope();
         my $worker = STF::Worker::DeleteBucket->new(
-            container => $context->container,
+            container => $container,
             max_works_per_child => 1,
         );
         $worker->work;
 
         # Check that we have exactly $backends entities
-        my $dbh = $context->container->get('DB::Master');
+        my $dbh = $container->get('DB::Master');
         my ($e_count) = $dbh->selectrow_array( <<EOSQL, undef, $bucket_name);
             SELECT count(*) FROM bucket b WHERE b.name = ? 
 EOSQL
@@ -398,6 +502,7 @@ foreach my $impl ( qw(MockHTTP Server) ) {
     foreach my $chunk ( 10, 1_024, 2 * 1_024, 4 * 1024, 8 * 1024 ) {
         note sprintf "(%s) Running tests on %s", __FILE__, $impl;
         note sprintf "   Using chunk size %d", $chunk;
+        clear_objects();
         clear_queue();
         test_psgi
             app => $app,

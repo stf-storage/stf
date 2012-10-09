@@ -1,0 +1,33 @@
+[% WRAPPER "layout.tx" %]
+
+<form class="form-horizontal" action="/object/create" method="POST" enctype="multipart/form-data">
+
+[% error_msgs(result) %]
+
+<fieldset>
+    <legend>Create Object</legend>
+
+    <div class="control-group">
+        <label class="control-label">Bucket Name</label>
+        <div class="controls">
+            <input type="text" name="bucket_name" class="input-xlarge">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label">Object Name</label>
+        <div class="controls">
+            <input type="text" name="object_name" class="input-xlarge">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label">Upload File</label>
+        <div class="controls">
+            <input type="file" name="content">
+        </div>
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary"><i class="icon-pencil icon-white"></i> Create</button>
+    </div>
+</fieldset>
+</form>
+[% END %]

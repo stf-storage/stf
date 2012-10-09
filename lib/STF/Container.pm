@@ -1,6 +1,6 @@
 package STF::Container;
 use Mouse;
-use Guard ();
+use Scope::Guard ();
 
 has objects => (
     is => 'ro',
@@ -25,7 +25,7 @@ has scoped_registry => (
 sub new_scope {
     my ($self, $initialize) = @_;
     $self->scoped_objects({}) if $initialize;
-    return Guard::guard( sub { $self->scoped_objects({}) } );
+    return Scope::Guard->new( sub { $self->scoped_objects({}) } );
 }
 
 sub get {

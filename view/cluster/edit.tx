@@ -1,0 +1,51 @@
+[% WRAPPER 'layout.tx' %]
+
+[% INCLUDE "cluster/heading.tx" %]
+
+<form class="form-horizontal" method="post" action="[% c.uri_for('/cluster/edit', cluster.id) %]">
+[% error_msgs(result) %]
+<fieldset>
+    <legend>Edit Cluster</legend>
+    <div class="control-group">
+        <label class="control-label" for="id">ID</label>
+        <div class="controls">
+            <input name="id" type="text" class="input-xlarge" id="input-id" readonly="readonly">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label" for="uri">Name</label>
+        <div class="controls">
+            <input name="name" type="text" class="input-xlarge" id="input-name">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label" for="mode">Mode</label>
+        <div class="controls">
+            <select name="mode" id="input-mode">
+[% FOREACH mode IN [
+    const.STORAGE_MODE_READ_WRITE,
+    const.STORAGE_MODE_READ_ONLY,
+    const.STORAGE_MODE_TEMPORARILY_DOWN,
+    const.STORAGE_MODE_CRASH,
+    const.STORAGE_MODE_CRASH_RECOVER_NOW,
+    const.STORAGE_MODE_CRASH_RECOVERED,
+    const.STORAGE_MODE_RETIRE,
+    const.STORAGE_MODE_MIGRATE_NOW,
+    const.STORAGE_MODE_MIGRATED
+] %]
+                <option value="[% mode %]">[% mode_str(mode) %]</option>
+[% END %]
+            </select>
+        </div>
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary"><i class="icon-pencil icon-white"></i> Update</button>
+        <button type="button" class="btn btn-danger" onClick="javascript: if(confirm('Are you sure you want to delete this cluster?')) { this.form.action='[% c.uri_for('/cluster/delete', cluster.id) %]'; this.form.submit(); } else { return false; }"><i class="icon-trash icon-white"></i> Delete</button>
+    </div>
+</fieldset>
+</form>
+
+[% END %]
+
+
+

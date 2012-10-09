@@ -4,7 +4,7 @@ use STF::Test;
 
 use_ok "STF::Context";
 
-my $context = STF::Context->bootstrap( config => "t/config.pl" ) ;
+my $context = STF::Context->bootstrap() ;
 my $api = $context->get( 'API::Bucket' );
 
 # String::URandomとか使っても良いけど面倒くさい

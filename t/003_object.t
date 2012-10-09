@@ -6,13 +6,13 @@ use STF::Test;
 use_ok "STF::Context";
 
 subtest 'sanity' => sub {
-    my $context = STF::Context->bootstrap( config => "t/config.pl" );
+    my $context = STF::Context->bootstrap();
     my $api = $context->get( 'API::Object' );
     ok($api);
 };
 
 subtest 'object_with_entity_count' => sub {
-    my $context = STF::Context->bootstrap( config => "t/config.pl" );
+    my $context = STF::Context->bootstrap();
     my $bucket_api = $context->get( 'API::Bucket' );
     my $api = $context->get( 'API::Object' );
 

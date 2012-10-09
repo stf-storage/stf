@@ -88,20 +88,25 @@ sub create {
 }
 
 sub update {
-    my ($self, $id, $args) = @_;
+    my ($self, $id, $args, $where) = @_;
 
-    my $ref = ref $id;
-    if (! $ref) {
-        $self->cache_delete( $self->table => $id );
-    } elsif ($ref eq 'HASH') {
-        if (my $pk = $id->{id}) {
+    $where ||= {};
+    if (my $ref = ref $id) {
+        if ($ref eq 'HASH') {
+            $where = { %$where, %$id };
+        }
+        if ( my $pk = $where->{id} ) {
             $self->cache_delete( $self->table => $pk );
         }
+    } else {
+        $self->cache_delete( $self->table => $id );
+        $where->{id} = $id;
     }
+
     my ($sql, @binds) = $self->sql_maker->update(
         $self->table,
         $args,
-        ref $id eq 'HASH' ? $id : { id => $id }
+        $where,
     );
     my $dbh = $self->dbh;
     return $dbh->do($sql, undef, @binds);

@@ -2,45 +2,91 @@ use Router::Simple::Declare;
 
 router {
     connect '/' => {
-        controller => 'Storage',
+        controller => 'Global',
+        action     => 'index',
+    };
+
+    connect '/config/list' => {
+        controller => 'Config',
         action     => 'list',
     };
 
-    connect qr{^/storage(?:/(?:list)?)?$} => {
-        controller => 'Storage',
-        action     => 'list',
-    };
-
-    connect '/storage/add' => {
-        controller => 'Storage',
-        action     => 'add',
-    }, { method => 'GET' };
-    connect '/storage/add' => {
-        controller => 'Storage',
-        action     => 'add_post',
+    connect '/config/update' => {
+        controller => 'Config',
+        action     => 'update',
     }, { method => 'POST' };
 
-    foreach my $action (qw(edit)) {
-        connect "/storage/:storage_id/$action" => {
-            controller => 'Storage',
-            action     => $action,
+    connect '/ajax/config/reload.json' => {
+        controller => 'Config',
+        action     => 'reload',
+    };
+
+    my %namespace = (
+        Storage => 'storage',
+        Cluster => 'cluster'
+    );
+
+    connect '/cluster/storage/unclustered' => {
+        controller => 'Cluster',
+        action     => 'storage_unclustered',
+    };
+    connect '/cluster/storage/change.json' => {
+        controller => 'Cluster',
+        action     => 'storage_change',
+    };
+
+    while ( my ($controller, $namespace) = each %namespace ) {
+        connect qr{^/$namespace(?:/(?:list)?)?$} => {
+            controller => $controller,
+            action     => 'list',
+        };
+
+        connect "/$namespace/show/:object_id" => {
+            controller => $controller,
+            action     => 'view',
+        };
+
+        connect "/$namespace/add" => {
+            controller => $controller,
+            action     => 'add',
         }, { method => 'GET' };
-        connect "/storage/:storage_id/$action" => {
-            controller => 'Storage',
-            action     => "${action}_post",
+
+        connect "/$namespace/add" => {
+            controller => $controller,
+            action     => 'add_post',
         }, { method => 'POST' };
+
+        connect "/$namespace/delete/:object_id" => {
+            controller => $controller,
+            action     => 'delete_post',
+        }, { method => 'POST' };
+
+        foreach my $action (qw(edit)) {
+            connect "/$namespace/$action/:object_id" => {
+                controller => $controller,
+                action     => $action,
+            }, { method => 'GET' };
+            connect "/$namespace/$action/:object_id" => {
+                controller => $controller,
+                action     => "${action}_post",
+            }, { method => 'POST' };
+        }
     }
 
     foreach my $action (qw(entities)) {
-        connect "/storage/:storage_id/$action" => {
+        connect "/storage/$action/:object_id" => {
             controller => 'Storage',
             action     => $action,
         };
     }
 
-    connect '/storage/:storage_id/delete' => {
-        controller => 'Storage',
-        action     => 'delete_post',
+    connect "/bucket/add" => {
+        controller => 'Bucket',
+        action     => 'add',
+    }, { method => 'GET' };
+    connect "/bucket/add" => {
+        controller => 'Bucket',
+        action     => 'add_post',
     }, { method => 'POST' };
 
     connect qr{^/bucket(?:/(?:list)?)?$} => {
@@ -48,7 +94,7 @@ router {
         action     => 'list',
     };
 
-    connect '/bucket/:bucket_id' => {
+    connect '/bucket/show/:bucket_id' => {
         controller => 'Bucket',
         action     => 'view',
     };
@@ -66,12 +112,24 @@ router {
         }, { method => "POST" };
     }
 
-    connect qr{^/object/([^/]+)/([\w\/%+._-]+)$} => {
+    foreach my $action ( qw(create edit) ) {
+        my $path = ($action eq 'create') ? "/object/$action" : "/object/$action/:object_id";
+        connect $path => {
+            controller => 'Object',
+            action     => $action,
+        }, { method => "GET" };
+        connect $path => {
+            controller => 'Object',
+            action     => "${action}_post",
+        }, { method => "POST" };
+    }
+
+    connect qr{^/object/show/([^/]+)/([\w\/%+._-]+)$} => {
         controller => 'Object',
         action => 'view_public_name',
     };
 
-    connect '/object/:object_id' => {
+    connect '/object/show/:object_id' => {
         controller => 'Object',
         action     => 'view',
     };

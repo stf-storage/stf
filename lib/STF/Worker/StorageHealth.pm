@@ -3,6 +3,7 @@ use Mouse;
 use Digest::MD5 ();
 use STF::Constants qw(:storage STF_DEBUG);
 use STF::Utils ();
+use STF::Log;
 
 extends 'STF::Worker::Base';
 with 'STF::Trait::WithContainer';
@@ -52,7 +53,7 @@ sub work_once {
         };
         if (my $e = $@) {
             # we got an error...
-            printf STDERR <<EOM, $uri, $e, $storage->{id}, $storage->{uri}, $res[1];
+            critf(<<EOM, $uri, $e, $storage->{id}, $storage->{uri}, $res[1]);
 [StorageHealth] CRITICAL! FAILED TO PUT/HEAD/GET/DELETE '%s'
 [StorageHealth]    error      : %s
 [StorageHealth]    storage id : %d
@@ -73,7 +74,7 @@ EOM
             my $cached = $storage_api->lookup( $storage->{id} );
             while ($cached->{mode} != STORAGE_MODE_TEMPORARILY_DOWN) {
                 if (STF_DEBUG) {
-                    printf STDERR "Wha?! mode for storage %s is not DOWN ? Trying to update again...\n", $storage->{id};
+                    debugf("Wha?! mode for storage %s is not DOWN ? Trying to update again...", $storage->{id});
                 }
                 $storage_api->update($storage->{id}, {
                     mode => STORAGE_MODE_TEMPORARILY_DOWN
@@ -82,7 +83,7 @@ EOM
                 $cached = $storage_api->lookup( $storage->{id} );
             }
             if (STF_DEBUG) {
-                printf STDERR "Successfully brough storage %s DOWN", $storage->{id};
+                debugf("Successfully brough storage %s DOWN", $storage->{id});
             }
         }
     }

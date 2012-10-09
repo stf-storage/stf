@@ -3,31 +3,41 @@
 <script type="text/javascript">
 <!--
     $(document).ready( function() {
-        $("#stf-delete").click(function() {
-            $("div.main", "#delete-confirm div.modal-body").show();
-            $("div.processing", "#delete-confirm div.modal-body").hide();
-            $("div.error", "#delete-confirm div.modal-body").hide();
-            $("#delete-confirm").modal("show");
-            return false;
+        $(["#stf-bucket-delete-confirm"]).each( function(i, id) {
+            var btn_id = id + "-btn";
+            $(btn_id).click(function() {
+                var modal_id = id + "-modal";
+                $("div.main", modal_id).show();
+                $("div.processing", modal_id).hide();
+                $("div.error", modal_id).hide();
+                $(modal_id).modal("show");
+                return false;
+            });
         } );
-        $("a.btn-primary", "#delete-confirm").click(function() {
+
+        $("#stf-create-object-in-bucket-btn").click( function() {
+            location.href = "[% c.uri_for("/object/create", { bucket_id => bucket.id } ) %]";
+        });
+
+        var del_modal_id = "#stf-bucket-delete-confirm-modal";
+        $("a.btn-primary", del_modal_id).click(function() {
             if ( ! confirm( "Are you sure you want to proceed DELETING this object?" ) ) {
-                $("#delete-confirm").modal("hide");
+                $(del_modal_id).modal("hide");
                 return false;
             }
 
-            $("div.main", "#delete-confirm div.modal-body").hide();
-            $("div.processing", "#delete-confirm div.modal-body").show();
+            $("div.main", del_modal_id + " div.modal-body").hide();
+            $("div.processing", del_modal_id + " div.modal-body").show();
             $.ajax({
                 url: "/ajax/bucket/[% bucket.id %]/delete.json",
                 type: "POST",
                 error: function(xhr, st, err) {
-                    $("div.processing", "#delete-confirm div.modal-body").hide();
-                    $("div.error", "#delete-confirm div.modal-body")
+                    $("div.processing", del_modal_id + " div.modal-body").hide();
+                    $("div.error", del_modal_id + " div.modal-body")
                         .text("Failed to delete bucket " + err).show();
                 },
                 success: function() {
-                    $("#delete-confirm").modal("hide");
+                    $(del_modal_id).modal("hide");
                     setTimeout( function() {
                         window.location.reload();
                     }, 3000 );
@@ -40,10 +50,47 @@
 <div class="well">
     <h2>Bucket [% bucket.id %]</h2>
 
-    <button id="stf-delete" class="btn btn-danger btn-mini"><i class="icon-trash icon-white"></i> Delete</button>
+    <button id="stf-create-object-in-bucket-btn" class="btn btn-info btn-mini"><i class="icon-plus icon-white"></i> Create Object</button>
+    <button id="stf-bucket-delete-confirm-btn" class="btn btn-danger btn-mini"><i class="icon-trash icon-white"></i> Delete</button>
 </div>
 
-<div class="modal fade" data-toggle="modal" id="delete-confirm">
+<div class="modal fade" data-toggle="modal" id="stf-create-object-in-bucket-modal">
+    <div class="modal-header">
+        <a class="close" data-dismiss="modal">x</a>
+        <h3>Create New Object In Bucket '[% bucket.name %]'</h3>
+    </div>
+    <div class="modal-body">
+        <div class="main">
+            <form class="form-horizontal" action="[% c.uri_for( "/bucket/object/create" ) %]" method="POST" enctype="multipart/form-data">
+            <fieldset>
+                <div class="control-group">
+                    <label class="control-label">Object Name</label>
+                    <div class="controls">
+                        <input type="text" name="object_name" class="input-xlarge" />
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">File name</label>
+                    <div class="controls">
+                        <input type="file" name="content">
+                    </div>
+                </div>
+            </fieldset>
+            </form>
+        </div>
+        <div class="processing" style="display: none">
+            <img src="/static/images/ajax-loader.gif"> Processing...
+        </div>
+        <div class="error" style="display: none">
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#" class="btn btn-danger" data-dismiss="modal">Cancel</a>
+        <a href="#" class="btn btn-primary">Create</a>
+    </div>
+</div>
+
+<div class="modal fade" data-toggle="modal" id="stf-bucket-delete-confirm-modal">
     <div class="modal-header">
         <a class="close" data-dismiss="modal">x</a>
         <h3>Delete bucket [% bucket.id %]</h3>
@@ -94,14 +141,14 @@
   </tr>
   [% FOREACH object IN objects %]
   <tr class="[% object.status == const.OBJECT_ACTIVE ? "active" : "inactive" %]">
-    <td class="text"><a href="/object/[% object.id %]">[% object.name %]</a></td>
+    <td class="text"><a href="[% c.uri_for("/object/show", object.id) %]">[% object.name %]</a></td>
     <td class="digit">[% object.size | human_readable %]</td>
     <td>[% object.updated_at %]</td>
-    <td class="digit"><a href="[% c.uri_for('/object', object.id) %]">[% object.entity_count %]/[% object.num_replica %]</a></td>
+    <td class="digit"><a href="[% c.uri_for('/object/show', object.id) %]">[% object.entity_count %]/[% object.num_replica %]</a></td>
   </tr>
   [% END %]
 <tr>
-    <td colspan="4">[% paginate( c.uri_for('/bucket', bucket.id), pager) %]</td>
+    <td colspan="4">[% paginate( c.uri_for('/bucket/show', bucket.id), pager) %]</td>
 </tr>
 </table>
 

@@ -1,17 +1,14 @@
 package STF::Worker::Loop::Q4M;
 use Mouse;
 use POSIX qw(:signal_h);
-use Guard ();
 use Scalar::Util ();
 use Time::HiRes ();
+use Scope::Guard ();
 use STF::Constants qw(STF_DEBUG);
+use STF::Log;
 
 extends 'STF::Worker::Loop';
 with 'STF::Trait::WithDBI';
-
-has queue_name => (
-    is => 'rw'
-);
 
 sub queue_table {
     my ($self, $impl) = @_;
@@ -38,15 +35,12 @@ sub queue_waitcond {
 sub work {
     my ($self, $impl) = @_;
 
+    local $STF::Log::PREFIX = "Loop::Q4M" if STF_DEBUG;
     my $guard = $self->container->new_scope();
 
     my $table = $self->queue_table( $impl );
     my $waitcond = $self->queue_waitcond( $impl );
-    my $queue_name =
-        $self->queue_name ||
-        $ENV{STF_WORKER_QUEUE_NAME} ||
-        'DB::Queue'
-    ;
+    my $queue_name = $self->queue_name;
     my $dbh = $self->get($queue_name) or
         Carp::confess( "Could not fetch $queue_name" );
 
@@ -72,36 +66,27 @@ sub work {
     $setsig->();
 
     my $default = POSIX::SigAction->new('DEFAULT');
-    while ( $self->should_loop ) {
-        $sth = $dbh->prepare(<<EOSQL);
-            SELECT args FROM $table WHERE queue_wait('$waitcond', 60)
+    $sth = $dbh->prepare(<<EOSQL);
+        SELECT args FROM $table WHERE queue_wait('$waitcond', 60)
 EOSQL
-        my $rv = $sth->execute();
-
-        # increment processed here so we don't just loop forever
+    while ( $self->should_loop ) {
         $self->incr_processed();
-        if ($rv == 0) { # nothing found
-            $sth->finish;
-            next;
-        }
-
+        my $rv = $sth->execute();
         $sth->bind_columns( \$object_id );
-        while ( $self->should_loop && $sth->fetchrow_arrayref ) {
+        while ( $sth->fetchrow_arrayref ) {
             my $extra_guard;
             if (STF_DEBUG) {
                 my ($row_id) = $dbh->selectrow_array( "SELECT queue_rowid()" );
-                printf STDERR "[ Loop::Q4M] ---- START %s:%s ----\n", $table, $row_id;
-                printf STDERR "[ Loop::Q4M] Got new item from %s (%s)\n",
-                    $table,
-                    $object_id
-                ;
-                $extra_guard = Guard::guard(sub {
-                    printf STDERR "[ Loop::Q4M] ---- END %s:%s ----\n", $table, $row_id;
+                if (STF_DEBUG) {
+                    debugf("---- START %s:%s ----", $table, $row_id);
+                    debugf("Got new item from %s (%s)", $table, $object_id);
+                }
+                $extra_guard = Scope::Guard->new(sub {
+                    debugf("---- END %s:%s ----", $table, $row_id) if STF_DEBUG;
                 } );
             }
-            eval { $dbh->do("SELECT queue_end()") };
 
-            my $sig_guard = Guard::guard(\&$setsig);
+            my $sig_guard = Scope::Guard->new(\&$setsig);
 
             # XXX Disable signal handling during work_once
             POSIX::sigaction( SIGINT,  $default );
@@ -115,12 +100,10 @@ EOSQL
                 Time::HiRes::usleep( $interval );
             }
         }
+        eval { $dbh->do("SELECT queue_end()") };
     }
-    eval { $dbh->do("SELECT queue_end()") };
 
-    if ( STF_DEBUG ) {
-        print STDERR "Process $$ exiting...\n";
-    }
+    infof("Process %d exiting... (%s)", $$, $impl);
 }
 
 no Mouse;

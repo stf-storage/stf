@@ -1,6 +1,7 @@
 package STF::Worker::DeleteObject;
 use Mouse;
 use STF::Constants qw(STF_DEBUG);
+use STF::Log;
 
 extends 'STF::Worker::Base';
 with 'STF::Trait::WithDBI';
@@ -13,9 +14,8 @@ has loop_class => (
 sub work_once {
     my ($self, $object_id) = @_;
 
-    if ( STF_DEBUG ) {
-        print STDERR "Worker::DeleteObject $object_id\n";
-    }
+    local $STF::Log::PREFIX = "Worker(DO)";
+    debugf("Delete object id = %s", $object_id) if STF_DEBUG;
     eval {
         $self->get('API::Entity')->delete_for_object_id( $object_id );
     };

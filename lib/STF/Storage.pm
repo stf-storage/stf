@@ -1,5 +1,5 @@
 package STF::Storage;
-use strict;
+use Mouse;
 use Cwd ();
 use Plack::Middleware::ConditionalGET;
 use Plack::Request;
@@ -8,24 +8,30 @@ use File::Copy ();
 use File::Spec ();
 use STF::Constants qw(STF_DEBUG STF_TIMER);
 use STF::Utils ();
-use Class::Accessor::Lite
-    rw => [ qw(root fileapp) ]
-;
+use STF::Log;
 
-sub new {
-    my ($class, %args) = @_;
-    my $self = bless { root => Cwd::cwd(), %args }, $class;
-    if (! $self->fileapp) {
+has root => (
+    is => 'ro',
+    required => 1,
+    default => sub { Cwd::cwd() }
+);
+
+has fileapp => (
+    is => 'ro',
+    required => 1,
+    lazy => 1,
+    builder => sub {
+        my $self = shift;
         require Plack::App::File;
-        $self->fileapp( Plack::App::File->new( root => $self->root ) );
+        Plack::App::File->new( root => $self->root );
     }
-
-    $self;
-}
+);
 
 sub to_app {
     my $self = shift;
-    return Plack::Middleware::ConditionalGET->wrap(sub { $self->process(@_) });
+    my $app = sub { $self->process(@_) };
+    $app = Plack::Middleware::ConditionalGET->wrap($app);
+    return $app;
 }
 
 sub process {
@@ -68,17 +74,16 @@ sub put_object {
 
     my $dest = File::Spec->catfile( $self->root, $req->path );
 
+    local $STF::Log::PREFIX = "Backend";
     if (STF_DEBUG) {
-        print STDERR "[   Backend] Recieved PUT $dest\n";
+        debugf("Recieved PUT '%s'", $dest);
     }
     my $dir  = File::Basename::dirname( $dest );
     if (! -e $dir ) {
         if (! File::Path::make_path( $dir ) || ! -d $dir ) {
             my $e = $!;
             if ( STF_DEBUG ) {
-                printf STDERR "[   Backend] Failed to createdir %s: %s\n",
-                    $dir, $e
-                ;
+                debugf("Failed to createdir %s: %s", $dir, $e);
             }
             return $req->new_response( 500, [], [ "Failed to create dir @{[ $req->path ]}: $e" ] );
         }
@@ -111,17 +116,14 @@ sub put_object {
         # XXX make sure that this is a numeric value ?
         utime $timestamp, $timestamp, $dest;
         if ( STF_DEBUG ) {
-            printf STDERR "[   Backend] Set file %s timestamp to %d (%s)\n",
-                $dest,
-                $timestamp,
-                scalar localtime $timestamp,
-            ;
+            debugf("Set file %s timestamp to %d (%s)",
+                $dest, $timestamp, scalar localtime $timestamp);
         }
     }
 
     if ( STF_DEBUG ) {
-        printf STDERR "[   Backend] Successfully created %s (%d bytes)\n",
-            $dest, $read;
+        debugf( "Successfully created %s (%d bytes)\n",
+            $dest, $read);
     }
     return $req->new_response( 201, [], [] );
 }
@@ -135,13 +137,14 @@ sub delete_object {
     }
 
     my $dest = File::Spec->catfile( $self->root, $req->path );
+    local $STF::Log::PREFIX = "Backend";
     if ( STF_DEBUG ) {
-        printf STDERR "[   Backend] Request to DELETE $dest\n";
+        debugf("Request to DELETE '%s'", $dest);
     }
 
     if (! -f $dest) {
         if ( STF_DEBUG ) {
-            printf STDERR " - File does not exist: $dest\n";
+            debugf("File does not exist, return 404: '%s'", $dest);
         }
         return $req->new_response(404, [], []);
     }

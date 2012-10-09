@@ -44,7 +44,7 @@ sub make_psgi {
 }
 
 subtest 'run worker' => sub {
-    my $context = STF::Context->bootstrap( config => "t/config.pl" );
+    my $context = STF::Context->bootstrap();
     my $container = $context->container;
 
     my $guard = $container->new_scope();

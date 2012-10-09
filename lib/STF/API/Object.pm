@@ -2,16 +2,19 @@ package STF::API::Object;
 use Mouse;
 use Digest::MurmurHash ();
 use HTTP::Status ();
+use List::Util ();
+use Scope::Guard ();
 use STF::Constants qw(
     :object
+    :storage
     STF_DEBUG
     STF_TRACE
+    STF_TIMER
     STF_ENABLE_OBJECT_META
-    STORAGE_MODE_TEMPORARILY_DOWN
-    STORAGE_MODE_READ_ONLY
-    STORAGE_MODE_READ_WRITE
 );
+use STF::Log;
 use STF::Dispatcher::PSGI::HTTPException;
+use STF::Utils ();
 
 with 'STF::API::WithDBI';
 
@@ -133,19 +136,19 @@ EOSQL
 }
 
 sub find_suspicious_neighbors {
-    my ($self, $object_id, $breadth) = @_;
+    my ($self, $args) = @_;
+
+    my $object_id = $args->{object_id} or die "XXX no object_id";
+    my $storages  = $args->{storages}  or die "XXX no storages";
+    my $breadth   = $args->{breadth} || 0;
 
     if ($breadth <= 0) {
         $breadth = 10;
     }
 
-    my @entities = $self->get('API::Entity')->search({
-        object_id => $object_id
-    });
-
     my %objects;
     my $dbh = $self->dbh;
-    foreach my $storage_id ( map { $_->{storage_id} } @entities ) {
+    foreach my $storage_id ( @$storages ) {
         # find neighbors in this storage
         my $before = $dbh->selectall_arrayref( <<EOSQL, undef, $storage_id, $object_id );
             SELECT e.object_id FROM entity e FORCE INDEX (PRIMARY)
@@ -186,364 +189,255 @@ EOSQL
     return $rv;
 }
 
-# Returns good/bad entities -- actually, returns the storages that contains
-# the broken entities.
-# my ($valid_listref, $invalid_listref) = $api->check_health($object_id);
-sub check_health {
-    my ($self, $object_id) = @_;
+# We used to use replicate() for both the initial write and the actual
+# replication, but it has been separated out so that you can make sure
+# that we do a double-write in the initial store(), and replication that
+# happens afterwards runs with a different logic
+sub store {
+    my ($self, $args) = @_;
 
-    if (STF_DEBUG) {
-        print STDERR "[    Health] Checking health for object $object_id\n";
-    }
+    local $STF::Log::PREFIX = "Store(O)";
+    my $object_id     = $args->{id}            or die "XXX no id";
+    my $bucket_id     = $args->{bucket_id}     or die "XXX no bucket_id";
+    my $object_name   = $args->{object_name}   or die "XXX no object_name";
+    my $input         = $args->{input}         or die "XXX no input";;
+    my $size          = $args->{size} || 0;
+    my $replicas      = $args->{replicas} || 3; # XXX unused, stored for compat
+    my $suffix        = $args->{suffix} || 'dat';
+    my $force         = $args->{force};
+    my $cluster_api = $self->get('API::StorageCluster');
 
-    my $object = $self->lookup( $object_id );
-    if (! $object) {
-        if (STF_DEBUG) {
-            print STDERR "[    Health] No matching object $object_id\n";
-        }
-        return ([], []);
-    }
-
-    my $object_meta = $self->lookup_meta( $object_id );
-    if (! $object_meta) {
-        if (STF_DEBUG) {
-            print STDERR "[    Health] No matching object meta for $object_id (harmless)\n";
-        }
-    }
-
-    my $entity_api = $self->get( 'API::Entity' );
-    my @entities = $entity_api->search( { object_id => $object_id } );
-    if (@entities) {
-        if (STF_DEBUG) {
-            printf STDERR "[    Health] Loaded %d entities\n",
-                scalar @entities
-        }
-    } else {
-        if (STF_DEBUG) {
-            print STDERR "[    Health] No matching entities for $object_id ( XXX broken ? )\n";
-        }
-        return ([], []);
-    }
-
-    my $storage_api = $self->get('API::Storage');
-    my $furl = $self->get('Furl');
-    my $ref_url;
-    my ($content, @intact, @broken);
-    foreach my $entity ( @entities ) {
-        my $storage = $storage_api->lookup( $entity->{storage_id} );
-        if (! $storage) {
-            if (STF_DEBUG) {
-                print STDERR "[    Health] storage $entity->{storage_id} does not exist. Adding to broken list\n";
-            }
-            push @broken, { id => $entity->{storage_id} };
-            next;
-        }
-
-        # an entity in TEMPORARILY_DOWN node needs to be treated as alive
-        if ($storage->{mode} == STORAGE_MODE_TEMPORARILY_DOWN) {
-            if (STF_DEBUG) {
-                print STDERR "[    Health] storage $entity->{storage_id} is temporarily down. Adding to intact list\n";
-            }
-            push @intact, $storage;
-            next;
-        }
-
-        # If the mode is not in a readable state, then we've purposely 
-        # taken it out of the system, and needs to be repaired. Also, 
-        # if this were the case, we DO NOT issue an DELETE on the backend, 
-        # as it most likely will not properly respond.
-        if ($storage->{mode} != STORAGE_MODE_READ_ONLY && $storage->{mode} != STORAGE_MODE_READ_WRITE) {
-            if (STF_DEBUG) {
-                print STDERR "[    Health] Storage $storage->{id} is not readable. Adding to invalid list.\n";
-            }
-
-            push @broken, $storage;
-
-            # This "next" by-passes the HEAD request that we'd normally
-            # send to the storage.
-            next;
-        }
-
-        my $url = join "/", $storage->{uri}, $object->{internal_name};
-        if (STF_DEBUG) {
-            print STDERR "[    Health] Going to check $url\n";
-        }
-
-        my $is_success;
-        if (STF_ENABLE_OBJECT_META && $object_meta ) {
-            # XXX If the object wasn't created with meta info (which can
-            # happen), then we shouldn't run all this
-            my $hash = Digest::MD5->new;
-            my (undef, $code) = eval {
-                $furl->request(
-                    url => $url,
-                    method => "GET",
-                    write_code => sub {
-                        my ($st, $msg, $hdrs, $partial) = @_;
-                        return unless HTTP::Status::is_success( $st );
-                        $hash->add( $partial );
-                    }
-                );
-            };
-            if ($@) {
-                print STDERR "[    Health] HTTP request raised an exception: $@\n";
-                # Make sure this becomes an error
-                $code = 500;
-            }
-            my $code_ok = HTTP::Status::is_success( $code );
-            if (STF_DEBUG) {
-                printf STDERR "[    Health] GET %s was %s (%d)\n",
-                    $url, ($code_ok ? "OK" : "FAIL"), $code;
-            }
-
-            my $hash_ok = 0;
-            if ($code_ok) {
-                my $expected = $object_meta->{hash};
-                my $actual   = $hash->hexdigest();
-                $hash_ok = $expected eq $actual;
+    # XXX If this fails because internal_name is not unique, try for at least 10 times
+    my $create_ok = 0;
+    for my $try (1..10) {
+        my $internal_name = $self->create_internal_name( { suffix => $suffix } );
+        eval {
+            $self->create({
+                id            => $object_id,
+                bucket_id     => $bucket_id,
+                object_name   => $object_name,
+                internal_name => $internal_name,
+                size          => $size,
+                replicas      => $replicas, # Unused, stored for back compat
+            });
+            $create_ok = 1;
+        };
+        if (my $e = $@) {
+            # XXX Retry only if internal_name is a conflict
+            if ($e =~ /Duplicate entry '[^']+' for key 'internal_name'/) {
                 if (STF_DEBUG) {
-                    printf STDERR "[    Health] MD5 hashes for %s %s (DB = %s, actual = %s)\n",
-                        $url, ( $hash_ok ? "OK" : "FAIL"), $expected, $actual
-                    ;
+                    debugf("Object internal_name (%s) was a duplicate, trying again (#%d)", $internal_name, $try);
                 }
+                next;
             }
-
-            $is_success = $code_ok && $hash_ok;
-        } else { # we don't have object meta, and thus no hash
-            my (undef, $code) = eval { $furl->head( $url ) };
-            if ($@) {
-                print STDERR "[    Health] HTTP request raised an exception: $@\n";
-                # Make sure this becomes an error
-                $code = 500;
-            }
-            $is_success = HTTP::Status::is_success( $code );
-            if (STF_DEBUG) {
-                printf STDERR "[    Health] HEAD %s was %s (%d)\n",
-                    $url, ($is_success ? "OK" : "FAIL"), $code;
-            }
+            Carp::croak($e);
         }
+        last if $create_ok;
+    }
+    if (! $create_ok) {
+        if (STF_DEBUG) {
+            debugf("Failed to create a unique internal_name for object. Bailing out");
+        }
+        Carp::croak("Failed to create objet");
+    }
 
-        if ($is_success) {
-            $ref_url ||= $url;
-            push @intact, $storage;
-        } else {
-            push @broken, $storage;
+    # After this point if something wicked happens and we bail out,
+    # we don't want to keep this object laying around in a half-baked
+    # state. So make sure to get rid of it
+    my $guard = Scope::Guard->new(sub {
+        if (STF_DEBUG) {
+            debugf("Guard for API::Object->store($object_id) triggered");
+        }
+        eval { $self->delete( $object_id ) };
+    });
+
+    # Load all possible clusteres, ordered by a consistent hash
+    my @clusters = $cluster_api->load_candidates_for( $object_id );
+    if (! @clusters) {
+        critf(
+            "No cluster defined for object %s, and could not any load cluster for it\n",
+            "Object",
+            $object_id
+        );
+        return;
+    }
+
+    # At this point we still don't know which cluster we belong to.
+    # Attempt to write into clusters in order.
+    foreach my $cluster (@clusters) {
+        my $ok = $cluster_api->store({
+            cluster   => $cluster,
+            object_id => $object_id,
+            content   => $input,
+            minimum   => 2,
+            force     => $force,
+        });
+        if ($ok) {
+            $cluster_api->register_for_object( {
+                cluster_id => $cluster->{id},
+                object_id  => $object_id
+            });
+            # done
+            $guard->dismiss;
+            return 1;
         }
     }
 
-    if ( STF_DEBUG ) {
-        foreach my $storage (@intact) {
-            printf "[    Health] + OK $storage->{uri}/$object->{internal_name}\n";
-        }
-        foreach my $storage (@broken) {
-            printf "[    Health] - NOT OK $storage->{uri}/$object->{internal_name}\n";
-        }
-    }
-
-    return (\@intact, \@broken);
+    return;
 }
 
 sub repair {
     my ($self, $object_id)= @_;
 
-    if (STF_DEBUG) {
-        print STDERR "[    Repair] Repairing object $object_id\n";
+    local $STF::Log::PREFIX = "Repair(O)";
+
+    debugf("Repairing object %s", $object_id) if STF_DEBUG;
+    my $timer;
+    if (STF_TIMER) {
+        $timer = STF::Utils::timer_guard();
     }
 
     my $object = $self->lookup( $object_id );
     my $entity_api = $self->get( 'API::Entity' );
+
+    # XXX Object does not exist. Hmm, glitch? either way, there's no
+    # way for anybody to get to this object, so we might as well say
+    # goodbye to the entities that belong to this object, if any
     if (! $object) {
-        if (STF_DEBUG) {
-            print STDERR "[    Repair] No matching object $object_id\n";
-        }
+        debugf("No matching object %s", $object_id ) if STF_DEBUG;
 
         my @entities = $entity_api->search( {
             object_id => $object_id 
         } );
-        if (@entities) {
-            if ( STF_DEBUG ) {
-                print STDERR "[    Repair] Removing orphaned entities in storages:\n";
-                foreach my $entity ( @entities ) {
-                    printf STDERR "[    Repair] + %s\n",
-                        $entity->{storage_id}
-                    ;
-                }
-            }
-            $entity_api->delete( {
-                object_id => $object_id
-            } );
+        if (! @entities) {
+            return;
         }
-        return;
-    }
-
-    my $furl = $self->get('Furl');
-    my @entities = $entity_api->search( { object_id => $object_id } );
-    my ($intact, $broken) = $self->check_health( $object_id );
-
-    if (! @$intact) {
-        printf STDERR "[    Repair] No entities available, object %s is COMPLETELY BROKEN\n", $object_id;
-        $self->update( $object_id => { status => OBJECT_INACTIVE } );
-        return;
-    }
-
-    if ( @$broken ) {
-        if (STF_DEBUG) {
-            printf STDERR "[    Repair] Removing broken entities for $object_id in\n";
-            foreach my $storage (@$broken) {
-                print STDERR "[    Repair] + @{[ $storage->{uri} || '(null)' ]} (id = $storage->{id})\n";
+        if ( STF_DEBUG ) {
+            debugf("Removing orphaned entities in storages:\n");
+            foreach my $entity ( @entities ) {
+                debugf("+ %s", $entity->{storage_id});
             }
         }
         $entity_api->delete( {
-            storage_id => [ -in => map { $_->{id} } @$broken ],
             object_id => $object_id
         } );
-
-        # Attempt to remove actual bad entities
-        foreach my $broken ( @$broken ) {
-            my $cache_key = [ "storage", $broken->{id}, "http_accessible" ];
-            my $st        = $self->cache_get( @$cache_key );
-            if ( ( defined $st && $st == -1 ) ||
-                 $broken->{mode} != STORAGE_MODE_READ_WRITE
-            ) {
-                if ( STF_DEBUG) {
-                    printf STDERR "[    Repair] storage %s is known to be broken. Skipping delete request\n", $broken->{uri};
-                }
-                next;
-            }
-
-            # Timeout fast!
-            local $furl->{timeout} = 5;
-            my $url = join "/", $broken->{uri}, $object->{internal_name};
-            if (STF_DEBUG) {
-                printf STDERR "[    Repair] Deleting broken entity %s for object %s\n", $url, $object_id;
-            }
-            eval {
-                my (undef, $code, $msg) = $furl->delete( $url );
-
-                # XXX Remember which hosts would respond to HTTP
-                # This is here to speed up the recovery process
-                if ( HTTP::Status::is_error($code) ) {
-                    # XXX This error code is probably not portable.
-                    if ( $msg =~ /(?:Cannot connect to|Failed to send HTTP request: Broken pipe)/ ) {
-                        $self->cache_set( $cache_key, -1, 5 * 60 );
-                    }
-                }
-            };
-        }
-
+        return;
     }
 
-    my $have = scalar @$intact;
-    my $need = $object->{num_replica};
-    my $min_num_replica = $self->min_num_replica;
-    if (defined $min_num_replica && $need < $min_num_replica) {
-        $need = $min_num_replica;
+    # Attempt to read from any given resource
+    my $master_content = $entity_api->fetch_content_from_any({
+        object => $object,
+        repair => 1,
+    });
+    if (! $master_content) {
+        $master_content = $entity_api->fetch_content_from_all_storage({
+            object => $object,
+            repair => 1,
+        });
+        if (! $master_content) {
+            critf(
+                "PANIC: No content for %s could be fetched!! Cannot proceed with repair.",
+                $object->{id}
+            );
+            return;
+        }
     }
 
-    my $max_num_replica = $self->max_num_replica;
-    if ( defined $max_num_replica && $max_num_replica <= $have ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] No need to repair %s (need %d, have %d, system max replica %d)\n",
-                $object_id,
-                $need,
-                $have,
-                $max_num_replica,
-            ;
-        }
+    my $cluster_api = $self->get( 'API::StorageCluster' );
 
-        # Return the number of object fixed... which is nothing
-        return 0;
-    } elsif ($need <= $have) {
-        if (STF_DEBUG) {
-            printf STDERR "[    Repair] No need to repair %s (need %d, have %d)\n",
-                $object_id,
-                $need,
-                $have,
-            ;
-        }
+    # find the current cluster
+    my $cluster = $cluster_api->load_for_object( $object_id  );
+    my @clusters = $cluster_api->load_candidates_for( $object_id );
 
-        # Return the number of object fixed... which is nothing
-        return 0;
+    # The object should be in the first cluster found, so run a health check
+    my $ok = $cluster_api->check_entity_health({
+        cluster_id => $clusters[0]->{id},
+        object_id  => $object_id,
+        repair     => 1,
+    });
+
+    my $designated_cluster;
+    if ($ok) {
+        debugf(
+            "Object %s is correctly stored in cluster %s. Object does not need repair",
+            $object_id, $clusters[0]->{id}
+        ) if STF_DEBUG;
+
+        $designated_cluster = $clusters[0];
+        if (! $cluster || $designated_cluster->{id} != $cluster->{id}) {
+            $cluster_api->register_for_object({
+                cluster_id => $designated_cluster->{id},
+                object_id => $object_id,
+            });
+        }
     } else {
-        my $n;
-        if ( defined $max_num_replica ) {
-            $n = (($max_num_replica > $need) ? $need : $max_num_replica) - $have;
-        } else {
-            $n = $need - $have;
-        }
-
-        if (STF_DEBUG) {
-            printf STDERR "[    Repair] Going to replicate %s %d times\n",
-                $object_id,
-                $n,
-            ;
-        }
-
-        # Try very hard to get a good copy
-        my ($code, $content);
-        foreach my $storage ( @$intact ) {
-            if ( $storage->{mode} != STORAGE_MODE_READ_ONLY && $storage->{mode} != STORAGE_MODE_READ_WRITE ) {
-                if ( STF_DEBUG ) {
-                    printf STDERR "[    Repair] Skipping storage %d as it's not readable",
-                        $storage->{id}
-                    ;
-                }
-                next;
-            }
-
-            my $ref_url = join "/", $storage->{uri}, $object->{internal_name};
-            if (STF_DEBUG) {
-                printf STDERR "[    Repair] Using content from %s for %s\n",
-                    $ref_url, $object_id,
-                ;
-            }
-            (undef, $code, undef, undef, $content) = $furl->get( $ref_url );
-            if (HTTP::Status::is_success( $code )) {
+        debugf( "Object %s needs repair", $object_id ) if STF_DEBUG;
+        # If it got here, either the object was not properly in clusters[0]
+        # (i.e., some of the storages in the cluster did not have this object)
+        # or it was in a different cluster
+        foreach my $cluster ( @clusters ) {
+            # The first one is where we should be, but there's always a chance
+            # that it's broken, so we need to try all clusters.
+            my $ok = $cluster_api->store({
+                cluster   => $cluster,
+                object_id => $object_id,
+                content   => $master_content,
+                repair    => 1,
+            });
+            if ($ok) {
+                $designated_cluster = $cluster;
                 last;
-            } else {
-                print STDERR "semi-PANIC: failed to retrieve supposedly good url $ref_url: $code\n";
-                $content = undef;
-                next;
             }
         }
 
-        if (! $content) {
-            print STDERR "PANIC: Could not load a single good content from any storage! Can't repair $object_id...\n";
-            return 0;
+        if (! $designated_cluster) {
+            critf("PANIC: Failed to repair object %s to any cluster!", $object_id);
+            return;
         }
-
-        my $replicated = $entity_api->replicate( {
-            object_id => $object_id,
-            content   => $content,
-            replicas  => $n,
-        } );
-
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Repair] Object %s wanted %d, replicated %d times\n",
-                $object_id,
-                $n,
-                $replicated,
-            ;
-        }
-
-        # Return the number of object fixed... which is $replicated
-        return $replicated;
     }
+
+    # Object is now properly stored in $designated_cluster. Find which storages
+    # map to this, and remove any other. This may happen if we added new
+    # clusters and rebalancing occurred.
+    my $storage_api = $self->get('API::Storage');
+    my @storages = $storage_api->search({
+        cluster_id => { 'not in' => [ $designated_cluster->{id} ] },
+    });
+    my @entities = $entity_api->search({
+        object_id => $object_id,
+        storage_id => { in => [ map { $_->{id} } @storages ] }
+    });
+    if (STF_DEBUG) {
+        debugf( "Object %s has %d entities that's not in cluster %d",
+            $object_id, scalar @entities, $designated_cluster->{id});
+    }
+    if (@entities) {
+        $self->get('API::Entity')->remove({
+            object   => $object,
+            storages => [ map { $storage_api->lookup($_->{storage_id}) } @entities ],
+        });
+    }
+
+    my $cache_key = [ storages_for => $object_id ];
+    $self->cache_delete(@$cache_key);
+
+    return 1;
 }
 
 sub get_any_valid_entity_url {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Get Any(O)" if STF_DEBUG;
+
     my ($bucket_id, $object_name, $if_modified_since, $check) =
         @$args{ qw(bucket_id object_name if_modified_since health_check) };
     my $object_id = $self->find_active_object_id($args);
     if (! $object_id) {
-        if (STF_DEBUG) {
-            printf STDERR "[Get Entity] Could not get object_id from bucket ID (%s) and object name (%s)\n",
-                $bucket_id,
-                $object_name
-            ;
-        }
+        debugf(
+            "Could not get object_id from bucket ID (%s) and object name (%s)",
+            $bucket_id,
+            $object_name
+        ) if STF_DEBUG;
         return;
     }
 
@@ -554,25 +448,34 @@ sub get_any_valid_entity_url {
     # short circuits from this method, and never allows us to reach this
     # enqueuing condition
     if ($check) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[Get Entity] Object %s being sent to health check\n",
-                $object_id
-            ;
-        }
-        eval { $self->get('API::Queue')->enqueue( object_health => $object_id ) };
+        debugf(
+            "Object %s forcefully being sent to repair (probably harmless)",
+            $object_id
+        ) if STF_DEBUG;
+        eval {
+            my $memd = $self->get('Memcached');
+            if (! $memd->get("repair_from_dispatcher.$object_id")) {
+                $self->get('API::Queue')->enqueue( repair_object => $object_id );
+                $memd->set("repair_from_dispatcher.$object_id", 1, 300);
+            }
+        };
     }
 
     # We cache
-    #   "storages_for.$object_id => {
-    #       $storage_id, $storage_uri ],
-    #       $storage_id, $storage_uri ],
-    #       $storage_id, $storage_uri ],
+    #   "storages_for.$object_id => [
+    #       [ $storage_id, $storage_uri ],
+    #       [ $storage_id, $storage_uri ],
+    #       [ $storage_id, $storage_uri ],
     #       ...
     #   ]
     my $repair = 0;
     my $cache_key = [ storages_for => $object_id ];
     my $storages = $self->cache_get( @$cache_key );
     if ($storages) {
+        if (STF_DEBUG) {
+            debugf( "Cache HIT for storages (object_id = %s)", $object_id );
+        }
+
         # Got storages, but we need to validate that they are indeed
         # readable, and that the uris match
         my @storage_ids = map { $_->[0] } @$storages;
@@ -582,28 +485,25 @@ sub get_any_valid_entity_url {
         # If *any* of the storages fail, we should re-compute
         foreach my $storage_id ( @storage_ids ) {
             my $storage = $lookup->{ $storage_id };
-            if (! $storage ) {
-                if (STF_DEBUG) {
-                    printf STDERR "[Get Entity] Validation for cached storage '%s' failed. Recalculating source storages\n", $storage_id;
-                }
+            if (! $storage || ! $storage_api->is_readable( $storage ) ) {
+                debugf(
+                    "Storage '%s' is not readable anymore. Invalidating cache",
+                    $storage_id,
+                ) if STF_DEBUG;
+
+                # Invalidate the cached entry, and set the repair flag
+                undef $storages;
                 $repair++;
-                last;
-            }
-            if ($storage->{mode} != STORAGE_MODE_READ_WRITE && $storage->{mode} != STORAGE_MODE_READ_ONLY) {
-                if (STF_DEBUG) {
-                    printf STDERR "[Get Entity] Mode for cached storage '%s' was not readable. Recalculating source storages\n", $storage_id;
+                if (STF_TRACE) {
+                    $self->get('Trace')->trace( "stf.object.get_any_valid_entity_url.invalidated_storage_cache");
                 }
-                $repair++;
                 last;
             }
         }
-        if ($repair) {
-            if (STF_TRACE) {
-                $self->get('Trace')->trace( "stf.object.get_any_valid_entity_url.invalidated_storage_cache");
-            }
 
-            # Invalidate the cached entry
-            undef $storages;
+        if (STF_DEBUG) {
+            debugf( "Cached storages for object_id = %s are %s",
+                $object_id, $storages ? "OK" : "NOT OK");
         }
     } 
 
@@ -640,17 +540,14 @@ EOSQL
             keys %h
         ];
 
-        if ( STF_DEBUG ) {
-            print STDERR "[Get Entity] Backend storage candidates:\n";
-            foreach my $storage ( @$storages ) {
-                printf STDERR "[Get Entity] + [%s] %s\n",
-                    $storage->[0],
-                    $storage->[1]
-                ;
-            }
-        }
-
         $self->cache_set( $cache_key, $storages, $self->cache_expires );
+    }
+
+    if (STF_DEBUG) {
+        debugf("Backend storage candidates:");
+        foreach my $storage ( @$storages ) {
+            debugf("    * [%s] %s", $storage->[0], $storage->[1]);
+        }
     }
 
     # XXX repair shouldn't be triggered by entities < num_replica
@@ -675,47 +572,53 @@ EOSQL
 
     foreach my $storage ( @$storages ) {
         my $url = "$storage->[1]/$object->{internal_name}";
+        debugf("Sending HEAD %s", $url) if STF_DEBUG;
         my (undef, $code) = $furl->head( $url, $headers );
+
+        debugf(
+            "        HEAD %s was %s (%s)",
+            $url,
+            $code =~ /^[23]/ ? "OK" : "FAIL",
+            $code
+        ) if STF_DEBUG;
+
         if ( HTTP::Status::is_success( $code ) ) {
-            if ( STF_DEBUG ) {
-                print STDERR "[Get Entity] + HEAD $url OK\n";
-            }
             $fastest = $url;
             last;
         } elsif ( HTTP::Status::HTTP_NOT_MODIFIED() == $code ) {
             # XXX if this is was not modified, then short circuit
-            if ( STF_DEBUG ) {
-                printf STDERR "[Get Entity] IMS request to %s returned NOT MODIFIED. Short-circuiting\n",
-                    $object_id
-                ;
-            }
+            debugf(
+                "IMS request to %s returned NOT MODIFIED. Short-circuiting",
+                $object_id
+            ) if STF_DEBUG;
             STF::Dispatcher::PSGI::HTTPException->throw( 304, [], [] );
         } else {
-            if ( STF_DEBUG ) {
-                print STDERR "[Get Entity] + HEAD $url failed: $code\n";
-            }
             $repair++;
         }
     };
 
     if ($repair) { # Whoa!
-        if ( STF_DEBUG ) {
-            printf STDERR "[Get Entity] Object %s needs repair\n",
-                $object_id
-            ;
+        my $memd = $self->get('Memcached');
+        if (! $memd->get("repair_from_dispatcher.$object_id")) {
+            debugf("Object %s needs repair", $object_id) if STF_DEBUG;
+            eval {
+                $self->get('API::Queue')->enqueue( repair_object => $object_id );
+                $memd->set("repair_from_dispatcher.$object_id", 1, 300);
+                # Also, kill the cache
+                $self->cache_delete( @$cache_key );
+            };
         }
-
-        eval { $self->get('API::Queue')->enqueue( repair_object => $object_id ) };
-
-        # Also, kill the cache
-        eval { $self->cache_delete( @$cache_key ) };
     }
 
     if ( STF_DEBUG ) {
         if (! $fastest) {
-            print STDERR "[Get Entity] All HEAD requests failed\n";
+            critf("All HEAD requests failed");
         } else {
-            print STDERR "[Get Entity] HEAD request to $fastest was fastest\n";
+            debugf(
+                "HEAD request to %s was fastest (object_id = %s)",
+                $fastest,
+                $object_id,
+            ) if STF_DEBUG;
         }
     }
 
@@ -727,6 +630,8 @@ EOSQL
 sub mark_for_delete {
     my ($self, $object_id) = @_;
 
+    local $STF::Log::PREFIX = "MarkDel(O)" if STF_DEBUG;
+
     my $dbh = $self->dbh;
     my ($rv_replace, $rv_delete);
 
@@ -735,29 +640,26 @@ sub mark_for_delete {
 EOSQL
 
     if ( $rv_replace <= 0 ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[  Mark Del] Failed to insert object %s into deleted_object (rv = %s)\n",
-                $object_id,
-                $rv_replace
-        }
+        debugf(
+            "Failed to insert object %s into deleted_object (rv = %s)",
+            $object_id, $rv_replace
+        ) if STF_DEBUG;
     } else {
-        if ( STF_DEBUG ) {
-            printf STDERR "[  Mark Del] Inserted object %s into deleted_object (rv = %s)\n",
-                $object_id,
-                $rv_replace
-            ;
-        }
+        debugf(
+            "Inserted object %s into deleted_object (rv = %s)",
+            $object_id,
+            $rv_replace
+        ) if STF_DEBUG;
 
         $rv_delete = $dbh->do( <<EOSQL, undef, $object_id );
             DELETE FROM object WHERE id = ?
 EOSQL
 
-        if ( STF_DEBUG ) {
-            printf STDERR "[  Mark Del] Deleted object %s from object (rv = %s)\n",
-                $object_id,
-                $rv_delete
-            ;
-        }
+        debugf(
+            "Deleted object %s from object (rv = %s)",
+            $object_id,
+            $rv_delete
+        ) if STF_DEBUG;
     }
 
     return $rv_replace && $rv_delete;
@@ -766,6 +668,7 @@ EOSQL
 sub rename {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Rename(O)";
     my $source_bucket_id = $args->{ source_bucket_id };
     my $source_object_name = $args->{ source_object_name };
     my $dest_bucket_id = $args->{ destination_bucket_id };
@@ -778,12 +681,10 @@ sub rename {
 
     # This should always exist
     if (! $source_object_id ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Rename] Source object did not exist (bucket_id = %s, object_name = %s)\n",
-                $source_bucket_id,
-                $source_object_name
-            ;
-        }
+        critf(
+            "Source object did not exist (bucket_id = %s, object_name = %s)",
+            $source_bucket_id, $source_object_name
+        );
         return;
     }
 
@@ -793,12 +694,10 @@ sub rename {
         object_name => $dest_object_name
     } );
     if ( $dest_object_id ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[    Rename] Destination object already exists (bucket_id = %s, object_name = %s)\n",
-                $dest_bucket_id,
-                $dest_object_name
-            ;
-        }
+        critf(
+            "Destination object already exists (bucket_id = %s, object_name = %s)",
+            $dest_bucket_id, $dest_object_name
+        );
         return;
     }
 
@@ -807,6 +706,18 @@ sub rename {
         name      => $dest_object_name
     } );
 }
+
+# When we receive ->cache_delete( $self->table, $id ), then we should
+# be deleting some other caches as well
+around cache_delete => sub {
+    my ($next, $self, @args) = @_;
+
+    $self->$next(@args);
+    if (@args == 2 && $args[0] eq $self->table) {
+        debugf( "Cache delete 'storages_for.%s', too", $args[1] );
+        $self->cache_delete( "storages_for", $args[1] );
+    }
+};
 
 no Mouse;
 

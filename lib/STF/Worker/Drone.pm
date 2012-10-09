@@ -1,13 +1,22 @@
-package STF::Worker::Drone;
+package
+    STF::Worker::WorkerType;
 use Mouse;
 
+has name => (is => 'ro', required => 1);
+has instances => (is => 'rw', default => 0);
+
+package STF::Worker::Drone;
+use Mouse;
+use Config ();
 use File::Spec;
 use File::Temp ();
 use Getopt::Long ();
 use List::Util ();
-use Parallel::Prefork;
-use Parallel::Scoreboard;
+use Math::Round ();
+use Parallel::ForkManager;
 use STF::Context;
+use STF::Constants qw(STF_DEBUG);
+use STF::Log;
 
 has context => (
     is => 'rw',
@@ -18,80 +27,58 @@ has pid_file => (
     is => 'rw',
 );
 
+has id => (
+    is => 'ro',
+    default => sub {
+        require Sys::Hostname;
+        join '.', Sys::Hostname::hostname(), $$;
+    }
+);
+
 has process_manager => (
     is => 'rw',
     required => 1,
     lazy => 1,
-    builder => sub {
-        my $self = shift;
-        Parallel::Prefork->new({
-            max_workers     => $self->max_workers,
-            spawn_interval  => $self->spawn_interval,
-            trap_signals    => {
-                map { ($_ => 'TERM') } qw(TERM INT HUP)
-            }
-        });
-    }
-);
-    
-has scoreboard_dir => (
-    is => 'rw',
-    lazy => 1,
-    default => sub {
-        my $sbdir = File::Temp::tempdir( CLEANUP => 1 );
-        if (! -e $sbdir ) {
-            if (! File::Path::make_path( $sbdir ) || ! -d $sbdir ) {
-                Carp::confess("Failed to create score board dir $sbdir: $!");
-            }
-        }
-        return $sbdir;
-    }
+    builder => 'build_forkmanager',
 );
 
-has scoreboard => (
-    is => 'rw',
-    lazy => 1,
-    default => sub {
-        my $self = shift;
-        return Parallel::Scoreboard->new(
-            base_dir => $self->scoreboard_dir(),
-        );
-    }
+has now => (
+    is => 'rw'
 );
+
+has cleanup_completed => (is => 'rw', default => 0);
+has my_pid => (is => 'ro', default => sub {$$});
+has is_leader => (is => 'rw', default => 0);
+has next_announce => (is => 'rw', default => 0);
+has last_election => (is => 'rw', default => -1);
+has last_balance  => (is => 'rw', default => -1);
+has last_reload   => (is => 'rw', default => -1);
+has pid_to_worker_type => (is => 'ro', default => sub { +{} });
+has worker_processes => (is => 'ro', default => sub { +{} });
 
 has spawn_interval => (
     is => 'rw',
     default => 5
 );
 
-has workers => (
+has worker_types => (
     is => 'rw',
-    default => sub {
-        my %workers = (
-            Replicate     => 8,
-            DeleteBucket  => 4,
-            DeleteObject  => 4,
-            ObjectHealth  => 1,
-            RepairObject  => 1,
-            RecoverCrash  => 1,
-            RetireStorage => 1,
-            StorageHealth => 0, # don't enable this by default, as it requires an extra setup step
-        );
-        return \%workers,
-    },
-    trigger => sub {
-        my ($self, $new_hash) = @_;
-        my %alias = (
-            Usage => 'UpdateUsage',
-            Retire => 'RetireStorage',
-            Crash => 'RecoverCrash',
-        );
-        while ( my ($k, $v) = each %alias ) {
-            if (exists $new_hash->{$k}) {
-                $new_hash->{$v} = delete $new_hash->{$k};
-            }
-        }
-    }
+    default => sub { [] },
+);
+
+has local_instances => (
+    is => 'rw',
+    default => sub { [] }
+);
+
+has gstate => (
+    is => 'rw',
+    default => 0
+);
+
+has spawn_timeout => (
+    is => 'rw',
+    default => 0
 );
 
 sub bootstrap {
@@ -112,51 +99,211 @@ sub bootstrap {
     );
 }
 
-sub BUILD {
+sub DEMOLISH {
     my $self = shift;
-    my %alias = (
-        Usage => 'UpdateUsage',
-        Retire => 'RetireStorage',
-        Crash => 'RecoverCrash',
-    );
-    my $workers = $self->workers;
-    while ( my ($k, $v) = each %alias ) {
-        if (exists $workers->{$k}) {
-            $workers->{$v} = delete $workers->{$k};
-        }
+    if (! $self->cleanup_completed) {
+        $self->cleanup;
     }
-
-    return $self;
-}
-
-sub max_workers {
-    my $self = shift;
-    my $workers = $self->workers;
-    my $n = 0;
-    for my $v ( values %$workers ) {
-        $n += $v
-    }
-    $n;
 }
 
 sub cleanup {
     my $self = shift;
+    if ($self->my_pid != $$) {
+        return;
+    }
 
-    $self->process_manager->wait_all_children();
+    local $STF::Log::PREFIX = "Drone";
+    if (STF_DEBUG) {
+        debugf("Commencing cleanup for drone");
+    }
 
-    if ( my $scoreboard = $self->scoreboard ) {
-        $scoreboard->cleanup;
+    local $SIG{PIPE} = 'IGNORE';
+
+    my $pm = $self->process_manager;
+    local %SIG = %SIG;
+    if (!$pm) {
+        # What what what what?! 
+        $SIG{CHLD} = sub { 
+            while (1) {
+                my $pid = waitpid(-1, POSIX::WNOHANG());
+                if ($pid == 0 || $pid == -1) {
+                    last;
+                }
+                debugf("Reaped %d (after process manager has been released)", $pid);
+            }
+        };
+    }
+    my $worker_processes = $self->worker_processes;
+    foreach my $worker_type (keys %$worker_processes) {
+        foreach my $pid (@{$worker_processes->{$worker_type}}) {
+            $self->terminate_child($worker_type, $pid);
+        }
+    }
+
+    if ($pm) {
+        $pm->wait_all_children();
     }
 
     if ( my $pid_file = $self->pid_file ) {
-        unlink $pid_file or
-            warn "Could not unlink PID file $pid_file: $!";
+        if (STF_DEBUG) {
+            debugf("Releasing pid file %s", $pid_file);
+        }
+
+        if (-f $pid_file) {
+            unlink $pid_file or
+                warn "Could not unlink PID file $pid_file: $!";
+        }
     }
+
+    {
+        local $@;
+        eval {
+            if (STF_DEBUG) {
+                debugf("Deleting id %s from worker_election", $self->id);
+            }
+            my $dbh = $self->get('DB::Master');
+            $dbh->do(<<EOSQL, undef, $self->id);
+                DELETE FROM worker_election WHERE drone_id = ?
+EOSQL
+        };
+        if ($@) {
+            critf("Error whle deleting my ID %s from worker_election", $self->id);
+        }
+    }
+
+    my $memd = $self->get("Memcached");
+    $memd->set("stf.worker.balance", Time::HiRes::time());
+    if ($self->is_leader) {
+        $memd->set("stf.worker.election", Time::HiRes::time());
+    }
+
+    wait;
+
+    $self->cleanup_completed(1);
+    if (STF_DEBUG) {
+        debugf("Cleanup complete");
+    }
+}
+
+sub get { shift->context->container->get(@_) }
+
+use constant {
+    BIT_ELECTION => 0x001,
+    BIT_BALANCE  => 0x010,
+    BIT_RELOAD   => 0x100,
+};
+sub should_elect_leader { $_[0]->gstate & BIT_ELECTION }
+sub should_balance      { $_[0]->gstate & BIT_BALANCE }
+sub should_reload       { $_[0]->gstate & BIT_RELOAD }
+sub check_state {
+    my $self = shift;
+
+    my $memd = $self->get('Memcached');
+    my $h = $memd->get_multi(
+        "stf.worker.reload",
+        "stf.worker.election",
+        "stf.worker.balance"
+    );
+
+    my $state = 0;
+    my $when_to_reload = $h->{"stf.worker.reload"} || 0;
+    my $last_reload = $self->last_reload;
+    if ($last_reload < 0 ||                # first time
+        $self->now - $last_reload > 600 || # it has been 10 minutes since last reload
+        $last_reload < $when_to_reload     # explicitly told that election should be held
+    ) {
+        $state |= BIT_RELOAD;
+    }
+
+    my $when_to_elect = $h->{"stf.worker.election"} || 0;
+    my $last_election = $self->last_election;
+    if ($last_election < 0 ||                 # first time
+        $self->now - $last_election > 300 ||  # it has been 5 minutes since last election
+        $self->last_election < $when_to_elect # explicitly told that election should be held
+    ) {
+        $state |= BIT_ELECTION;
+    }
+
+    if ($self->is_leader) {
+        my $when_to_balance = $h->{"stf.worker.balance"} || 0;
+        my $last_balance = $self->last_balance;
+        if ($last_balance < 0 || $last_balance < $when_to_balance) {
+            $state |= BIT_BALANCE;
+        }
+    }
+
+    if ($state != 0) {
+        $self->spawn_timeout(0);
+    }
+    $self->gstate($state);
+}
+
+sub reload {
+    my $self = shift;
+
+    if (! $self->should_reload) {
+        return;
+    }
+
+    if (STF_DEBUG) {
+        debugf("Reloading worker configuration");
+    }
+    $self->last_reload($self->now);
+
+    # create a map so it's easier to tweak
+    my $workers = $self->worker_types;
+    my %map = map { ($_->name, $_) } @$workers;
+
+    my ($name, $num_instances);
+    my $dbh = $self->get('DB::Master');
+    my $sth = $dbh->prepare(<<EOSQL);
+        SELECT varname, varvalue FROM config WHERE varname LIKE 'stf.worker.%.instances'
+EOSQL
+    $sth->execute();
+    $sth->bind_columns(\($name, $num_instances));
+
+    while ($sth->fetchrow_arrayref) {
+        $name =~ s/^stf\.worker\.([^\.]+)\.instances$/$1/;
+        my $worker = delete $map{ $name };
+
+        if (STF_DEBUG) {
+            debugf("Loaded global config: %s -> %d instances", $name, $num_instances);
+        }
+        # If this doesn't exist in the map, then it's new. create an
+        # instance
+        if ($worker) {
+            $worker->instances( $num_instances );
+        } else {
+            push @$workers, STF::Worker::WorkerType->new(
+                name      => $name,
+                instances => $num_instances,
+            );
+        }
+    }
+
+    my $instances = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, $self->id);
+        SELECT * FROM worker_instances WHERE drone_id = ?
+EOSQL
+    my $total = 0;
+    foreach my $instance (@$instances) {
+        if (STF_DEBUG) {
+            debugf("Loaded local config: %s -> %d instances", $instance->{worker_type}, $instance->{instances});
+        }
+        $total += $instance->{instances};
+    }
+    $self->local_instances($instances);
+    $self->process_manager->set_max_procs($total);
+
+    if (STF_DEBUG) {
+        debugf("Reloaded worker config");
+    }
+    return 1;
 }
 
 sub run {
     my $self = shift;
 
+    local $STF::Log::PREFIX = "Drone";
     if ( my $pid_file = $self->pid_file ) {
         open my $fh, '>', $pid_file or
             die "Could not open PID file $pid_file for writing: $!";
@@ -164,70 +311,327 @@ sub run {
         close $fh;
     }
 
-    my $scoreboard = $self->scoreboard; # load to initialize;
-    my $pp = $self->process_manager();
-    while ( $pp->signal_received !~ /^(?:TERM|INT)$/ ) {
-        $pp->start and next;
-        eval {
-            $self->start_worker( $self->get_worker() );
+    my $signal_received = '';
+    foreach my $signal ( qw(TERM INT HUP) ) {
+        $SIG{$signal} = sub { 
+            if (STF_DEBUG) {
+                debugf("Drone: received signal %s", $signal);
+            }
+            $signal_received = $signal;
+            die "Received signal during loop\n";
         };
-        if ($@) {
-            warn "Failed to start worker ($$): $@";
+    }
+
+    while ( $signal_received !~ /^(?:TERM|INT)$/ ) {
+        $signal_received = '';
+        eval {
+            if ($self->wait_one_child) {
+                $self->spawn_timeout(0);
+            }
+            $self->set_now;
+            $self->check_state;
+            $self->announce;
+
+            if ($self->now < $self->spawn_timeout) {
+                select(undef, undef, undef, rand 5);
+            } else {
+                $self->elect_leader;
+                $self->reload;
+                if ($self->is_leader) {
+                    $self->rebalance; # balance
+                }
+                if (! $self->spawn_children) {
+                    debugf("No child created, going to wait for a while");
+                    $self->spawn_timeout( $self->now + int rand 300 );
+                }
+            }
+        };
+        if (my $e = $@) {
+            if ($e =~ /^Received signal during loop$/) {
+                next;
+            } else {
+                critf("Error during drone loop: %s", $e);
+                last;
+            }
         }
-        print STDERR "Worker ($$) exit\n";
-        $pp->finish;
     }
 
-    $self->cleanup();
+    $self->cleanup;
 }
 
-sub start_worker {
-    my ($self, $klass) = @_;
-
-    $0 = sprintf '%s [%s]', $0, $klass;
-    if ($klass !~ s/^\+//) {
-        $klass = "STF::Worker::$klass";
-    }
-
-    Mouse::Util::load_class($klass)
-        if ! Mouse::Util::is_class_loaded($klass);
-
-    print STDERR "Spawning $klass ($$)\n";
-
-    my ($config_key) = ($klass =~ /(Worker::[\w:]+)$/);
-    my $container = $self->context->container;
-    my $config    = $self->context->config->{ $config_key };
-
-    my $worker = $klass->new(
-        %$config,
-        cache_expires => 30,
-        container => $container
-    );
-    $worker->work;
-}
-
-sub get_worker {
+sub wait_one_child {
     my $self = shift;
-    my $scoreboard = $self->scoreboard;
+    my $kid = $self->process_manager->wait_one_child(POSIX::WNOHANG());
+    return $kid > 0 || $kid < -1;
+}
 
-    my $stats = $scoreboard->read_all;
-    my %running;
-    for my $pid( keys %{$stats} ) {
-        my $val = $stats->{$pid};
-        $running{$val}++;
+sub set_now {
+    my $self = shift;
+    $self->now(Time::HiRes::time());
+}
+
+sub announce {
+    my $self = shift;
+
+    my $next_announce = $self->next_announce;
+    if ($self->now() < $next_announce) {
+        return;
     }
 
-    my $workers = $self->workers;
-    for my $worker( List::Util::shuffle(keys %$workers) ) {
-        my $n = $running{$worker} || 0;
-        if ( $n < $workers->{$worker} ) {
-            $scoreboard->update( $worker );
-            return $worker;
+    # if this is our initial announce, we should tell the leader to reload
+    my $dbh = $self->get('DB::Master');
+    my ($id) = $dbh->selectrow_array(<<EOSQL, undef, $self->id);
+        SELECT id FROM worker_election WHERE drone_id = ?
+EOSQL
+    if (defined $id) {
+        $dbh->do(<<EOSQL, undef, $id);
+            UPDATE worker_election SET expires_at = UNIX_TIMESTAMP() + 300 WHERE id = ?
+EOSQL
+    } else {
+        $dbh->do(<<EOSQL, undef, $self->id);
+            INSERT worker_election (drone_id, expires_at) VALUES (?, UNIX_TIMESTAMP() + 300)
+EOSQL
+    }
+    if ($next_announce == 0) {
+        $self->get("Memcached")->set("stf.worker.balance", $self->now);
+    }
+
+    $self->next_announce($self->now + 60);
+    if (STF_DEBUG) {
+        debugf("Announced %s", $self->id);
+    }
+}
+
+sub expire_others {
+    my $self = shift;
+    my $dbh = $self->get('DB::Master');
+    $dbh->do(<<EOSQL, undef, $self->id);
+        DELETE FROM worker_election WHERE expires_at < UNIX_TIMESTAMP() AND drone_id != ?
+EOSQL
+}
+
+sub elect_leader {
+    my $self = shift;
+
+    if (! $self->should_elect_leader) {
+        return;
+    }
+
+    if (STF_DEBUG) {
+        debugf("Running election for leader...");
+    }
+
+    $self->last_election($self->now);
+    my $dbh = $self->get('DB::Master');
+    my ($drone_id) = $dbh->selectrow_array(<<EOSQL);
+        SELECT drone_id FROM worker_election ORDER BY id ASC LIMIT 1
+EOSQL
+
+    if (STF_DEBUG) {
+        debugf("Election: elected %s, my id is %s", $drone_id || '(null)', $self->id);
+    }
+
+    # XXX Can't happen, but just in case...
+    if (! defined $drone_id) {
+        $self->is_leader(0);
+        return;
+    }
+
+    my $is_leader = ($drone_id eq $self->id);
+    if (STF_DEBUG) {
+        if ($is_leader) {
+            debugf("Elected myself as leader");
+        }
+    }
+    $self->is_leader($is_leader);
+    return $is_leader ? 1 :();
+}
+
+sub get_all_drones {
+    my $self = shift;
+
+    my $dbh = $self->get('DB::Master');
+    my $list = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} });
+        SELECT * FROM worker_election
+EOSQL
+    return wantarray ? @$list : $list;
+}
+
+sub rebalance {
+    my $self = shift;
+
+    # Only rebalance if we need to
+    if (! $self->should_balance) {
+        return;
+    }
+
+    if (STF_DEBUG) {
+        debugf("Rebalancing workers");
+    }
+
+    $self->last_balance( $self->now );
+    # If I'm the leader, I'm allowed to expire other drones
+    $self->expire_others;
+
+    # get all the registered drones
+    my @drones = $self->get_all_drones();
+    my $drone_count = scalar @drones;
+
+    # XXX Currently we assume that the entire set of workers
+    # that we care about are going to be available in the 
+    # config database
+    my $dbh = $self->get('DB::Master');
+
+    # for each registered worker types, balance it between each drone
+    foreach my $worker (@{$self->worker_types}) {
+        my $total_instances    = $worker->instances;
+        my $instance_per_drone = 
+            $total_instances <= 0 ? 0 : # safety net
+            $total_instances == 1 ? 1 :
+            Math::Round::round($total_instances / $drone_count);
+
+        my $remaining = $total_instances;
+        foreach my $drone (@drones) {
+            last if $remaining <= 0;
+            # XXX We're only "asking" to run this many processes -
+            # our wish may not be fulfilled, for whatever reason.
+            # Do we need to detect this?
+            my $actual = $remaining < $instance_per_drone ?
+                $remaining : $instance_per_drone;
+
+            if (STF_DEBUG) {
+                debugf("Balance: drone = %s, worker = %s, instances = %d", $drone->{drone_id}, $worker->name, $actual);
+            }
+
+            my ($current) = $dbh->selectrow_array(<<EOSQL, undef, $drone->{drone_id}, $worker->name);
+                SELECT instances FROM worker_instances WHERE drone_id = ? AND worker_type = ?
+EOSQL
+            if (defined $current) {
+                if (STF_DEBUG) {
+                    debugf("Balance: UPDATE %s, %s, %d (was %d)", $drone->{drone_id}, $worker->name, $actual, $current);
+                }
+                $dbh->do(<<EOSQL, undef, $actual, $drone->{drone_id}, $worker->name);
+                    UPDATE worker_instances SET instances = ? WHERE drone_id = ? AND worker_type = ?
+EOSQL
+            } else {
+                if (STF_DEBUG) {
+                    debugf("Balance: UPDATE %s, %s, %d", $drone->{drone_id}, $worker->name, $actual);
+                }
+                $dbh->do(<<EOSQL, undef, $drone->{drone_id}, $worker->name, $actual);
+                    INSERT INTO worker_instances (drone_id, worker_type, instances) VALUES (?, ?, ?)
+EOSQL
+            }
+            $remaining -= $actual;
         }
     }
 
-    die "Could not find a suitable worker!";
+    $self->get('Memcached')->set( "stf.worker.reload", time() );
+    # We came to rebalance, we should reload
+    $self->gstate( $self->gstate ^ BIT_RELOAD );
+    $self->reload;
 }
+
+sub get_processes_by_name {
+    my ($self, $worker_type) = @_;
+    my $list = $self->worker_processes->{$worker_type} ||= [];
+    return wantarray ? @$list : $list;
+}
+
+sub spawn_children {
+    my $self = shift;
+
+    my $spawned = 0;
+    my $instances = $self->local_instances;
+    foreach my $instance (@$instances) {
+        my $name  = $instance->{worker_type};
+        my $count = $instance->{instances};
+
+        my @processes = $self->get_processes_by_name($name);
+        while (@processes > $count) {
+            my $pid = shift @processes;
+            $self->terminate_child($name, $pid);
+        }
+
+        my $remaining = $count - @processes;
+        while ($remaining-- > 0) {
+            $spawned++;
+            $self->spawn_child($name);
+        }
+    }
+    return $spawned;
+}
+
+sub spawn_child {
+    my ($self, $worker_type) = @_;
+
+    if (STF_DEBUG) {
+        debugf("Spawning child process for %s", $worker_type);
+    }
+    my $pp = $self->process_manager;
+    if ($pp->start($worker_type)) {
+        return;
+    }
+    eval {
+        local $ENV{PERL5LIB} = join ":", @INC;
+        exec $Config::Config{perlpath}, '-e', <<EOM;
+use strict;
+use STF::Context;
+use STF::Worker::$worker_type;
+
+\$0 = "$0 [$worker_type]";
+
+my \$cxt = STF::Context->bootstrap;
+my \$container = \$cxt->container;
+my \$worker = STF::Worker::${worker_type}->new(
+    container => \$container
+);
+\$worker->work;
+EOM
+    };
+    if ($@) {
+        critf("Failed to run child %s", $@);
+    }
+    $pp->finish;
+}
+
+sub build_forkmanager {
+    my $self = shift;
+
+    my $pp = Parallel::ForkManager->new;
+    $pp->run_on_start(sub {
+        my ($pid, $worker_type) = @_;
+
+        my $list = $self->worker_processes->{$worker_type} ||= [];
+        push @$list, $pid;
+        $self->pid_to_worker_type->{$pid} = $worker_type;
+    });
+    $pp->run_on_finish(sub {
+        my ($pid, $code, $worker_type) = @_;
+
+        my $list = $self->worker_processes->{$worker_type} ||= [];
+        foreach my $i (1..@$list) {
+            if ($list->[$i - 1] == $pid) {
+                splice @$list, $i - 1, 1;
+                last;
+            }
+        }
+        delete $self->pid_to_worker_type->{$pid};
+
+        if (STF_DEBUG) {
+            debugf("Reap pid %d worker %s", $pid, $worker_type);
+        }
+    });
+    return $pp;
+}
+
+sub terminate_child {
+    my ($self, $worker_type, $pid) = @_;
+    if (STF_DEBUG) {
+        debugf("Terminating worker process %d for %s", $pid, $worker_type);
+    }
+    kill TERM => $pid;
+}
+
 
 no Mouse;
 

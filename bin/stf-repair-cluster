@@ -1,0 +1,182 @@
+#!perl
+use strict;
+use Getopt::Long;
+use STF::Context;
+
+main() unless caller();
+
+sub main () {
+    my %opts = (
+        mode          => "direct",
+        min_object_id => 0,
+        interval      => 60,
+        limit         => 10_000,
+    );
+    my @options = qw(
+        cluster_id=s
+        mode=s
+        min_object_id=i
+        max_object_id=i
+        interval=i
+        limit=i
+    );
+    if (! GetOptions( \%opts, @options)) {
+        exit 1;
+    }
+
+    if (! $opts{cluster_id}) {
+        die "--cluster_id is required\n";
+    }
+
+    if ($opts{mode} eq "queue") {
+        do_enqueue( \%opts );
+    } elsif ($opts{mode} eq "direct") {
+        do_direct( \%opts );
+    } else {
+        die "Unknown mode '$opts{mode}\n";
+    }
+}
+
+sub do_enqueue {
+    my ($opts) = @_;
+
+    my $interval = $opts->{interval};
+    my $max_object_id = $opts->{max_object_id};
+    my $object_id = $opts->{min_object_id};
+    my $cxt = STF::Context->bootstrap;
+    my $cnt = $cxt->container;
+    my $cluster = 
+        $cnt->get('API::StorageCluster')->lookup( $opts->{cluster_id} );
+    if (! $cluster) {
+        die "Cluster '$opts->{cluster_id}' not found\n";
+    }
+
+    my $queue_api  = $cnt->get('API::Queue');
+    my $queue_size = $queue_api->size("repair_object");
+    my $dbh = $cnt->get( $ENV{STF_DB} || 'DB::Master' );
+    my $sth = $dbh->prepare(<<EOSQL);
+        SELECT object_id FROM object_cluster_map WHERE cluster_id = ? AND object_id >= ? LIMIT $opts->{limit}
+EOSQL
+
+    while ( 1 ) {
+        my $rv = $sth->execute( $cluster->{id}, $object_id );
+        last if $rv <= 0;
+
+        $sth->bind_columns( \($object_id) );
+        while ( $sth->fetchrow_arrayref ) {
+            $queue_api->enqueue( repair_object => $object_id );
+        }
+
+        if (defined $max_object_id) {
+            last if $object_id >= $max_object_id;
+        }
+
+        # wait for it...
+        while (1) {
+            my $current_size = $queue_api->size("repair_object");
+            last if $current_size <= $queue_size;
+            sleep( $interval );
+        }
+    }
+}
+
+sub do_direct {
+    my ($opts) = @_;
+
+    my $interval = $opts->{interval};
+    my $max_object_id = $opts->{max_object_id};
+    my $object_id = $opts->{min_object_id};
+    my $cxt = STF::Context->bootstrap;
+    my $cnt = $cxt->container;
+    my $cluster = 
+        $cnt->get('API::StorageCluster')->lookup( $opts->{cluster_id} );
+    if (! $cluster) {
+        die "Cluster '$opts->{cluster_id}' not found\n";
+    }
+
+    my $object_api = $cnt->get('API::Object');
+    my $dbh = $cnt->get( $ENV{STF_DB} || 'DB::Master' );
+    my $sth = $dbh->prepare(<<EOSQL);
+        SELECT object_id FROM object_cluster_map WHERE cluster_id = ? AND object_id >= ? LIMIT $opts->{limit}
+EOSQL
+
+    while ( 1 ) {
+        my $rv = $sth->execute( $cluster->{id}, $object_id );
+        last if $rv <= 0;
+
+        $sth->bind_columns( \($object_id) );
+        while ($sth->fetchrow_arrayref) {
+            $object_api->repair( $object_id );
+        }
+    }
+}
+
+__END__
+
+=head1 NAME
+
+stf-repair-cluster - Queues Jobs To Repair Objects In Given Cluster
+
+=head1 SYNOPSIS
+
+    stf-repair-cluster \
+        --cluster_id=[id] \
+        [--mode=[mode]] \
+        [--min_object_id=[id]] \
+        [--max_object_id=[id]] \
+        [--interval=[seconds]] \
+        [--limit=[num]]
+
+=head1 DESCRIPTION
+
+This command selects object IDs stored a particular cluster as recored in C<object_cluster_map> table (which contains the mapping of objects to clusters), and either a) enqueues repair jobs for those objects, or b) performs repairs within this process.
+
+=head1 DIRECT PROCESSING MODE
+
+In C<direct processing mode> (which is the default mode), repairss happen
+within the command process, and thus you will have to have access to the
+database and the storages from where you're executing this command.
+
+This is best for cases where you have a very small number of objects to
+process, because you don't have to wait until the worker picks it up.
+However, if you have a large number of objects to repair, do note that it's
+going to take a very long time, as this program will ONLY run in single
+process mode.
+
+=head1 ENQUEUE MODE
+
+In C<enqueue mode>, this command will only enqueue repair jobs to the worker.
+No repairs will happen until a worker picks the enqueued job up.
+
+Jobs are not enqueued all at once, as it will overwhelm the workers for
+very large clusters. Instead it will:
+
+=over 4
+
+=item 1. count the # of jobs in the repair queue
+
+=item 2. select up to the number of rows specified in C<--limit> option
+
+=item 3. enqueue all of those
+
+=item 4. wait until the queue size drops back to initial count
+
+=item 5. redo 2, until either ID specified in C<--max_object_id> is reached, or there are no more objects to process
+
+=back
+
+=head1 OPTIONS
+
+=head1 cluster_id C<ID>
+
+The ID of the cluster to repair. Required.
+
+=head1 min_object_id C<ID>
+
+The ID to start repairing from. By default this is set to 0, which in turn just means that the reapir will start from the lowest ID value in the storage
+
+=head1 max_object_id C<ID>
+
+The maximum ID to repair. If unspecified, repair will happen until we exhausted the list of objects that should be in that storage.
+
+=cut

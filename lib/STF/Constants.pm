@@ -32,6 +32,14 @@ BEGIN {
         Q4M_FUNC_REPAIR_OBJECT => 4,
         Q4M_FUNC_OBJECT_HEALTH => 5,
 
+        STORAGE_CLUSTER_MODE_READ_ONLY  => 0,
+        STORAGE_CLUSTER_MODE_READ_WRITE => 1,
+        STORAGE_CLUSTER_MODE_RETIRE     => 2,
+        # Denotes that the cluster has been (or is being) retired.
+        # Read operations on storages are still valid, but upon repair,
+        # the worker(s) will consider this cluster to be unusable, and
+        # will therefore replenish the object in another cluster
+
         STORAGE_MODE_CRASH_RECOVERED => -4,
         STORAGE_MODE_CRASH_RECOVER_NOW => -3,
         STORAGE_MODE_CRASH => -2,
@@ -68,12 +76,25 @@ BEGIN {
         STORAGE_MODE_MIGRATE_NOW => 3,
         STORAGE_MODE_MIGRATED => 4,
         # These are only used to denote that an automatic migration
-        # is happening
-        
+        # is happening (XXX Unused?)
+
+        STORAGE_MODE_REPAIR => 5,
+        STORAGE_MODE_REPAIR_NOW => 6,
+        STORAGE_MODE_REPAIR_DONE => 7,
+        # These storages are not crashed, they don't need to be
+        # emptied out, they just need to be checked for repairments
+
+        STORAGE_MODE_SPARE => 10,
+        # Denotes that the storage is a spare for the registered cluster.
+        # Writes are performed, but reads do not happen. Upon a failure
+        # you can either replace the broken storage with this one, or
+        # use this to restore the broken storage.
     );
     $constants{ SERIAL_BITS  } = (64 - $constants{HOST_ID_BITS} - $constants{TIME_BITS});
     $constants{ TIME_SHIFT   } = $constants{HOST_ID_BITS} + $constants{SERIAL_BITS};
     $constants{ SERIAL_SHIFT } = $constants{HOST_ID_BITS};
+
+    $ENV{LM_DEBUG} = $constants{STF_DEBUG};
 }
 
 use constant \%constants;
@@ -82,6 +103,9 @@ sub as_hashref { \%constants }
 my @object = qw(OBJECT_INACTIVE OBJECT_ACTIVE);
 my @entity = qw(ENTITY_INACTIVE ENTITY_ACTIVE);
 my @storage = qw(
+    STORAGE_CLUSTER_MODE_READ_ONLY
+    STORAGE_CLUSTER_MODE_READ_WRITE
+    STORAGE_CLUSTER_MODE_RETIRE
     STORAGE_MODE_REMOVED
     STORAGE_MODE_CRASH_RECOVERED
     STORAGE_MODE_CRASH_RECOVER_NOW
@@ -92,6 +116,11 @@ my @storage = qw(
     STORAGE_MODE_RETIRE
     STORAGE_MODE_MIGRATE_NOW
     STORAGE_MODE_MIGRATED
+    STORAGE_MODE_REPAIR
+    STORAGE_MODE_REPAIR_NOW
+    STORAGE_MODE_REPAIR_DONE
+
+    STORAGE_MODE_SPARE
 );
 my @func = grep { /^Q4M_FUNC/ } keys %constants;
 my @server = qw(EPOCH_OFFSET HOST_ID_BITS TIME_BITS SERIAL_BITS TIME_SHIFT SERIAL_SHIFT);

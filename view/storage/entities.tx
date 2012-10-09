@@ -6,21 +6,31 @@
 
 <table class="table table-striped table-bordered table-condensed">
 <tr>
-    <th>[% loc('Object ID') %]</th><th>[% loc('Entity URL') %]</th><th>[% loc('Status') %]</th>
+    <th>[% loc('Object ID') %]</th>
+    <th>[% loc('Object') %]</th>
+    <th>[% loc('Entity URL') %]</th>
+    <th>[% loc('Object Status') %]</th>
+    <th>[% loc('Entity Status') %]</th>
 </tr>
 [% SET last_entity = '' %]
 [% FOREACH entity IN entities %]
 <tr>
-    <td class="digit"><a href="[% c.uri_for('/object', entity.object_id) %]">[% entity.object_id %]</a></td>
-    <td class="text"><a href="[% entity.url %]">[% entity.url %]</a></td>
-    <td class="digit">[% entity.status %]</td>
+    <td class="digit"><a href="[% c.uri_for('/object/show', entity.object_id) %]">[% entity.object_id %]</a></td>
+    <td class="digit">
+        [% IF (entity.object_url) %]<a href="[% c.uri_for('/object/show', entity.object_id) %]">[% entity.object_url %]</a>[% ELSE %]N/A[% END %]
+    </td>
+    <td class="text">
+        [% IF (entity.internal_name) %]<a href="[% storage.uri %]/[% entity.internal_name %]">[% entity.internal_name %]</a>[% ELSE %]N/A[% END %]
+    </td>
+    <td class="digit">[% IF (entity.object_status == const.OBJECT_ACTIVE) %]Active[% ELSE %]Inactive[% END %]</td>
+    <td class="digit">[% IF (entity.status == const.OBJECT_ACTIVE) %]Active[% ELSE %]Inactive[% END %]</td>
 </tr>
 [% SET last_entity = entity %]
 [% END %]
 [% IF (last_entity) %]
 <tr>
     <td colspan="3">
-        <a href="/storage/[% storage.id %]/entities?since=[% last_entity.object_id %]">Next</a>
+        <a href="[% c.uri_for("/storage/entities", storage.id, { since => last_entity.object_id } ) %]">Next</a>
     </td>
 </tr>
 [% END %]

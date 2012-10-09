@@ -1,7 +1,7 @@
 use strict;
 use Test::More;
 use Test::Fatal;
-use Guard;
+use Scope::Guard ();
 
 BEGIN {
     use_ok "STF::Context";
@@ -9,7 +9,7 @@ BEGIN {
 }
 
 subtest crud => sub {
-    my $context = STF::Context->bootstrap( config => "t/config.pl" );
+    my $context = STF::Context->bootstrap();
     my $api = $context->get('API::Storage');
     ok $api;
 
@@ -18,9 +18,9 @@ subtest crud => sub {
         SELECT max(id) + 1 FROM storage
 EOM
 
-    my $guard = guard {
+    my $guard = Scope::Guard->new(sub {
         $api->delete( $storage_id );
-    };
+    });
 
     is exception {
         $api->create( {

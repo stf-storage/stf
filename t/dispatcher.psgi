@@ -4,9 +4,8 @@ use Plack::Builder;
 use STF::Dispatcher;
 use STF::Dispatcher::PSGI;
 
+$ENV{DEPLOY_ENV} = 'test';
 $ENV{STF_HOST_ID} = time();
-
-$ENV{STF_CONFIG} = "t/config.pl";
 $ENV{STF_CONTAINER} = "etc/container.pl";
 my $stf = STF::Dispatcher::PSGI->new( impl => STF::Dispatcher->bootstrap );
 

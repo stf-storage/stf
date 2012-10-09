@@ -1,15 +1,20 @@
 use strict;
 use Test::MockTime qw(restore_time set_fixed_time);
 use Test::More;
-use Guard qw(scope_guard);
+use Scope::Guard ();
 BEGIN {
     use_ok "STF::Dispatcher";
-    use_ok "STF::Constants", "SERIAL_BITS";
+    use_ok "STF::Constants", "SERIAL_BITS", "HAVE_64BITINT";
     use_ok "Plack::Util";
 }
 
 subtest 'create ID' => sub {
-    scope_guard( \&restore_time );
+    SKIP: {
+    if (! HAVE_64BITINT) {
+        skip "No 64bit int... skipping test", 5;
+    }
+
+    my $guard = Scope::Guard->new( \&restore_time );
 
     # ザ・ワールド！
     my $time = CORE::time();
@@ -21,7 +26,7 @@ subtest 'create ID' => sub {
     note "now time() is " . time();
 
     local $ENV{STF_HOST_ID} = time();
-    my $d = STF::Dispatcher->bootstrap(config => "t/config.pl");
+    my $d = STF::Dispatcher->bootstrap();
 
     my @ids = map { $d->create_id } 1..10;
 
@@ -45,13 +50,14 @@ subtest 'create ID' => sub {
     note "now time() is " . time();
     eval { $d->create_id };
     ok ! $@, "no overflow";
+    }
 };
 
 subtest 'enqueue timeout' => sub {
     SKIP : {
         skip "Unimplemented tests for Schwartz queues", 2;
 
-    my $ctxt = STF::Context->bootstrap(config => "t/config.pl");
+    my $ctxt = STF::Context->bootstrap();
     my $d    = STF::Dispatcher->new(
         cache_expires => 300,
         container => $ctxt->container,

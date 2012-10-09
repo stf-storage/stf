@@ -2,7 +2,7 @@
 
 [% INCLUDE "storage/heading.tx" %]
 
-<form class="form-horizontal" method="post" action="[% c.uri_for('/storage', storage.id, 'edit') %]">
+<form class="form-horizontal" method="post" action="[% c.uri_for('/storage/edit', storage.id) %]">
 [% error_msgs(result) %]
 <fieldset>
     <legend>Edit Storage</legend>
@@ -31,9 +31,23 @@
     const.STORAGE_MODE_CRASH_RECOVERED,
     const.STORAGE_MODE_RETIRE,
     const.STORAGE_MODE_MIGRATE_NOW,
-    const.STORAGE_MODE_MIGRATED
+    const.STORAGE_MODE_MIGRATED,
+    const.STORAGE_MODE_REPAIR,
+    const.STORAGE_MODE_REPAIR_NOW,
+    const.STORAGE_MODE_REPAIR_DONE
 ] %]
                 <option value="[% mode %]">[% mode_str(mode) %]</option>
+[% END %]
+            </select>
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label" for="cluster_id">Cluster</label>
+        <div class="controls">
+            <select name="cluster_id" id="input-cluster_id">
+                <option value="">(free)</option>
+[% FOREACH cluster IN clusters %]
+                <option value="[% cluster.id %]">[% cluster.name || "Cluster " _ cluster.id %]</option>
 [% END %]
             </select>
         </div>
@@ -60,7 +74,7 @@
 [% END %]
     <div class="form-actions">
         <button type="submit" class="btn btn-primary"><i class="icon-pencil icon-white"></i> Update</button>
-        <button type="button" class="btn btn-danger" onClick="javascript: if(confirm('Are you sure you want to delete this object?')) { this.form.action='[% c.uri_for('/storage', storage.id, 'delete') %]'; this.form.submit(); } else { return false; }"><i class="icon-trash icon-white"></i> Delete</button>
+        <button type="button" class="btn btn-danger" onClick="javascript: if(confirm('Are you sure you want to delete this object?')) { this.form.action='[% c.uri_for('/storage/delete', storage.id) %]'; this.form.submit(); } else { return false; }"><i class="icon-trash icon-white"></i> Delete</button>
     </div>
 </fieldset>
 </form>

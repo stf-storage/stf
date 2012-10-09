@@ -1,0 +1,105 @@
+[% WRAPPER "inc/layout.tx" %]
+
+<div class="modal fade" data-toggle="modal" id="stf-config-reload-confirm">
+    <div class="modal-header">
+        <a class="close" data-dismiss="modal">x</a>
+        <h3>Reload config</h3>
+    </div>
+    <div class="modal-body">
+        <div class="main">
+            <div class="alert alert-error">
+                <p>This will force components to <em>RELOAD</em> the config
+                values that have already been commitd</p>
+                <p>RELOAD WILL HAPPEN IMMEDIATELY AFTER YOU CONFIRM THIS!</p>
+            </div>
+            <p>Are you sure you want to do this?</p>
+        </div>
+        <div class="processing" style="display: none">
+            <img src="/static/images/ajax-loader.gif"> Processing...
+        </div>
+        <div class="error" style="display: none">
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#" class="btn btn-danger" data-dismiss="modal">Cancel</a>
+        <a href="#" class="btn btn-primary">Reload</a>
+    </div>
+</div>
+
+<div class="well">
+<h2>Config</h2>
+
+<button id="stf-config-reload-btn" class="btn btn-success btn-mini"><i class="icon-plus icon-white"></i> Reload</button>
+</div>
+
+<h3>State</h3>
+
+<table class="table">
+[% FOREACH st IN states.keys() %]
+<tr>
+    <td>[% st %]</td>
+    <td>[% states.$st %]</td>
+</tr>
+[% END %]
+</table>
+
+<h3>Election</h3>
+
+<table class="table">
+[% FOREACH el IN election %]
+<tr>
+    <td>[% el.id %]</td>
+    <td>[% el.drone_id %]</td>
+    <td>[% el.expires_at %]</td>
+</tr>
+[% END %]
+</table>
+
+<h3>Configuration</h3>
+
+<form action="/config/update" method="POST">
+<input type="submit" value="Update">
+<table class="table">
+[% FOREACH pair IN config_vars %]
+<tr>
+    <td>[% pair.varname %]</td>
+    <td><input type="text" name="[% pair.varname %]"></td>
+</tr>
+[% END %]
+</table>
+<input type="submit" value="Update">
+</form>
+
+<script type="text/javascript">
+<!--
+    $(document).ready( function() {
+        $("#stf-config-reload-btn").click(function() {
+            var ctx = $("#stf-config-reload-confirm div.modal-body");
+            $("div.main", ctx).show();
+            $("div.processing", ctx).hide();
+            $("div.error", ctx).hide();
+            $("#stf-config-reload-confirm").modal("show");
+            return false;
+        });
+        $("a.btn-primary", "#stf-config-reload-confirm").click(function() {
+            var cxt = $("#stf-config-reload-confirm div.modal-body");
+            $("div.main", cxt).hide();
+            $("div.processing", cxt).show();
+            $.ajax({
+                url: "/ajax/config/reload.json",
+                type: "POST",
+                error: function(xhr, st, err) {
+                    $("div.processing", cxt).hide();
+                    $("div.error", cxt)
+                        .text("Failed to set reload " + err).show();
+                },
+                success: function() {
+                    $("#stf-config-reload-confirm").modal("hide");
+                }
+            });
+        } );
+    } );
+-->
+</script>
+
+[% END %]

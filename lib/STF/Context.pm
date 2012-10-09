@@ -4,7 +4,9 @@ use Carp ();
 use Cwd ();
 use File::Basename ();
 use File::Spec;
+use STF::Constants qw(STF_DEBUG);
 use STF::Container;
+use STF::Log;
 use STF::Utils ();
 
 with 'STF::Trait::WithContainer';
@@ -104,6 +106,8 @@ sub load_container {
 sub load_file {
     my ($self, $file, %args) = @_;
 
+    local $STF::Log::PREFIX = "Context";
+
     my $path = Cwd::abs_path($file);
     if (! $path) {
         Carp::croak("$file does not exist");
@@ -113,7 +117,12 @@ sub load_file {
         Carp::confess("$path does not exist, or is not a file");
     }
 
-    return if $INC{$path} && $self->{loaded_paths}{$path}++;
+    if ($INC{$path} && $self->{loaded_paths}{$path}++) {
+        if (STF_DEBUG) {
+            debugf("Already loaded %s, skipping, $path");
+        }
+        return;
+    }
     delete $INC{$path};
     my $pkg = join '::',
         map { my $e = $_; $e =~ s/[\W]/_/g; $e }
@@ -124,6 +133,10 @@ sub load_file {
             File::Basename::basename($path)
         )
     ;
+
+    if (STF_DEBUG) {
+        debugf("Loading file %s", $path);
+    }
 
     {
         no strict 'refs';

@@ -3,20 +3,8 @@ use Furl::HTTP;
 use String::Urandom;
 use Cache::Memcached::Fast;
 use Class::Load ();
-use STF::API::Bucket;
-use STF::API::DeletedObject;
-use STF::API::Entity;
-use STF::API::Object;
-use STF::API::Storage;
+use JSON ();
 use STF::Constants qw(STF_ENABLE_STORAGE_META STF_ENABLE_OBJECT_META);
-BEGIN {
-    if ( STF_ENABLE_STORAGE_META ) {
-        require STF::API::StorageMeta;
-    }
-    if ( STF_ENABLE_OBJECT_META ) {
-        require STF::API::ObjectMeta;
-    }
-}
 use STF::Constants qw(STF_DEBUG STF_TRACE);
 
 if (STF_TRACE) {
@@ -30,6 +18,7 @@ if (STF_TRACE) {
     };
 }
 
+register JSON => JSON->new->utf8;
 register Furl => Furl::HTTP->new( timeout => 30 );
 register Memcached => sub {
     my $c = shift;
@@ -37,25 +26,58 @@ register Memcached => sub {
     Cache::Memcached::Fast->new( $config->{'Memcached'} );
 };
 
-my @queue_names;
-foreach my $dbkey (qw(DB::Master DB::Queue)) {
-    # XXX lazy. We need to know which queue databases are available,
-    # so we'll just skim it from the list
-    if ( $dbkey =~ /::Queue/) {
-        push @queue_names, $dbkey;
-    }
-
-    register $dbkey => sub {
+my $register_dbh = sub {
+    my ($key) = @_;
+    register $key => sub {
         my $c = shift;
         my $config = $c->get('config');
-        my $dbh = DBI->connect( @{$config->{$dbkey}} );
+        my $dbh = DBI->connect( @{$config->{$key}} );
         $dbh->{HandleError} = sub {
             our @CARP_NOT = ('STF::API::WithDBI');
             Carp::croak(shift) };
         return $dbh;
     }, { scoped => 1 };
+};
+my $register_resque = sub {
+    my ($key) = @_;
+    register $key => sub {
+        my $c = shift;
+        my $config = $c->get('config');
+        my $resque = Resque->new(%{$config->{$key}});
+        return $resque;
+    }, { scoped => 1 };
+};
+my $register_redis = sub {
+    my ($key) = @_;
+    register $key => sub {
+        my $c = shift;
+        my $config = $c->get('config');
+        my $redis = Redis->new(%{$config->{$key}});
+        return $redis;
+    }, { scoped => 1 };
+};
+
+$register_dbh->('DB::Master');
+
+my $queue_type = $ENV{ STF_QUEUE_TYPE } || 'Q4M';
+my @queue_names =
+    exists $ENV{STF_QUEUE_NAMES} ? split( /\s*,\s*/, $ENV{STF_QUEUE_NAMES} ) :
+    qw(DB::Queue)
+;
+
+foreach my $dbkey (@queue_names) {
+    if ($queue_type eq 'Resque') {
+        require Resque;
+        $register_resque->($dbkey);
+    } elsif ($queue_type eq 'Redis') {
+        require Redis;
+        $register_redis->($dbkey);
+    } else {
+        $register_dbh->($dbkey);
+    }
 }
 
+require STF::API::Object;
 register 'API::Object' => sub {
     my $c = shift;
     STF::API::Object->new(
@@ -66,15 +88,19 @@ register 'API::Object' => sub {
     );
 };
 
-my @api_names = qw(API::Bucket API::Entity API::DeletedObject API::Storage);
+my @api_names = qw(API::Bucket API::Config API::Entity API::DeletedObject API::Storage API::StorageCluster);
 if ( STF_ENABLE_STORAGE_META ) {
+    require STF::API::StorageMeta;
     push @api_names, 'API::StorageMeta';
 }
 if ( STF_ENABLE_OBJECT_META ) {
+    require STF::API::ObjectMeta;
     push @api_names, 'API::ObjectMeta';
 }
 foreach my $name (@api_names) {
     my $klass = "STF::$name";
+    eval "require $klass";
+    die if $@;
     register $name => sub {
         my $c = shift;
         $klass->new(
@@ -88,14 +114,13 @@ foreach my $name (@api_names) {
 # Our queue may be switched
 register "API::Queue" => sub {
     my $c = shift;
-    my $type = $ENV{ STF_QUEUE_TYPE } || 'Q4M';
-    my $klass = "STF::API::Queue::$type";
+    my $klass = "STF::API::Queue::$queue_type";
     Class::Load::load_class($klass)
         if ! Class::Load::is_class_loaded($klass);
 
     $klass->new(
         cache_expires => 86400,
-        %{ $c->get('config')->{ "API::Queue::$type" } || {} },
+        %{ $c->get('config')->{ "API::Queue::$queue_type" } || {} },
         container => $c,
         queue_names => \@queue_names,
     );
@@ -114,3 +139,4 @@ register 'AdminWeb::Router' => sub {
     my $c = shift;
     require $c->get('config')->{'AdminWeb::Router'}->{routes};
 };
+

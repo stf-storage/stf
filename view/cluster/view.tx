@@ -1,0 +1,63 @@
+[% WRAPPER "layout.tx" %]
+
+[% INCLUDE "cluster/heading.tx" %]
+
+<div class="stf-cluster-detail">
+    <legend>
+        <div>
+            <a href="/cluster/[% cluster.id %]/edit">[% cluster.name || 'Cluster ' _ cluster.id %]</a>
+        </div>
+    </legend>
+
+    <table class="table table-striped table-bordered table-condensed">
+    <tbody>
+        <tr>
+            <td>ID</td>
+            <td>[% cluster.id %]</td>
+        </tr>
+        <tr>
+            <td>Name</td>
+            <td>[% cluster.name || 'Cluster ' _ cluster.id %]</td>
+        </tr>
+        <tr>
+            <td>Mode</td>
+            <td>[% mode_str(cluster.mode) %]</td>
+        </tr>
+    </tbody>
+    </table>
+</div>
+
+<div class="row">
+    <div class="span1">Storages</div>
+    <div class="span9">
+        <table class="table table-striped table-bordered table-condensed">
+        <thead>
+            <tr>
+                <td>ID</td>
+                <td>URI</td>
+                <td>Mode</td>
+                <td>&nbsp;</td>
+            </tr>
+        </thead>
+        <tbody>
+[% IF (cluster.storages.size() > 0) %]
+[% FOREACH storage IN cluster.storages %]
+        <tr>
+            <td>[% storage.id %]</td>
+            <td>[% storage.uri %]</td>
+            <td>[% mode_str(storage.mode) %]</td>
+            <td>
+                <a class="btn btn-info btn-mini" href="[% c.uri_for( "/storage/edit", storage.id) %]">edit</a>
+                <a class="btn btn-success btn-mini" href="[% c.uri_for('/storage/entities', storage.id) %]">entities</a></td>
+            </td>
+        </tr>
+[% END %]
+[% ELSE %]
+        <tr><td colspan="4">No storages in this cluster</td></tr>
+[% END %]
+        </tbody>
+        </table>
+    </div><!-- span -->
+</div><!-- row -->
+
+[% END %]

@@ -1,6 +1,7 @@
 package STF::API::Bucket;
 use Mouse;
 use STF::Constants qw(STF_DEBUG);
+use STF::Log;
 
 with 'STF::API::WithDBI';
 
@@ -24,15 +25,23 @@ EOSQL
 sub rename {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Rename(B)";
     my $name = $args->{name};
     my $bucket_id = $args->{id};
     my $dbh = $self->dbh;
 
+    if (STF_DEBUG) {
+        debugf( "Renaming bucket '%s' to '%s'", $args->{from}, $name );
+    }
+
     my $rv = $dbh->do(<<EOSQL, undef, $name, $bucket_id );
         UPDATE bucket SET name = ? WHERE id = ?
 EOSQL
-    if ($rv) {
+    if ($rv > 1) {
         $self->cache_delete( $self->table => $bucket_id );
+    }
+    if (STF_DEBUG) {
+        debugf("Rename was %s", $rv > 1 ? "SUCCESS" : "FAIL");
     }
     return $rv;
 }
@@ -40,6 +49,7 @@ EOSQL
 sub delete {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Delete(B)";
     my ($id, $recursive) = @$args{ qw(id recursive) };
     my $dbh = $self->dbh;
 
@@ -69,6 +79,7 @@ EOSQL
 sub mark_for_delete {
     my ($self, $args) = @_;
 
+    local $STF::Log::PREFIX = "Delete(B)";
     my $bucket_id = $args->{id};
     my $dbh = $self->dbh;
 
@@ -80,18 +91,15 @@ sub mark_for_delete {
     );
 
     if ( $rv_replace <= 0 ) {
-        if ( STF_DEBUG ) {
-            printf STDERR "[  Mark Del] Failed to insert bucket %s into deleted_bucket (rv = %s)\n",
-                $bucket_id,
-                $rv_replace
-        }
+        debugf(
+            "Failed to insert bucket %s into deleted_bucket (rv = %s)",
+            $bucket_id, $rv_replace
+        ) if STF_DEBUG;
     } else {
-        if ( STF_DEBUG ) {
-            printf STDERR "[  Mark Del] Inserted bucket %s into deleted_bucket (rv = %s)\n",
-                $bucket_id,
-                $rv_replace
-            ;
-        }
+        debugf(
+            "Inserted bucket %s into deleted_bucket (rv = %s)",
+            $bucket_id, $rv_replace
+        ) if STF_DEBUG;
 
         $rv_delete = $dbh->do(
             "DELETE FROM bucket WHERE id = ?",
@@ -99,13 +107,13 @@ sub mark_for_delete {
             $bucket_id,
         );
 
-        if ( STF_DEBUG ) {
-            printf STDERR "[  Mark Del] Deleted bucket %s from bucket (rv = %s)\n",
-                $bucket_id,
-                $rv_delete
-            ;
-        }
+        debugf(
+            "Deleted bucket %s from bucket (rv = %s)\n",
+            $bucket_id, $rv_delete
+        ) if STF_DEBUG;
     }
+
+    $self->cache_delete( $self->table, $bucket_id );
 
     return $rv_replace && $rv_delete;
 }

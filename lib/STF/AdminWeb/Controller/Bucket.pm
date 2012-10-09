@@ -8,7 +8,7 @@ sub delete {
     my ($self, $c) = @_;
     my $bucket_id = $c->match->{bucket_id};
 
-    $c->get('API::Bucket')->mark_for_delete( $bucket_id );
+    $c->get('API::Bucket')->mark_for_delete({ id => $bucket_id });
     $c->get('API::Queue')->enqueue( delete_bucket => $bucket_id );
 
     my $response = $c->response;
@@ -74,6 +74,33 @@ sub view {
     $stash->{bucket} = $bucket;
     $stash->{objects} = \@objects;
     $stash->{pager} = $pager;
+}
+
+sub add {}
+sub add_post {
+    my ($self, $c) = @_;
+
+    my $params = $c->request->parameters->as_hashref;
+    my $result = $self->validate( $c, bucket_add => $params );
+    if ($result->success) {
+        my $stf_uri = $c->get('API::Config')->load_variable('stf.global.public_uri');
+        my $valids = $result->valid;
+        my $name = $valids->{name};
+        my $furl = $c->get('Furl');
+        my (undef, $code) = $furl->put( "$stf_uri/$name", [ 'Content-Length' => 0 ] );
+        if ($code ne '201') {
+            my $res = $c->response;
+            $res->content_type('text/plain');
+            $res->body( "Failed to create bucket at $stf_uri/$name" );
+            $c->finished(1);
+            return;
+        }
+        my $bucket = $c->get('API::Bucket')->lookup_by_name( $name );
+        $c->redirect( $c->uri_for('/bucket/show', $bucket->{id}) );
+    } else {
+        $c->stash->{template} = 'bucket/add';
+    }
+    $c->stash->{ clusters } = $c->get('API::StorageCluster')->search({});
 }
 
 no Mouse;

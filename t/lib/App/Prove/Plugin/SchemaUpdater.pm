@@ -87,7 +87,10 @@ sub load {
     diag "Setting up database for branch $branch";
 
     my @test_dsn;
-    my @databases = qw( stf stf_queue );
+    my @databases = qw( stf );
+    if ($ENV{STF_QUEUE_TYPE} !~ /^Re(dis|sque)$/) {
+        push @databases, 'stf_queue';
+    }
     for my $master ( @databases ) {
         if (! has_database( $master ) ) {
             create_master( $master );
@@ -107,7 +110,8 @@ sub load {
             copy_database($master, $branch_db);
         }
 
-        $ENV{ sprintf "TEST_%s_DSN", uc $master } = "dbi:mysql:dbname=$branch_db;$ENV{TEST_MYSQL_DSN_OPTIONS}";
+        $ENV{ ($master eq 'stf') ? "STF_MYSQL_DSN" : "STF_QUEUE_DSN" } =
+            "dbi:mysql:dbname=$branch_db;$ENV{TEST_MYSQL_DSN_OPTIONS}";
     }
 }
 

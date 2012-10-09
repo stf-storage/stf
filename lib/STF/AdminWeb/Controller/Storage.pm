@@ -9,10 +9,10 @@ extends 'STF::AdminWeb::Controller';
 
 sub load_storage {
     my ($self, $c) = @_;
-    my $storage_id = $c->match->{storage_id};
+    my $storage_id = $c->match->{object_id};
     my $storage = $c->get('API::Storage')->lookup( $storage_id );
     if (! $storage) {
-        $c->res->status(404);
+        $c->response->status(404);
         $c->abort;
     }
     $c->stash->{storage} = $storage;
@@ -31,6 +31,13 @@ sub list {
             order_by => { 'id' => 'DESC' },
         }
     );
+    my $cluster_api = $c->get('API::StorageCluster');
+    foreach my $storage (@storages) {
+        if ($storage->{cluster_id}) {
+            $storage->{cluster} = $cluster_api->lookup( $storage->{cluster_id} );
+        }
+    }
+
     if ( @storages > $limit ) {
         $pager->total_entries( $limit * $pager->current_page + 1 );
         pop @storages;
@@ -43,29 +50,50 @@ sub list {
 sub entities {
     my ($self, $c) = @_;
 
-    my $storage_id = $c->match->{storage_id};
+    my $storage_id = $c->match->{object_id};
     my $storage = $self->load_storage($c);
+    my $object_id = $c->request->param('since') || 0;
+    my $limit = 100;
 
-    my %query = (
-        storage_id => $storage_id,
-    );
-    if (my $object_id = $c->request->param('since')) {
-        $query{object_id} = { '>', $object_id };
+    my @entities = 
+    my $dbh = $c->get('DB::Master');
+    my $entities = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, $storage_id, $object_id );
+        SELECT * FROM entity
+            WHERE storage_id = ? AND object_id > ?
+            ORDER BY object_id ASC
+            LIMIT $limit
+EOSQL
+    my $sql = <<EOSQL;
+        SELECT
+            CONCAT_WS( "/", b.name, o.name ) as object_url,
+            o.internal_name,
+            o.status as object_status
+        FROM object o
+            JOIN bucket b on b.id = o.bucket_id
+        WHERE o.id = ?
+EOSQL
+    my $sth = $dbh->prepare( $sql );
+    my ($object_url, $internal_name, $object_status);
+    foreach my $entity ( @$entities ) {
+        $sth->execute( $entity->{object_id} );
+        $sth->bind_columns( \($object_url, $internal_name, $object_status) );
+        if ($sth->fetchrow_arrayref) {
+            $entity->{object_url} = $object_url;
+            $entity->{internal_name} = $internal_name;
+            $entity->{object_status} = $object_status;
+        }
+        $sth->finish;
     }
 
-    my $limit = 100;
-    my @entities = $c->get('API::Entity')->search_with_url(
-        \%query,
-        {
-            limit    => $limit,
-        }
-    );
-
     my $stash = $c->stash;
-    $stash->{entities} = \@entities;
+    $stash->{entities} = $entities;
 }
 
-sub add {}
+sub add {
+    my ($self, $c) = @_;
+    $c->stash->{ clusters } = $c->get('API::StorageCluster')->search({});
+}
+
 sub add_post {
     my ($self, $c) = @_;
 
@@ -73,11 +101,17 @@ sub add_post {
     my $result = $self->validate( $c, storage_add => $params );
     if ($result->success) {
         my $valids = $result->valid;
+        foreach my $key (keys %$valids) {
+            if ($key =~ /^meta_(.+)$/) {
+                $valids->{$1} = delete $valids->{$key};
+            }
+        }
         $c->get('API::Storage')->create( $valids );
         $c->redirect( $c->uri_for('/storage', {done => 1}) );
     } else {
         $c->stash->{template} = 'storage/add';
     }
+    $c->stash->{ clusters } = $c->get('API::StorageCluster')->search({});
 }
 
 sub edit {
@@ -95,6 +129,7 @@ sub edit {
         }
     }
     $self->fillinform( $c, \%fill );
+    $c->stash->{ clusters } = $c->get('API::StorageCluster')->search({});
 }
 
 sub edit_post {

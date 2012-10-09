@@ -3,8 +3,9 @@ use Test::More;
 use Plack::Test;
 use HTTP::Request::Common qw(PUT HEAD GET POST);
 use HTTP::Date;
+use Scope::Guard ();
 use STF::Test;
-use STF::Test qw(clear_queue);
+use STF::Test qw(clear_objects clear_queue);
 BEGIN {
     use_ok "STF::Constants",
         "STF_TRACE",
@@ -53,7 +54,7 @@ my $code = sub {
         }
     }
 
-    my $context = STF::Context->bootstrap( config => "t/config.pl" ) ;
+    my $context = STF::Context->bootstrap() ;
 
     # XXX Find where this object belongs to
     my $container = $context->container;
@@ -65,6 +66,8 @@ my $code = sub {
 EOSQL
     ok $object;
 
+    my $cluster_api = $container->get('API::StorageCluster');
+    my $cluster = $cluster_api->load_for_object( $object->{id} );
     my @entities = $container->get('API::Entity')->search(
         {
             object_id => $object->{id},
@@ -84,7 +87,7 @@ EOSQL
     $container->get('API::Storage')->update( $entities[0]->{storage_id}, {
         mode => STORAGE_MODE_TEMPORARILY_DOWN
     });
-    my $guard = Guard::guard(sub {
+    my $guard = Scope::Guard->new(sub {
         $container->get('API::Storage')->update( $entities[0]->{storage_id}, {
             mode => STORAGE_MODE_READ_WRITE
         });
@@ -106,6 +109,16 @@ EOSQL
 EOSQL
         ok @$list > 0, "storage cache was invalidated @{[ scalar @$list ]} times (> 0)";
     }
+
+    # This should work, and this should create an object in a different
+    # cluster than the original one
+    $res = $cb->(
+        PUT "http://127.0.0.1/$bucket_name/$object_name",
+            "X-STF-Consistency" => 3,
+            "Content" => $random_string->(1024)
+    );
+    my $new_cluster = $cluster_api->load_for_object( $object->{id} );
+    isnt $cluster->{id}, $new_cluster->{id}, "object is now in a different cluster";
 
     undef $guard;
 
@@ -133,6 +146,7 @@ EOSQL
 
 };
 
+clear_objects();
 clear_queue();
 my $app = require "t/dispatcher.psgi";
 test_psgi
