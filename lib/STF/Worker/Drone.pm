@@ -491,13 +491,17 @@ sub rebalance {
             Math::Round::round($total_instances / $drone_count);
 
         my $remaining = $total_instances;
+        my $last = $drones[-1];
         foreach my $drone (@drones) {
             last if $remaining <= 0;
             # XXX We're only "asking" to run this many processes -
             # our wish may not be fulfilled, for whatever reason.
             # Do we need to detect this?
-            my $actual = $remaining < $instance_per_drone ?
-                $remaining : $instance_per_drone;
+            my $actual =
+                $remaining < $instance_per_drone ? $remaining :
+                $last == $drone ? $ramaining :
+                $instance_per_drone
+            ;
 
             if (STF_DEBUG) {
                 debugf("Balance: drone = %s, worker = %s, instances = %d", $drone->{drone_id}, $worker->name, $actual);
