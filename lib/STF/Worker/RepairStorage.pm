@@ -86,6 +86,12 @@ sub work_once {
         local $SIG{QUIT} = $sig->("QUIT");
         local $SIG{TERM} = $sig->("TERM");
 
+        # find the largest object_id currently allocated, and make sure to
+        # stop there
+        my ($max_object_id) = $dbh->selectrow_array(<<EOSQL, undef, $storage_id);
+            SELECT max(id) FROM object
+EOSQL
+
         my $bailout = 0;
         my $limit = 10_000;
         my $object_id = 0;
@@ -103,6 +109,7 @@ EOSQL
                 $processed++;
                 $0 = "$o_e0 (object_id: $object_id, $processed)";
             }
+            $loop = $object_id < $max_object_id;
 
             # wait here until we have processed the rows that we just
             # inserted into the repair queue
