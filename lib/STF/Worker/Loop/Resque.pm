@@ -52,6 +52,10 @@ sub work {
     $w->cant_fork(1);
     $w->startup;
     while ( $loop && ! $w->shutdown && $self->max_works_per_child > $w->processed ) {
+        $self->update_now;
+        $self->check_state;
+        $self->reload;
+
         if ( !$w->paused && ( my $job = $w->reserve ) ) {
             $w->work_tick($job);
         }

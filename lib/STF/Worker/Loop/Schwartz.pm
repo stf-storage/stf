@@ -64,6 +64,11 @@ sub work {
         if (STF_TIMER) {
             $timer = STF::Utils::timer_guard("$impl loop iteration (Schwartz)");
         }
+
+        $self->update_now();
+        $self->check_state();
+        $self->reload();
+
         if ( $client->work_once ) {
             $self->incr_processed;
         } else {

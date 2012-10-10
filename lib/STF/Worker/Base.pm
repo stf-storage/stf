@@ -42,11 +42,10 @@ sub create_loop {
         Mouse::Util::load_class($klass);
 
     my $loop = $klass->new(
+        parent => $self,
         container => $self->container,
         interval => $self->interval,
         max_works_per_child => $self->max_works_per_child,
-        max_jobs_per_minute => $self->max_jobs_per_minute,
-        counter_key => "stf.worker." . $self->name . ".processed_jobs",
     );
     return $loop;
 }

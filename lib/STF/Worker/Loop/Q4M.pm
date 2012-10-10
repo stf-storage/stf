@@ -70,6 +70,10 @@ sub work {
         SELECT args FROM $table WHERE queue_wait('$waitcond', 60)
 EOSQL
     while ( $self->should_loop ) {
+        $self->update_now();
+        $self->check_state();
+        $self->reload();
+
         $self->incr_processed();
         my $rv = $sth->execute();
         $sth->bind_columns( \$object_id );

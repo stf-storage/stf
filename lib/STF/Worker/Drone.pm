@@ -329,7 +329,7 @@ sub run {
             if ($self->wait_one_child) {
                 $self->spawn_timeout(0);
             }
-            $self->set_now;
+            $self->update_now;
             $self->check_state;
             $self->announce;
 
@@ -367,9 +367,8 @@ sub wait_one_child {
     return $kid > 0 || $kid < -1;
 }
 
-sub set_now {
-    my $self = shift;
-    $self->now(Time::HiRes::time());
+sub update_now {
+    $_[0]->now(Time::HiRes::time());
 }
 
 sub announce {
@@ -607,8 +606,6 @@ use STF::Worker::$worker_type;
 my \$cxt = STF::Context->bootstrap;
 my \$container = \$cxt->container;
 my \$config = \$cxt->config->{'Worker::${worker_type}'} || {};
-use Data::Dumper::Concise;
-warn Dumper(\$config);
 my \$worker = STF::Worker::${worker_type}->new(
     %\$config,
     container => \$container,

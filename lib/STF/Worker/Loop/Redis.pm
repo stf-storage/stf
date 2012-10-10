@@ -31,6 +31,10 @@ sub work {
         if (STF_TIMER) {
             $timer = STF::Utils::timer_guard("$impl loop iteration (Redis)");
         }
+        $self->update_now;
+        $self->check_state;
+        $self->reload;
+
         my $payload = $redis->lpop($func);
         if ($payload) {
             my $job = $decoder->decode($payload);

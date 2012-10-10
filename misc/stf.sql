@@ -18,6 +18,14 @@ REPLACE INTO config (varname, varvalue)
 REPLACE INTO config (varname, varvalue)
     VALUES ("stf.worker.StorageHealth.instances", 1);
 
+/* from experience, 5000 repair jobs/hour for each
+ * storage host seems to be  about our limit (of course
+ * this entirely depends on the storage server you're
+ * using), so we make 5000 the default
+ */
+REPLACE INTO config (varname, varvalue)
+    VALUES ("stf.worker.RepairObject.max_jobs_per_minute", 5000);
+
 CREATE TABLE storage_cluster (
     id INT NOT NULL PRIMARY KEY,
     name VARCHAR(128),
