@@ -4,19 +4,19 @@ CREATE TABLE config (
 ) ENGINE=InnoDB;
 
 REPLACE INTO config (varname, varvalue)
-    VALUES ("stf.worker.Replicate.instances", 8);
+    VALUES ("stf.drone.Replicate.instances", 8);
 REPLACE INTO config (varname, varvalue)
-    VALUES ("stf.worker.RepairObject.instances", 4);
+    VALUES ("stf.drone.RepairObject.instances", 4);
 REPLACE INTO config (varname, varvalue)
-    VALUES ("stf.worker.DeleteBucket.instances", 2);
+    VALUES ("stf.drone.DeleteBucket.instances", 2);
 REPLACE INTO config (varname, varvalue)
-    VALUES ("stf.worker.DeleteObject.instances", 2);
+    VALUES ("stf.drone.DeleteObject.instances", 2);
 REPLACE INTO config (varname, varvalue)
-    VALUES ("stf.worker.RepairStorage.instances", 1);
+    VALUES ("stf.drone.RepairStorage.instances", 1);
 REPLACE INTO config (varname, varvalue)
-    VALUES ("stf.worker.ContinuousRepair.instances", 1);
+    VALUES ("stf.drone.ContinuousRepair.instances", 1);
 REPLACE INTO config (varname, varvalue)
-    VALUES ("stf.worker.StorageHealth.instances", 1);
+    VALUES ("stf.drone.StorageHealth.instances", 1);
 
 /* from experience, 5000 repair jobs/hour for each
  * storage host seems to be  about our limit (of course
