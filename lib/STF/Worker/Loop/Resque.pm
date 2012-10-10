@@ -6,6 +6,7 @@ use STF::Constants qw(STF_DEBUG);
 use feature 'state';
 
 extends 'STF::Worker::Loop';
+with 'STF::Trait::WithContainer';
 
 sub work {
     my ($self, $impl) = @_;

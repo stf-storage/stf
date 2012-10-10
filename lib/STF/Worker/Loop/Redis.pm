@@ -6,6 +6,7 @@ use STF::Log;
 use STF::Constants qw(STF_DEBUG STF_TIMER);
 
 extends 'STF::Worker::Loop';
+with 'STF::Trait::WithContainer';
 
 sub work {
     my ($self, $impl) = @_;
