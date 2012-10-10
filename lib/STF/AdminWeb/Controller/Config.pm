@@ -27,7 +27,7 @@ EOSQL
 
     my $memd = $c->get('Memcached');
     my $h = $memd->get_multi(
-        map { "stf.worker.$_" } qw(election reload balance)
+        map { "stf.drone.$_" } qw(election reload balance)
     );
     $c->stash->{states} = $h;
 }
