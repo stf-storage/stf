@@ -173,9 +173,9 @@ EOSQL
     }
 
     my $memd = $self->get("Memcached");
-    $memd->set("stf.worker.balance", Time::HiRes::time());
+    $memd->set("stf.drone.balance", Time::HiRes::time());
     if ($self->is_leader) {
-        $memd->set("stf.worker.election", Time::HiRes::time());
+        $memd->set("stf.drone.election", Time::HiRes::time());
     }
 
     wait;
@@ -201,13 +201,13 @@ sub check_state {
 
     my $memd = $self->get('Memcached');
     my $h = $memd->get_multi(
-        "stf.worker.reload",
-        "stf.worker.election",
-        "stf.worker.balance"
+        "stf.drone.reload",
+        "stf.drone.election",
+        "stf.drone.balance"
     );
 
     my $state = 0;
-    my $when_to_reload = $h->{"stf.worker.reload"} || 0;
+    my $when_to_reload = $h->{"stf.drone.reload"} || 0;
     my $last_reload = $self->last_reload;
     if ($last_reload < 0 ||                # first time
         $self->now - $last_reload > 600 || # it has been 10 minutes since last reload
@@ -216,7 +216,7 @@ sub check_state {
         $state |= BIT_RELOAD;
     }
 
-    my $when_to_elect = $h->{"stf.worker.election"} || 0;
+    my $when_to_elect = $h->{"stf.drone.election"} || 0;
     my $last_election = $self->last_election;
     if ($last_election < 0 ||                 # first time
         $self->now - $last_election > 300 ||  # it has been 5 minutes since last election
@@ -226,7 +226,7 @@ sub check_state {
     }
 
     if ($self->is_leader) {
-        my $when_to_balance = $h->{"stf.worker.balance"} || 0;
+        my $when_to_balance = $h->{"stf.drone.balance"} || 0;
         my $last_balance = $self->last_balance;
         if ($last_balance < 0 || $last_balance < $when_to_balance) {
             $state |= BIT_BALANCE;
@@ -258,13 +258,13 @@ sub reload {
     my ($name, $num_instances);
     my $dbh = $self->get('DB::Master');
     my $sth = $dbh->prepare(<<EOSQL);
-        SELECT varname, varvalue FROM config WHERE varname LIKE 'stf.worker.%.instances'
+        SELECT varname, varvalue FROM config WHERE varname LIKE 'stf.drone.%.instances'
 EOSQL
     $sth->execute();
     $sth->bind_columns(\($name, $num_instances));
 
     while ($sth->fetchrow_arrayref) {
-        $name =~ s/^stf\.worker\.([^\.]+)\.instances$/$1/;
+        $name =~ s/^stf\.drone\.([^\.]+)\.instances$/$1/;
         my $worker = delete $map{ $name };
 
         if (STF_DEBUG) {
@@ -394,7 +394,7 @@ EOSQL
 EOSQL
     }
     if ($next_announce == 0) {
-        $self->get("Memcached")->set("stf.worker.balance", $self->now);
+        $self->get("Memcached")->set("stf.drone.balance", $self->now);
     }
 
     $self->next_announce($self->now + 60);
@@ -445,6 +445,27 @@ EOSQL
         }
     }
     $self->is_leader($is_leader);
+
+    # XXX for backwards compatiblity. old configuration variables
+    # need to be converted.
+    {
+        my $sth = $dbh->prepare(<<EOSQL);
+            SELECT varname FROM config WHERE varname LIKE 'stf.worker.%.instances'
+EOSQL
+        $sth->execute();
+
+        my $varname;
+        $sth->bind_columns(\($varname));
+        while ($sth->fetchrow_arrayref) {
+            my $new_varname = $varname;
+            $new_varname =~ s/^stf\.worker\./stf.drone./;
+
+            $dbh->do(<<EOSQL, undef, $new_varname, $varname);
+                UPDATE config SET varname = ? WHERE varname = ?
+EOSQL
+        }
+    }
+
     return $is_leader ? 1 :();
 }
 
@@ -467,13 +488,13 @@ sub refresh_counters {
     my @values = map {
         my $key = "stf.worker." . $_->name . ".processed_jobs";
         if (STF_DEBUG) {
-            debugf("Refreshing counter %s", $key);
+            debugf("%s Refreshing counter %s", scalar localtime, $key);
         }
         [ $key, 0 ]
     } @{ $self->worker_types };
 
     $memd->set_multi(@values);
-    $self->next_refresh_counters($self->now + 60);
+    $self->next_refresh_counters($self->now + 600);
 }
 
 sub rebalance {
@@ -508,6 +529,14 @@ sub rebalance {
             $total_instances <= 0 ? 0 : # safety net
             $total_instances == 1 ? 1 :
             Math::Round::round($total_instances / $drone_count);
+
+        if (STF_DEBUG) {
+            debugf("Total instances for worker %s is %d (%d per drone)",
+                $worker->name,
+                $total_instances,
+                $instance_per_drone
+            );
+        }
 
         my $remaining = $total_instances;
         my $last = $drones[-1];
@@ -548,7 +577,6 @@ EOSQL
         }
     }
 
-    $self->get('Memcached')->set( "stf.worker.reload", time() );
     # We came to rebalance, we should reload
     $self->gstate( $self->gstate ^ BIT_RELOAD );
     $self->reload;

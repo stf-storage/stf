@@ -55,6 +55,7 @@ sub work {
         $self->update_now;
         $self->check_state;
         $self->reload;
+        next if $self->throttle();
 
         if ( !$w->paused && ( my $job = $w->reserve ) ) {
             $w->work_tick($job);
@@ -65,7 +66,6 @@ sub work {
             $w->log( $status );
             sleep( $w->interval );
         }
-        $self->throttle();
     }
     $w->unregister_worker;
 }

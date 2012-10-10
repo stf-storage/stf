@@ -55,7 +55,7 @@ has counter_key => (
 
 has reload_key => (
     is => 'rw',
-    default => sub { "stf.worker.reload" }
+    default => sub { $_[0]->to_keyname("reload") }
 );
 
 # XXX If in the future we have more states to check, we should
@@ -114,7 +114,7 @@ sub check_state {
     my $now = $self->now;
     my $when_to_reload = $h->{$reload_key} || 0;
     if ($self->next_reload <= $now ||
-        $when_to_reload >= $now
+        $when_to_reload > $now
     ) {
         $self->should_reload(1);
     }
@@ -127,6 +127,9 @@ sub reload {
         return;
     }
 
+    if (STF_DEBUG) {
+        debugf("Reloading worker config");
+    }
     my $dbh = $self->get('DB::Master');
     my $sth = $dbh->prepare(<<EOSQL);
         SELECT varvalue FROM config WHERE varname = ?
@@ -134,7 +137,7 @@ EOSQL
     my ($max_jobs_per_minute) = $dbh->selectrow_array($sth, undef, $self->max_jobs_per_minute_key);
 
     $self->max_jobs_per_minute($max_jobs_per_minute);
-    $self->next_reload($self->now + 30);
+    $self->next_reload($self->now + 60);
 }
 
 sub throttle {
@@ -145,19 +148,15 @@ sub throttle {
     }
 
     my $current_job_count = $self->global_job_count;
+    if ($max_jobs_per_minute >= $current_job_count) {
+        return;
+    }
+
     if (STF_DEBUG) {
-        if ($current_job_count > $max_jobs_per_minute) {
-            debugf("Need to throttle!: Processed %d (max = %d).", $current_job_count, $max_jobs_per_minute);
-        }
+        debugf("Need to throttle!: Processed %d (max = %d).", $current_job_count, $max_jobs_per_minute);
     }
-    while ($max_jobs_per_minute > 0 && $max_jobs_per_minute < $current_job_count) {
-        Time::HiRes::sleep(rand(5));
-        $self->check_state;
-        if ($self->reload) {
-            $max_jobs_per_minute = $self->max_jobs_per_minute;
-        }
-        $current_job_count = $self->global_job_count;
-    }
+    Time::HiRes::sleep(rand(10));
+    return 1;
 }
 
 sub work {}

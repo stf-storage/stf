@@ -68,6 +68,7 @@ sub work {
         $self->update_now();
         $self->check_state();
         $self->reload();
+        next if $self->throttle();
 
         if ( $client->work_once ) {
             $self->incr_processed;
@@ -76,8 +77,6 @@ sub work {
                 Time::HiRes::usleep( $interval );
             }
         }
-
-        $self->throttle();
     }
 }
 

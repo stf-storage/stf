@@ -95,6 +95,7 @@
                 },
                 success: function() {
                     $("#stf-config-reload-confirm").modal("hide");
+                    location.reload();
                 }
             });
         } );

@@ -34,6 +34,7 @@ sub work {
         $self->update_now;
         $self->check_state;
         $self->reload;
+        next if $self->throttle();
 
         my $payload = $redis->lpop($func);
         if ($payload) {
@@ -47,7 +48,6 @@ sub work {
                 Time::HiRes::usleep( $interval );
             }
         }
-        $self->throttle();
     }
 }
 

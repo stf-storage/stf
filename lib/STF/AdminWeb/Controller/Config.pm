@@ -36,9 +36,14 @@ sub reload {
     my ($self, $c) = @_;
 
     my $memd = $c->get('Memcached');
-    foreach my $key (qw(election reload balance)) {
-        $memd->set("stf.worker.$key", Time::HiRes::time());
-    }
+    my $now = time();
+    $memd->set_multi(
+        [ "stf.drone.election", $now ],
+        [ "stf.drone.reload", $now ],
+        [ "stf.drone.balance", $now ],
+        map { [ "stf.worker.$_.reload", $now ] } 
+            qw(ContinuousRepair DeleteBucket DeleteObject RepairObject RepairStorage Replicate StorageHealth)
+    );
 
     my $response = $c->response;
     $response->code( 200 );
