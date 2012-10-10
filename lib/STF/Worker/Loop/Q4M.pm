@@ -99,6 +99,8 @@ EOSQL
             if ( (my $interval = $self->interval) > 0 ) {
                 Time::HiRes::usleep( $interval );
             }
+
+            $self->throttle();
         }
         eval { $dbh->do("SELECT queue_end()") };
     }

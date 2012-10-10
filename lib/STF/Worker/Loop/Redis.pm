@@ -42,6 +42,7 @@ sub work {
                 Time::HiRes::usleep( $interval );
             }
         }
+        $self->throttle();
     }
 }
 

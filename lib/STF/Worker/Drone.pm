@@ -50,6 +50,7 @@ has cleanup_completed => (is => 'rw', default => 0);
 has my_pid => (is => 'ro', default => sub {$$});
 has is_leader => (is => 'rw', default => 0);
 has next_announce => (is => 'rw', default => 0);
+has next_refresh_counters => (is => 'rw', default => 0);
 has last_election => (is => 'rw', default => -1);
 has last_balance  => (is => 'rw', default => -1);
 has last_reload   => (is => 'rw', default => -1);
@@ -338,6 +339,7 @@ sub run {
                 $self->elect_leader;
                 $self->reload;
                 if ($self->is_leader) {
+                    $self->refresh_counters();
                     $self->rebalance; # balance
                 }
                 if (! $self->spawn_children) {
@@ -455,6 +457,24 @@ sub get_all_drones {
         SELECT * FROM worker_election
 EOSQL
     return wantarray ? @$list : $list;
+}
+
+sub refresh_counters {
+    my $self = shift;
+
+    return  if $self->next_refresh_counters() > $self->now;
+
+    my $memd = $self->get('Memcached');
+    my @values = map {
+        my $key = "stf.worker." . $_->name . ".processed_jobs";
+        if (STF_DEBUG) {
+            debugf("Refreshing counter %s", $key);
+        }
+        [ $key, 0 ]
+    } @{ $self->worker_types };
+
+    $memd->set_multi(@values);
+    $self->next_refresh_counters($self->now + 60);
 }
 
 sub rebalance {
@@ -586,8 +606,12 @@ use STF::Worker::$worker_type;
 
 my \$cxt = STF::Context->bootstrap;
 my \$container = \$cxt->container;
+my \$config = \$cxt->config->{'Worker::${worker_type}'} || {};
+use Data::Dumper::Concise;
+warn Dumper(\$config);
 my \$worker = STF::Worker::${worker_type}->new(
-    container => \$container
+    %\$config,
+    container => \$container,
 );
 \$worker->work;
 EOM

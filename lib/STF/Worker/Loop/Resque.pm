@@ -60,6 +60,7 @@ sub work {
             $w->log( $status );
             sleep( $w->interval );
         }
+        $self->throttle();
     }
     $w->unregister_worker;
 }

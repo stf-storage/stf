@@ -3,6 +3,15 @@ use Mouse;
 use STF::Constants qw(STF_DEBUG);
 use STF::Log;
 
+has name => (
+    is => 'rw',
+    default => sub {
+        my $klass = Scalar::Util::blessed($_[0]);
+        $klass =~ s/^STF::Worker:://;
+        return $klass;
+    }
+);
+
 has interval => (
     is => 'rw',
     default => 1_000_000
@@ -11,6 +20,10 @@ has interval => (
 has loop_class => (
     is => 'rw',
     default => 'Periodic',
+);
+
+has max_jobs_per_minute => (
+    is => 'rw',
 );
 
 has max_works_per_child => (
@@ -32,6 +45,8 @@ sub create_loop {
         container => $self->container,
         interval => $self->interval,
         max_works_per_child => $self->max_works_per_child,
+        max_jobs_per_minute => $self->max_jobs_per_minute,
+        counter_key => "stf.worker." . $self->name . ".processed_jobs",
     );
     return $loop;
 }
@@ -39,7 +54,7 @@ sub create_loop {
 sub work {
     my $self = shift;
 
-    local $STF::Log::PREFIX = "Worker";
+    local $STF::Log::PREFIX = $self->name;
     infof("Starting %s worker...", $self);
 
     my $loop = $self->create_loop;
