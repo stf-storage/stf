@@ -55,10 +55,14 @@ sub work {
         $self->update_now;
         $self->check_state;
         $self->reload;
-        next if $self->throttle();
+        if ($self->is_throttled) {
+            next if $self->check_throttle();
+        }
 
         if ( !$w->paused && ( my $job = $w->reserve ) ) {
             $w->work_tick($job);
+            $self->incr_processed;
+            $self->check_throttle();
         }
         elsif( $w->interval ) {
             my $status = $w->paused ? "Paused" : 'Waiting for ' . join( ', ', @{$w->queues} );

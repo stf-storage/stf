@@ -70,18 +70,59 @@ has next_reload => (
     default => 0,
 );
 
+has is_throttled => (
+    is => 'rw',
+    default => 0,
+);
+
+has next_throttle => (
+    is => 'rw',
+    default => 0
+);
+
+has next_check_state => (
+    is => 'rw',
+    default => 0
+);
+
 has now => (
     is => 'rw'
 );
 
 sub incr_processed {
     my $self = shift;
-    $self->get('Memcached')->incr($self->counter_key);
+
+    my $time = int($self->now || time());
+
+    # normalize time to the previous 10 seconds
+    $time -= $time % 10;
+    my $key = $self->counter_key . ".$time";
+    my $memd = $self->get('Memcached');
+    my $cas  = $memd->gets($key);
+    if (! $cas) {
+        $memd->set($key, 1, 120);
+    } elsif (! defined $cas->[1]) {
+        $memd->cas($key, $cas->[0], 1, 120);
+    } else {
+        $memd->incr($key);
+    }
     ++$self->{processed};
 }
 
 sub global_job_count {
-    $_[0]->get('Memcached')->get($_[0]->counter_key);
+    my $self = shift;
+    my $key_base = $self->counter_key;
+    my $time = int($self->now);
+    $time -= $time % 10;
+    my $h = $self->get('Memcached')->get_multi(
+        map { "$key_base." . ($time - $_ * 10) } 0..5
+    );
+
+    my $count = 0;
+    foreach my $value (values %$h) {
+        $count += $value || 0;
+    }
+    return $count;
 }
 
 sub should_loop {
@@ -102,6 +143,11 @@ sub update_now {
 sub check_state {
     my $self = shift;
 
+    if ($self->next_check_state > $self->now) {
+        return;
+    }
+
+    $self->next_check_state($self->now + 10);
     my $reload_key = $self->reload_key();
     my $memd = $self->get('Memcached');
     my $h = $memd->get_multi(
@@ -137,16 +183,30 @@ EOSQL
     my ($max_jobs_per_minute) = $dbh->selectrow_array($sth, undef, $self->max_jobs_per_minute_key);
 
     $self->max_jobs_per_minute($max_jobs_per_minute);
+    $self->should_reload(0);
     $self->next_reload($self->now + 60);
 }
 
-sub throttle {
+sub check_throttle {
     my $self = shift;
     my $max_jobs_per_minute = $self->max_jobs_per_minute;
     if (! $max_jobs_per_minute) {
         return;
     }
 
+    if ($self->is_throttled) {
+        # We're throttled. Forcefully sleep
+        Time::HiRes::sleep(rand(10));
+
+        # is our probation period over?
+        if ($self->next_throttle > $self->now) {
+            # nope, return 1 because we're still throttled
+            return 1;
+        }
+    }
+
+    $self->is_throttled(0);
+    $self->next_throttle($self->now + rand(10));
     my $current_job_count = $self->global_job_count;
     if ($max_jobs_per_minute >= $current_job_count) {
         return;
@@ -155,7 +215,7 @@ sub throttle {
     if (STF_DEBUG) {
         debugf("Need to throttle!: Processed %d (max = %d).", $current_job_count, $max_jobs_per_minute);
     }
-    Time::HiRes::sleep(rand(10));
+    $self->is_throttled(1);
     return 1;
 }
 

@@ -50,7 +50,7 @@ has cleanup_completed => (is => 'rw', default => 0);
 has my_pid => (is => 'ro', default => sub {$$});
 has is_leader => (is => 'rw', default => 0);
 has next_announce => (is => 'rw', default => 0);
-has next_refresh_counters => (is => 'rw', default => 0);
+has next_check_state => (is => 'rw', default => 0);
 has last_election => (is => 'rw', default => -1);
 has last_balance  => (is => 'rw', default => -1);
 has last_reload   => (is => 'rw', default => -1);
@@ -199,6 +199,11 @@ sub should_reload       { $_[0]->gstate & BIT_RELOAD }
 sub check_state {
     my $self = shift;
 
+    if ($self->next_check_state > $self->now) {
+        return;
+    }
+
+    $self->next_check_state($self->now + rand(10));
     my $memd = $self->get('Memcached');
     my $h = $memd->get_multi(
         "stf.drone.reload",
@@ -339,7 +344,6 @@ sub run {
                 $self->elect_leader;
                 $self->reload;
                 if ($self->is_leader) {
-                    $self->refresh_counters();
                     $self->rebalance; # balance
                 }
                 if (! $self->spawn_children) {
@@ -477,24 +481,6 @@ sub get_all_drones {
         SELECT * FROM worker_election
 EOSQL
     return wantarray ? @$list : $list;
-}
-
-sub refresh_counters {
-    my $self = shift;
-
-    return  if $self->next_refresh_counters() > $self->now;
-
-    my $memd = $self->get('Memcached');
-    my @values = map {
-        my $key = "stf.worker." . $_->name . ".processed_jobs";
-        if (STF_DEBUG) {
-            debugf("%s Refreshing counter %s", scalar localtime, $key);
-        }
-        [ $key, 0 ]
-    } @{ $self->worker_types };
-
-    $memd->set_multi(@values);
-    $self->next_refresh_counters($self->now + 600);
 }
 
 sub rebalance {

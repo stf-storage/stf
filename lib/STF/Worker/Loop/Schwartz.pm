@@ -68,10 +68,13 @@ sub work {
         $self->update_now();
         $self->check_state();
         $self->reload();
-        next if $self->throttle();
+        if ($self->is_throttled) {
+            next if $self->check_throttle;
+        }
 
         if ( $client->work_once ) {
             $self->incr_processed;
+            $self->check_throttle;
         } else {
             if ( (my $interval = $self->interval) > 0 ) {
                 Time::HiRes::usleep( $interval );

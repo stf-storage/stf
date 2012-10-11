@@ -73,7 +73,9 @@ EOSQL
         $self->update_now();
         $self->check_state();
         $self->reload();
-        next if $self->throttle();
+        if ($self->is_throttled) {
+            next if $self->check_throttle();
+        }
 
         $self->incr_processed();
         my $rv = $sth->execute();
@@ -105,6 +107,7 @@ EOSQL
                 Time::HiRes::usleep( $interval );
             }
         }
+        $self->check_throttle();
         eval { $dbh->do("SELECT queue_end()") };
     }
 
