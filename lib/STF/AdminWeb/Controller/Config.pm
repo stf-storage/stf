@@ -27,7 +27,9 @@ EOSQL
 
     my $memd = $c->get('Memcached');
     my $h = $memd->get_multi(
-        map { "stf.drone.$_" } qw(election reload balance)
+        (map { "stf.drone.$_" } qw(election reload balance)),
+        (map { "stf.worker.$_.processed_jobs" } 
+            qw(ContinuousRepair DeleteBucket DeleteObject RepairObject RepairStorage Replicate StorageHealth))
     );
     $c->stash->{states} = $h;
 }
@@ -38,11 +40,9 @@ sub reload {
     my $memd = $c->get('Memcached');
     my $now = time();
     $memd->set_multi(
-        [ "stf.drone.election", $now ],
-        [ "stf.drone.reload", $now ],
-        [ "stf.drone.balance", $now ],
-        map { [ "stf.worker.$_.reload", $now ] } 
-            qw(ContinuousRepair DeleteBucket DeleteObject RepairObject RepairStorage Replicate StorageHealth)
+        (map { [ "stf.drone.$_", $now ] } qw(election reload balance)),
+        (map { [ "stf.worker.$_.reload", $now ] } 
+            qw(ContinuousRepair DeleteBucket DeleteObject RepairObject RepairStorage Replicate StorageHealth))
     );
 
     my $response = $c->response;
