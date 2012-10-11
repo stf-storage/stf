@@ -101,7 +101,12 @@ sub work_once {
         my ($max_object_id) = $dbh->selectrow_array(<<EOSQL);
             SELECT max(id) FROM object
 EOSQL
-
+        my $save_object_id_sth = $dbh->prepare(<<EOSQL);
+            REPLACE INTO config (varname, varvalue) VALUES ('stf.worker.RepairStorage.object_id', ?);
+EOSQL
+        my $load_object_id_sth = $dbh->prepare(<<EOSQL);
+            SELECT varvalue FROM config WHERE varname = 'stf.worker.RepairStorage.object_id';
+EOSQL
         my $sth = $dbh->prepare(<<EOSQL);
             SELECT object_id FROM entity WHERE storage_id = ? AND object_id > ? ORDER BY object_id ASC LIMIT $limit
 EOSQL
@@ -113,6 +118,9 @@ EOSQL
                 $processed++;
                 $0 = "$o_e0 (object_id: $object_id, $processed)";
             }
+            # save the object_id so we can view / alter it later
+            $save_object_id_sth->execute($object_id);
+
             $loop = $object_id < $max_object_id;
 
             # wait here until we have processed the rows that we just
@@ -132,6 +140,14 @@ EOSQL
             if ( $now->{mode} != $new_mode ) {
                 $bailout = 1;
                 last;
+            }
+
+            # Check to see if our previous object_id has not been changed
+            my ($saved_object_id) = $dbh->selectrow_array($load_object_id_sth, undef);
+            # XXX In the rare case that the saved_object_id is null or
+            # something, we can't just overwrite $object_id
+            if ($saved_object_id) {
+                $object_id = $saved_object_id;
             }
         }
 
