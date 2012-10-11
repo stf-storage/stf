@@ -34,7 +34,7 @@ sub load {
     }
 
     # is there a local mysql up?
-    if (system('echo "show databases" | mysql -uroot 2>/dev/null') == 0) {
+    if (! $ENV{IGNORE_LOCAL_MYSQL} && system('echo "show databases" | mysql -uroot 2>/dev/null') == 0) {
         diag "Found local (default) mysql running. Nothing to do...";
         $ENV{TEST_MYSQL_OPTIONS} = '-uroot';
         $ENV{TEST_MYSQL_DSN_OPTIONS} = "user=root";
