@@ -3,6 +3,7 @@ use Mouse;
 use JSON();
 use Time::HiRes ();
 use STF::Utils;
+use STF::API::Throttler;
 
 extends 'STF::AdminWeb::Controller';
 
@@ -28,9 +29,21 @@ EOSQL
     my $memd = $c->get('Memcached');
     my $h = $memd->get_multi(
         (map { "stf.drone.$_" } qw(election reload balance)),
-        (map { "stf.worker.$_.processed_jobs" } 
-            qw(ContinuousRepair DeleteBucket DeleteObject RepairObject RepairStorage Replicate StorageHealth))
     );
+    my $throttler = STF::API::Throttler->new(
+        key => "DUMMY",
+        throttle_span => 60,
+        container => $c->container,
+    );
+    $h = {
+        %$h,
+        %{ $throttler->current_count_multi(
+            time(),
+            map { "stf.worker.$_.processed_jobs" }
+                qw(ContinuousRepair DeleteBucket DeleteObject RepairObject RepairStorage Replicate StorageHealth)
+        ) }
+    };
+
     $c->stash->{states} = $h;
 }
 

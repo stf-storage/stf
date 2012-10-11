@@ -1,6 +1,7 @@
 package STF::Worker::Loop;
 use Mouse;
 use Time::HiRes ();
+use STF::API::Throttler;
 use STF::Constants qw(STF_DEBUG);
 use STF::Log;
 
@@ -75,7 +76,7 @@ has is_throttled => (
     default => 0,
 );
 
-has next_throttle => (
+has next_check => (
     is => 'rw',
     default => 0
 );
@@ -89,40 +90,28 @@ has now => (
     is => 'rw'
 );
 
+has throttler => (
+    is => 'ro',
+    lazy => 1,
+    default => sub {
+        my $self = shift;
+        return STF::API::Throttler->new(
+            key => $self->counter_key,
+            threshold => 0, # initially unlimited
+            container => $self->container,
+        );
+    }
+);
+
 sub incr_processed {
     my $self = shift;
-
-    my $time = int($self->now || time());
-
-    # normalize time to the previous 10 seconds
-    $time -= $time % 10;
-    my $key = $self->counter_key . ".$time";
-    my $memd = $self->get('Memcached');
-    my $cas  = $memd->gets($key);
-    if (! $cas) {
-        $memd->set($key, 1, 120);
-    } elsif (! defined $cas->[1]) {
-        $memd->cas($key, $cas->[0], 1, 120);
-    } else {
-        $memd->incr($key);
-    }
+    $self->throttler->incr($self->now);
     ++$self->{processed};
 }
 
 sub global_job_count {
     my $self = shift;
-    my $key_base = $self->counter_key;
-    my $time = int($self->now);
-    $time -= $time % 10;
-    my $h = $self->get('Memcached')->get_multi(
-        map { "$key_base." . ($time - $_ * 10) } 0..5
-    );
-
-    my $count = 0;
-    foreach my $value (values %$h) {
-        $count += $value || 0;
-    }
-    return $count;
+    $self->throttler->current_count($self->now);
 }
 
 sub should_loop {
@@ -182,38 +171,36 @@ sub reload {
 EOSQL
     my ($max_jobs_per_minute) = $dbh->selectrow_array($sth, undef, $self->max_jobs_per_minute_key);
 
-    $self->max_jobs_per_minute($max_jobs_per_minute);
+    $self->throttler->threshold($max_jobs_per_minute);
     $self->should_reload(0);
     $self->next_reload($self->now + 60);
 }
 
 sub check_throttle {
     my $self = shift;
-    my $max_jobs_per_minute = $self->max_jobs_per_minute;
+    my $max_jobs_per_minute = $self->throttler->threshold;
     if (! $max_jobs_per_minute) {
         return;
     }
 
     if ($self->is_throttled) {
         # We're throttled. Forcefully sleep
+        if (STF_DEBUG) {
+            debugf("Throttled, sleeping...");
+        }
         Time::HiRes::sleep(rand(10));
 
         # is our probation period over?
-        if ($self->next_throttle > $self->now) {
+        if ($self->next_check > $self->now) {
             # nope, return 1 because we're still throttled
             return 1;
         }
     }
 
     $self->is_throttled(0);
-    $self->next_throttle($self->now + rand(10));
-    my $current_job_count = $self->global_job_count;
-    if ($max_jobs_per_minute >= $current_job_count) {
+    $self->next_check($self->now + rand(10));
+    if (! $self->throttler->should_throttle($self->now)) {
         return;
-    }
-
-    if (STF_DEBUG) {
-        debugf("Need to throttle!: Processed %d (max = %d).", $current_job_count, $max_jobs_per_minute);
     }
     $self->is_throttled(1);
     return 1;
