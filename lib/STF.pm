@@ -1,5 +1,5 @@
 package STF;
-our $VERSION = '1.00';
+our $VERSION = '2.00';
 
 1;
 

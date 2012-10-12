@@ -1,0 +1,49 @@
+Changes
+=======
+
+2.00 - Oct 12, 2012
+    * Storages are now grouped into Storage Clusters. You need at least
+      3 storages per cluster. When a write occurs, you must be able to
+      write to at least 3 storages in order for the write to be successful.
+      If a write to a cluster fails, other clusters are tried until success.
+      A PUT operation returns failure if and only if writes to all clusters
+      fail.
+    * Worker Drones are now able to self-balance the number of workers that
+      each drone is supposed to spawn. You can set the global number of
+      worker instances by setting variables in the 'config' table in the
+      database.
+    * Workers can now be throttled.
+    * Admin interface now allows you to set some global config variables
+      without having to muck with the database.
+    * Repairs can now take place without having to delete the entities in
+      the targeted storage. Previously we blindly assumed that the
+      storage was inaccessible and therefore all entities are lost, so
+      you could only delete the (logical) entities there.
+      Now you can choose to specify "needs repair" which will assume that
+      the target is READABLE but not writable for repair, so you can
+      basically keep entities that are intact, or you can choose to set
+      "crashed (needs repair)", which will skip checking for entities
+      in that storage, and will simply migrate away what it can.
+    * ObjectHealth worker is now deprecated.
+    * RecoverCrash worker is now deprecated.
+    * RetireStorage worker is now deprecated.
+    * Added stf-recover-object-disk, a tool to recover objects directly
+      from a file on disk.
+    * Added stf-repair-cluster, a tool to manually repair objects in a
+      cluster.
+    * Added stf-repair-degraded-objects, a tool to selectively look for
+      objects that have less than 3 entities and put them into the
+      repair queue.
+    * Added support for Redis and Resque message queues.
+    * Removed STF::Migrator and STF::Stress under ext/ (actually, they probably
+      don't work right now, anyway)
+    * Output generated with STF_DEBUG is now much better thanks to
+      Log::Minimal
+    * Fixed a bug in the Q4M worker that caused jobs at the very end of the
+      loop to be lost.
+    * Fixed cache mechanism in various places either to make fetches
+      faster or to forcefully update necessary fields.
+    * Fixed 32-bit support by using Bit::Vector et al.
+    * Removed unecessary Perl module dependency.
+    * Changed to use Mouse as the class builder.
+    * Changed to check for object sizes upon repair.
