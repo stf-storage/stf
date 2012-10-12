@@ -15,7 +15,7 @@ has normalize_base => (
 
 has throttle_span => (
     is => 'ro',
-    default => 60
+    default => 10
 );
 
 has threshold => (
@@ -33,13 +33,13 @@ sub incr {
     $time -= $time % $self->normalize_base;
     my $key = join ".", $self->key, $time;
     my $memd = $self->get('Memcached');
-    my $cas  = $memd->gets($key);
-    if (! $cas) {
-        $memd->set($key, 1, $self->throttle_span * 2);
-    } elsif (! defined $cas->[1]) {
-        $memd->cas($key, $cas->[0], 1, $self->throttle_span * 2);
-    } else {
-        $memd->incr($key);
+    if (! $memd->incr($key)) {
+        # try initializing once
+        if (! $memd->add($key, 1, $self->throttle_span * 2)) {
+            # failed? somebody got to the key before us, so
+            # try again.
+            $memd->incr($key);
+        }
     }
 }
 
