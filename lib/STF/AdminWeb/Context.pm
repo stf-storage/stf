@@ -65,7 +65,7 @@ sub stf_uri {
     $object_name =~ s/^\///;
     return join
         '/',
-        $self->container->get('config')->{AdminWeb}->{stf_base},
+        $self->container->get('API::Config')->load_variable('stf.global.public_uri'),
         $bucket->{name},
         $object->{name},
     ;
