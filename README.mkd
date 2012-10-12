@@ -8,18 +8,32 @@ STF is built on top of long trusted software like Apache (or nginx), Perl, Q4M (
 
 =======
 
-## UPGRADING (CLUSTERED STORAGE)
+## UPGRADING 
 
-Since version XXXX, STF requires that you setup your storage in "clusters".
-This means that you must change your database schema:
+### DATABASE SCHEMA
+
+If you were running STF 1.x, you must change your database schema:
 
     # IT IS HIGHLY RECOMMENDED THAT YOU TEST THIS BEFORE
     # RUNNING IT AGAINST A PRODUCTION DATABASE
     # -- you've been warned
 
-    mysql stf ... < misc/stf-update-for-clustered.sql
+    mysql stf ... < misc/stf-1.x-to-2.x.sql
 
-Then you need to create clusters, and add storages to it. You can set this
+### WORKER SELF-BALANCING
+
+Since version 2.00, STF workers control the number of instances that should
+be fork+exec'ed on each drone: e.g. if you had 3 drones, and you set the
+config variable stf.drone.RepairObject.instances to 20, drones will spawn
+6, 6, and 8 RepairObject workers.
+
+Thus the old setting in your config.pl will no longer be respected.
+
+### CLUSTERED STORAGE
+
+Since version 2.00, STF requires that you setup your storage in "clusters".
+
+First you need to create clusters, and add storages to it. You can set this
 via the new admin interface, or by manual operation.
 
     INSERT INTO storage_cluster ...;
