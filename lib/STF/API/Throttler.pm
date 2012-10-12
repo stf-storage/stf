@@ -8,11 +8,6 @@ has key => (
     required => 1,
 );
 
-has normalize_base => (
-    is => 'ro',
-    default => 10
-);
-
 has throttle_span => (
     is => 'ro',
     default => 10
@@ -29,8 +24,6 @@ sub incr {
     $now ||= time();
     my $time = int($now);
 
-    # normalize time to the previous N seconds
-    $time -= $time % $self->normalize_base;
     my $key = join ".", $self->key, $time;
     my $memd = $self->get('Memcached');
     if (! $memd->incr($key)) {
@@ -43,33 +36,24 @@ sub incr {
     }
 }
 
-sub to_base_time {
-    my ($self, $now) = @_;
-    $now ||= time();
-    my $time = int($now);
-    $time -= $time % $self->normalize_base;
-    return $time;
-}
-
 sub expand_key {
-#    my ($key, $base_t, $normalize_base, $span) = @_;
+#    my ($key, $base_t, $span) = @_;
     # for max efficiency...
     return map {
-        join ".", $_[0], ($_[1] - $_ * $_[2])
-    } 0 .. int($_[3] / $_[2])
+        join ".", $_[0], ($_[1] - $_)
+    } 0 .. $_[2];
 }
 
 sub current_count_multi {
     my ($self, $now, @keys) = @_;
 
     my $memd = $self->get('Memcached');
-    my $time = $self->to_base_time($now);
-    my $normalize_base = $self->normalize_base;
+    my $time = int($now);
     my $span = $self->throttle_span;
     my %ret;
     foreach my $key (@keys) {
         my $h = $memd->get_multi(
-            expand_key($key, $time, $normalize_base, $span)
+            expand_key($key, $time, $span)
         );
 
         my $count = 0;
@@ -85,9 +69,9 @@ sub current_count_multi {
 sub current_count {
     my ($self, $now) = @_;
 
-    my $time = $self->to_base_time($now);
+    my $time = int($now);
     my $h = $self->get('Memcached')->get_multi(
-        expand_key($self->key, $time, $self->normalize_base, $self->throttle_span)
+        expand_key($self->key, $time, $self->throttle_span)
     );
 
     my $count = 0;

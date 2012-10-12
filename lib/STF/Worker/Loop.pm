@@ -76,7 +76,7 @@ has is_throttled => (
     default => 0,
 );
 
-has next_check => (
+has next_check_throttle => (
     is => 'rw',
     default => 0
 );
@@ -191,14 +191,14 @@ sub check_throttle {
         Time::HiRes::sleep(rand(10));
 
         # is our probation period over?
-        if ($self->next_check > $self->now) {
+        if ($self->next_check_throttle > $self->now) {
             # nope, return 1 because we're still throttled
             return 1;
         }
     }
 
     $self->is_throttled(0);
-    $self->next_check($self->now + rand(10));
+    $self->next_check_throttle($self->now + rand($self->throttler->throttle_span));
     if (! $self->throttler->should_throttle($self->now)) {
         return;
     }
