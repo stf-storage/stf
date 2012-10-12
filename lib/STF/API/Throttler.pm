@@ -86,7 +86,7 @@ sub should_throttle {
 
     my $threshold = $self->threshold;
     my $current   = $self->current_count($now);
-    return $threshold < $current;
+    return $threshold <= $current;
 }
 
 1;
