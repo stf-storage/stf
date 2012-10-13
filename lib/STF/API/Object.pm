@@ -573,6 +573,8 @@ EOSQL
     foreach my $storage ( @$storages ) {
         my $url = "$storage->[1]/$object->{internal_name}";
         debugf("Sending HEAD %s", $url) if STF_DEBUG;
+
+        local $furl->{timeout} = 5;
         my (undef, $code) = $furl->head( $url, $headers );
 
         debugf(
