@@ -1,5 +1,6 @@
 package STF::Worker::Loop;
 use Mouse;
+use POSIX qw(SIGINT SIGQUIT SIGTERM);
 use Time::HiRes ();
 use STF::API::Throttler;
 use STF::Constants qw(STF_DEBUG);
@@ -35,8 +36,9 @@ has queue_name => (
     }
 );
 
-has max_jobs_per_minute => (
+has throttle_threshold => (
     is => 'rw',
+    default => 0,
 );
 
 has max_works_per_child => (
@@ -44,9 +46,9 @@ has max_works_per_child => (
     default => 1_000
 );
 
-has max_jobs_per_minute_key => (
+has throttle_threshold_key => (
     is => 'rw',
-    default => sub { $_[0]->to_keyname("max_jobs_per_minute") }
+    default => sub { $_[0]->to_keyname("throttle.current_threshold") }
 );
 
 has counter_key => (
@@ -106,7 +108,7 @@ has throttler => (
 sub incr_processed {
     my $self = shift;
     $self->throttler->incr($self->now);
-    ++$self->{processed};
+    $self->processed($self->processed + 1);
 }
 
 sub global_job_count {
@@ -116,7 +118,7 @@ sub global_job_count {
 
 sub should_loop {
     my $self = shift;
-    return $self->{processed} < $self->max_works_per_child;
+    return $self->processed < $self->max_works_per_child;
 }
 
 sub to_keyname {
@@ -169,17 +171,17 @@ sub reload {
     my $sth = $dbh->prepare(<<EOSQL);
         SELECT varvalue FROM config WHERE varname = ?
 EOSQL
-    my ($max_jobs_per_minute) = $dbh->selectrow_array($sth, undef, $self->max_jobs_per_minute_key);
+    my ($throttle_threshold) = $dbh->selectrow_array($sth, undef, $self->throttle_threshold_key);
 
-    $self->throttler->threshold($max_jobs_per_minute);
+    $self->throttler->threshold($throttle_threshold);
     $self->should_reload(0);
     $self->next_reload($self->now + 60);
 }
 
 sub check_throttle {
     my $self = shift;
-    my $max_jobs_per_minute = $self->throttler->threshold;
-    if (! $max_jobs_per_minute) {
+    my $throttle_threshold = $self->throttler->threshold;
+    if (! $throttle_threshold) {
         return;
     }
 
@@ -188,7 +190,23 @@ sub check_throttle {
         if (STF_DEBUG) {
             debugf("Throttled, sleeping...");
         }
-        Time::HiRes::sleep(rand(10));
+
+        # We may receive a signal while we're sleeping. In that case
+        # we just want to bail out of this check, so set a signal
+        # handler just for that
+        eval {
+            my $sigset = POSIX::SigSet->new( SIGINT, SIGQUIT, SIGTERM );
+            my $cancel = POSIX::SigAction->new(sub {
+                die "Sleep Canceled";
+            }, $sigset, &POSIX::SA_NOCLDSTOP);
+            Time::HiRes::sleep(rand(10));
+        };
+        if ($@ =~ /Sleep Canceled/) {
+            # Resend me the TERM signal! this will trigger the
+            # signal handler from the calling loop
+            kill TERM => $$;
+            return;
+        }
 
         # is our probation period over?
         if ($self->next_check_throttle > $self->now) {

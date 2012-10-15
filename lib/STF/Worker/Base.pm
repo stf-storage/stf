@@ -22,10 +22,6 @@ has loop_class => (
     default => 'Periodic',
 );
 
-has max_jobs_per_minute => (
-    is => 'rw',
-);
-
 has max_works_per_child => (
     is => 'rw',
     default => 1_000

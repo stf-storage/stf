@@ -18,11 +18,13 @@ REPLACE INTO config (varname, varvalue)
 REPLACE INTO config (varname, varvalue)
     VALUES ("stf.drone.StorageHealth.instances", 1);
 
-/* from experience, 10000 repair jobs/hour seems to be a
+/* from experience, 300 repair jobs/hour seems to be a
  * sane default. 
  */
 REPLACE INTO config (varname, varvalue)
-    VALUES ("stf.worker.RepairObject.max_jobs_per_minute", 10000);
+    VALUES ("stf.worker.RepairObject.throttle.threshold", 300);
+REPLACE INTO config (varname, varvalue)
+    VALUES ("stf.worker.RepairObject.throttle.current_threshold", 0);
 
 CREATE TABLE storage_cluster (
     id INT NOT NULL PRIMARY KEY,
