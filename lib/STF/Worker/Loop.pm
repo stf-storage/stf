@@ -195,10 +195,17 @@ sub check_throttle {
         # we just want to bail out of this check, so set a signal
         # handler just for that
         eval {
+            my ($sigint, $sigquit, $sigterm) = @SIG{ qw(INT QUIT TERM) };
+            my $guard = Scope::Guard->new(sub {
+                @SIG{ qw(INT QUIT TERM) } = ($sigint, $sigquit, $sigterm);
+            });
             my $sigset = POSIX::SigSet->new( SIGINT, SIGQUIT, SIGTERM );
             my $cancel = POSIX::SigAction->new(sub {
                 die "Sleep Canceled";
             }, $sigset, &POSIX::SA_NOCLDSTOP);
+            POSIX::sigaction( SIGINT,  $cancel );
+            POSIX::sigaction( SIGQUIT, $cancel );
+            POSIX::sigaction( SIGTERM, $cancel );
             Time::HiRes::sleep(rand(10));
         };
         if ($@ =~ /Sleep Canceled/) {
