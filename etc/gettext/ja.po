@@ -7,6 +7,12 @@ msgstr "有効期限"
 msgid "Configuration for [_1]"
 msgstr "%1の設定"
 
+msgid "stf.drone.AdaptiveThrottler.instances"
+msgstr "STFインスタンス全体でのワーカー数（最大処理能力）"
+
+msgid "stf.drone.AdaptiveThrottler.instances.help"
+msgstr "10分ごとに反映されます。即時反映するには<a class=\"reload-link\" href=\"#\">リロードしてください</a>。<br />低くしすぎると処理能力が落ちるので注意してください。"
+
 msgid "stf.drone.ContinuousRepair.instances"
 msgstr "STFインスタンス全体でのワーカー数（最大処理能力）"
 
