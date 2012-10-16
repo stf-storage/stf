@@ -22,18 +22,27 @@ has la_threshold => (
 sub work_once {
     my $self = shift;
 
-    my $is_high = $self->check_loads();
-    my @workers = qw(
-        ContinuousRepair
-        DeleteBucket
-        DeleteObject
-        RepairObject
-        RepairStorage
-        Replicate
-        StorageHealth
-    );
-    foreach my $worker_name ( @workers ) {
-        $self->set_throttle_limit($worker_name, $is_high);
+    local $SIG{TERM} = sub {
+        die "Received Signal";
+    };
+
+    eval {
+        my $is_high = $self->check_loads();
+        my @workers = qw(
+            ContinuousRepair
+            DeleteBucket
+            DeleteObject
+            RepairObject
+            RepairStorage
+            Replicate
+            StorageHealth
+        );
+        foreach my $worker_name ( @workers ) {
+            $self->set_throttle_limit($worker_name, $is_high);
+        }
+    };
+    if ($@) {
+        critf("Bailing out of worker: %s", $@);
     }
 }
 
