@@ -3,6 +3,7 @@ use Mouse;
 use STF::Constants qw(:storage STF_DEBUG);
 use STF::Utils ();
 use STF::Log;
+use URI;
 
 extends 'STF::Worker::Base';
 with 'STF::Trait::WithContainer';
