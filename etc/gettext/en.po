@@ -1,3 +1,9 @@
+msgid "stf.drone.AdaptiveThrottler.instances"
+msgstr "Instances to spawn"
+
+msgid "stf.drone.AdaptiveThrottler.instances.help"
+msgstr "This setting will be applied every 10 minutes. If you need this to be propagated immediately please <a class=\"reload-link\" href=\"#\">forcefully reload the worker setting</a>.<br />You should not make this setting too low as it will decrease the maximum capacity"
+
 msgid "stf.drone.ContinuousRepair.instances"
 msgstr "Instances to spawn"
 
@@ -51,6 +57,9 @@ msgstr "Current threshold value (jobs/10secs)"
 
 msgid "stf.worker.RepairObject.throttle.current_threshold.help"
 msgstr "Automatically adjusted by a cron job. If set to 0, will mean 'unlimited'"
+
+msgid "stf.worker.AdaptiveThrottler.description"
+msgstr "Automatically changes throttling thresholds based on storage load"
 
 msgid "stf.worker.ContinuousRepair.description"
 msgstr "Periodically samples objects and sends them to RepairObject"
