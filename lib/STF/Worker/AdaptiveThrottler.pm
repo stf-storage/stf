@@ -1,9 +1,10 @@
 package STF::Worker::AdaptiveThrottler;
 use Mouse;
+use URI;
+use Net::SNMP;
 use STF::Constants qw(:storage STF_DEBUG);
 use STF::Utils ();
 use STF::Log;
-use URI;
 
 extends 'STF::Worker::Base';
 with 'STF::Trait::WithContainer';
