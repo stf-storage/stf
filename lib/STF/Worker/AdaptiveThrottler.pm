@@ -22,11 +22,9 @@ has la_threshold => (
 sub work_once {
     my $self = shift;
 
-    local $SIG{TERM} = sub {
-        die "Received Signal";
-    };
-
     eval {
+        local $SIG{TERM} = sub { die "Received Signal" };
+
         my $is_high = $self->check_loads();
         my @workers = qw(
             ContinuousRepair
@@ -43,6 +41,8 @@ sub work_once {
     };
     if ($@) {
         critf("Bailing out of worker: %s", $@);
+        # Commit suicide
+        kill TERM => $$;
     }
 }
 
