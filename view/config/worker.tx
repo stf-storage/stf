@@ -1,4 +1,9 @@
 [% WRAPPER "inc/layout.tx" %]
+<style type="text/css">
+<!--
+    p.help { color: #999; font-size: 0.8em }
+-->
+</style>
 
 <div class="modal fade" data-toggle="modal" id="stf-config-reload-confirm">
     <div class="modal-header">
@@ -27,26 +32,28 @@
 </div>
 
 <div class="well">
-<h2>Config</h2>
-
-<button id="stf-config-reload-btn" class="btn btn-success btn-mini"><i class="icon-plus icon-white"></i> Reload</button>
+<h2>[% loc("Configuration for [_1]", worker_name) %]</h2>
 </div>
 
-<h3>Workers</h3>
-
+<form action="/config/update" method="POST">
+<input type="submit" value="Update">
 <table class="table">
-[% FOREACH worker_name IN [ "ContinuousRepair", "DeleteBucket", "DeleteObject", "RepairObject", "RepairStorage", "Replicate", "StorageHealth" ] %]
+[% FOREACH pair IN config_vars %]
 <tr>
-    <td><a href="/config/worker/[% worker_name %]">[% worker_name %]</a></td>
-    <td>[% loc("stf.worker." _ worker_name _ ".description") %]</td>
+    <td>[% loc(pair.varname) %]
+        <p class="help">[% loc(pair.varname _ '.help') | raw %]</p>
+    </td>
+    <td><input type="text" name="[% pair.varname %]"></td>
 </tr>
 [% END %]
 </table>
+<input type="submit" value="Update">
+</form>
 
 <script type="text/javascript">
 <!--
-    $(document).ready( function() {
-        $("#stf-config-reload-btn").click(function() {
+    $(document).ready(function() {
+        $("a.reload-link").click(function(e) {
             var ctx = $("#stf-config-reload-confirm div.modal-body");
             $("div.main", ctx).show();
             $("div.processing", ctx).hide();
@@ -72,7 +79,7 @@
                 }
             });
         } );
-    } );
+    });
 -->
 </script>
 

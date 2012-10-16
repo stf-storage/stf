@@ -1,0 +1,95 @@
+msgid "stf.drone.ContinuousRepair.instances"
+msgstr "Instances to spawn"
+
+msgid "stf.drone.ContinuousRepair.instances.help"
+msgstr "This setting will be applied every 10 minutes. If you need this to be propagated immediately please <a class=\"reload-link\" href=\"#\">forcefully reload the worker setting</a>.<br />You should not make this setting too low as it will decrease the maximum capacity"
+
+msgid "stf.drone.DeleteBucket.instances"
+msgstr "Instances to spawn"
+
+msgid "stf.drone.DeleteBucket.instances.help"
+msgstr "This setting will be applied every 10 minutes. If you need this to be propagated immediately please <a class=\"reload-link\" href=\"#\">forcefully reload the worker setting</a>.<br />You should not make this setting too low as it will decrease the maximum capacity"
+
+msgid "stf.drone.DeleteObject.instances"
+msgstr "Instances to spawn"
+
+msgid "stf.drone.DeleteObject.instances.help"
+msgstr "This setting will be applied every 10 minutes. If you need this to be propagated immediately please <a class=\"reload-link\" href=\"#\">forcefully reload the worker setting</a>.<br />You should not make this setting too low as it will decrease the maximum capacity"
+
+msgid "stf.drone.RepairObject.instances"
+msgstr "Instances to spawn"
+
+msgid "stf.drone.RepairObject.instances.help"
+msgstr "This setting will be applied every 10 minutes. If you need this to be propagated immediately please <a class=\"reload-link\" href=\"#\">forcefully reload the worker setting</a>.<br />You should not make this setting too low as it will decrease the maximum capacity"
+
+msgid "stf.drone.RepairStorage.instances"
+msgstr "Instances to spawn"
+
+msgid "stf.drone.RepairStorage.instances.help"
+msgstr "This setting will be applied every 10 minutes. If you need this to be propagated immediately please <a class=\"reload-link\" href=\"#\">forcefully reload the worker setting</a>.<br />You should not make this setting too low as it will decrease the maximum capacity"
+
+msgid "stf.drone.StorageHealth.instances"
+msgstr "Instances to spawn"
+
+msgid "stf.drone.StorageHealth.instances.help"
+msgstr "This setting will be applied every 10 minutes. If you need this to be propagated immediately please <a class=\"reload-link\" href=\"#\">forcefully reload the worker setting</a>.<br />You should not make this setting too low as it will decrease the maximum capacity"
+
+msgid "stf.drone.Replicate.instances"
+msgstr "Instances to spawn"
+
+msgid "stf.drone.Replicate.instances.help"
+msgstr "This setting will be applied every 10 minutes. If you need this to be propagated immediately please <a class=\"reload-link\" href=\"#\">forcefully reload the worker setting</a>.<br />You should not make this setting too low as it will decrease the maximum capacity"
+
+msgid "stf.worker.RepairObject.throttle.threshold"
+msgstr "Maximum threshold for automatic-throttling (jobs/10secs)"
+
+msgid "stf.worker.RepairObject.throttle.threshold.help"
+msgstr "Automatic-throttling will adjust the actual threshold value so that it does not exceed this value"
+
+msgid "stf.worker.RepairObject.throttle.current_threshold"
+msgstr "Current threshold value (jobs/10secs)"
+
+msgid "stf.worker.RepairObject.throttle.current_threshold.help"
+msgstr "Automatically adjusted by a cron job. If set to 0, will mean 'unlimited'"
+
+msgid "stf.worker.ContinuousRepair.description"
+msgstr "Periodically samples objects and sends them to RepairObject"
+
+msgid "stf.worker.ContinuousRepair.processed_jobs"
+msgstr "Jobs processed in the last 10 seconds for ContinuousRepair"
+
+msgid "stf.worker.DeleteBucket.description"
+msgstr "Delets the specified bucket"
+
+msgid "stf.worker.DeleteBucket.processed_jobs"
+msgstr "Jobs processed in the last 10 seconds for DeleteBucket"
+
+msgid "stf.worker.DeleteObject.description"
+msgstr "Deletes the specified object"
+
+msgid "stf.worker.DeleteObject.processed_jobs"
+msgstr "Jobs processed in the last 10 seconds for DeleteObject"
+
+msgid "stf.worker.RepairObject.description"
+msgstr "Repairs objects (replenish entities, move cluster, etc)"
+
+msgid "stf.worker.RepairObject.processed_jobs"
+msgstr "Jobs processed in the last 10 seconds for RepairObject"
+
+msgid "stf.worker.RepairStorage.description"
+msgstr "Finds storages in repair mode, and sends objects to RepairObject worker"
+
+msgid "stf.worker.RepairStorage.processed_jobs"
+msgstr "Jobs processed in the last 10 seconds for RepairStorage"
+
+msgid "stf.worker.Replicate.description"
+msgstr "Creates remaining entities for objects created in the dispatcher"
+
+msgid "stf.worker.Replicate.processed_jobs"
+msgstr "Jobs processed in the last 10 seconds for Replicate"
+
+msgid "stf.worker.StorageHealth.description"
+msgstr "Checks each storage if it's writable and readable. If there's a problem, the storage is put into 'DOWN' mode"
+
+msgid "stf.worker.StorageHealth.processed_jobs"
+msgstr "Jobs processed in the last 10 seconds for StorageHealth"

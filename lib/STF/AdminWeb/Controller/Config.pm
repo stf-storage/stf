@@ -3,9 +3,30 @@ use Mouse;
 use JSON();
 use Time::HiRes ();
 use STF::Utils;
-use STF::API::Throttler;
 
 extends 'STF::AdminWeb::Controller';
+
+sub worker {
+    my ($self, $c) = @_;
+
+    my $worker_name = $c->match->{worker_name};
+    my $prefix = sprintf 'stf.worker.%s.%%', $worker_name;
+    my $config_vars = $c->get('API::Config')->search({
+        varname => [
+            { 'LIKE' => $prefix },
+            { 'LIKE' => sprintf 'stf.drone.%s.instances', $worker_name }
+        ]
+    });
+
+    my $stash = $c->stash;
+    $stash->{config_vars} = $config_vars;
+    $stash->{worker_name} = $worker_name;
+    my %fdat;
+    foreach my $pair (@$config_vars) {
+        $fdat{ $pair->{varname} } = $pair->{varvalue};
+    }
+    $self->fillinform( $c, \%fdat );
+}
 
 sub list {
     my ($self, $c) = @_;
@@ -17,34 +38,6 @@ sub list {
         $fdat{ $pair->{varname} } = $pair->{varvalue};
     }
     $self->fillinform( $c, \%fdat );
-
-    # Load the current state of leader election
-    # XXX Wrap in ::API ?
-    my $dbh = $c->get('DB::Master');
-    my $list = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} });
-        SELECT * FROM worker_election ORDER BY id ASC
-EOSQL
-    $c->stash->{election} = $list;
-
-    my $memd = $c->get('Memcached');
-    my $h = $memd->get_multi(
-        (map { "stf.drone.$_" } qw(election reload balance)),
-    );
-    my $throttler = STF::API::Throttler->new(
-        key => "DUMMY",
-        throttle_span => 60,
-        container => $c->container,
-    );
-    $h = {
-        %$h,
-        %{ $throttler->current_count_multi(
-            time(),
-            map { "stf.worker.$_.processed_jobs" }
-                qw(ContinuousRepair DeleteBucket DeleteObject RepairObject RepairStorage Replicate StorageHealth)
-        ) }
-    };
-
-    $c->stash->{states} = $h;
 }
 
 sub reload {

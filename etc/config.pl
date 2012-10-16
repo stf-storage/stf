@@ -106,6 +106,12 @@ my $queue_type = $ENV{STF_QUEUE_TYPE} || 'Q4M';
             }
         ]
     ),
+    # Localizer - only used in the AdminWeb
+    'Localizer' => {
+        localizers => [
+            { class => 'Gettext', path => path_to("etc/gettext/*.po") },
+        ]
+    },
     # The Worker config
     # XXX Need to write more docs here
     'Worker::Drone' => {

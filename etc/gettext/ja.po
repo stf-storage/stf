@@ -1,0 +1,104 @@
+msgid "Drone ID"
+msgstr "ドローン ID"
+
+msgid "Expires At"
+msgstr "有効期限"
+
+msgid "Configuration for [_1]"
+msgstr "%1の設定"
+
+msgid "stf.drone.ContinuousRepair.instances"
+msgstr "STFインスタンス全体でのワーカー数（最大処理能力）"
+
+msgid "stf.drone.ContinuousRepair.instances.help"
+msgstr "10分ごとに反映されます。即時反映するには<a class=\"reload-link\" href=\"#\">リロードしてください</a>。<br />低くしすぎると処理能力が落ちるので注意してください。"
+
+msgid "stf.drone.DeleteBucket.instances"
+msgstr "STFインスタンス全体でのワーカー数（最大処理能力）"
+
+msgid "stf.drone.DeleteBucket.instances.help"
+msgstr "10分ごとに反映されます。即時反映するには<a class=\"reload-link\" href=\"#\">リロードしてください</a>。<br />低くしすぎると処理能力が落ちるので注意してください。"
+
+msgid "stf.drone.DeleteObject.instances"
+msgstr "STFインスタンス全体でのワーカー数（最大処理能力）"
+
+msgid "stf.drone.DeleteObject.instances.help"
+msgstr "10分ごとに反映されます。即時反映するには<a class=\"reload-link\" href=\"#\">リロードしてください</a>。<br />低くしすぎると処理能力が落ちるので注意してください。"
+
+msgid "stf.drone.RepairObject.instances"
+msgstr "STFインスタンス全体でのワーカー数（最大処理能力）"
+
+msgid "stf.drone.RepairObject.instances.help"
+msgstr "10分ごとに反映されます。即時反映するには<a class=\"reload-link\" href=\"#\">リロードしてください</a>。<br />低くしすぎると処理能力が落ちるので注意してください。"
+
+msgid "stf.drone.RepairStorage.instances"
+msgstr "STFインスタンス全体でのワーカー数（最大処理能力）"
+
+msgid "stf.drone.RepairStorage.instances.help"
+msgstr "10分ごとに反映されます。即時反映するには<a class=\"reload-link\" href=\"#\">リロードしてください</a>。<br />低くしすぎると処理能力が落ちるので注意してください。"
+
+msgid "stf.drone.StorageHealth.instances"
+msgstr "STFインスタンス全体でのワーカー数（最大処理能力）"
+
+msgid "stf.drone.StorageHealth.instances.help"
+msgstr "10分ごとに反映されます。即時反映するには<a class=\"reload-link\" href=\"#\">リロードしてください</a>。<br />低くしすぎると処理能力が落ちるので注意してください。"
+
+msgid "stf.drone.Replicate.instances"
+msgstr "STFインスタンス全体でのワーカー数（最大処理能力）"
+
+msgid "stf.drone.Replicate.instances.help"
+msgstr "10分ごとに反映されます。即時反映するには<a class=\"reload-link\" href=\"#\">リロードしてください</a>。<br />低くしすぎると処理能力が落ちるので注意してください。"
+
+msgid "stf.worker.RepairObject.throttle.threshold"
+msgstr "自動スロットリングの最大値（ジョブ/10秒）"
+
+msgid "stf.worker.RepairObject.throttle.threshold.help"
+msgstr "自動制御の値がこの値を超えることはありません"
+
+msgid "stf.worker.RepairObject.throttle.current_threshold"
+msgstr "現在の自動スロットリングの閾値（ジョブ/10秒)"
+
+msgid "stf.worker.RepairObject.throttle.current_threshold.help"
+msgstr "cronジョブによって自動制御。0にすると無制限"
+
+msgid "stf.worker.ContinuousRepair.description"
+msgstr "定期的にオブジェクトをサンプリングしRepairObjectワーカーに投げます"
+
+msgid "stf.worker.ContinuousRepair.processed_jobs"
+msgstr "ContinuousRepair ジョブ処理数（過去10秒）"
+
+msgid "stf.worker.DeleteBucket.description"
+msgstr "指定されたバケットを削除します"
+
+msgid "stf.worker.DeleteBucket.processed_jobs"
+msgstr "DeleteBucket ジョブ処理数（過去10秒）"
+
+msgid "stf.worker.DeleteObject.description"
+msgstr "指定されたオブジェクトを削除します"
+
+msgid "stf.worker.DeleteObject.processed_jobs"
+msgstr "DeleteObject ジョブ処理数（過去10秒）"
+
+msgid "stf.worker.RepairObject.description"
+msgstr "オブジェクトをリペアします（クラスタの移動、エンティティの補充等）"
+
+msgid "stf.worker.RepairObject.processed_jobs"
+msgstr "RepairObject ジョブ処理数（過去10秒）"
+
+msgid "stf.worker.RepairStorage.description"
+msgstr "リペアモードが指定されたストレージに格納されているオブジェクトを全てRepairObjectキューに投げます"
+
+msgid "stf.worker.RepairStorage.processed_jobs"
+msgstr "RepairStorage ジョブ処理数（過去10秒）"
+
+msgid "stf.worker.Replicate.description"
+msgstr "ディスパッチャーにて作成されたオブジェクトのエンティティを補充します"
+
+msgid "stf.worker.Replicate.processed_jobs"
+msgstr "Replicate ジョブ処理数（過去10秒）"
+
+msgid "stf.worker.StorageHealth.description"
+msgstr "各ストレージに対して書き込み・読み込みが可能か定期的に確認します。問題がある場合は自動的にストレージをdown状態にします"
+
+msgid "stf.worker.StorageHealth.processed_jobs"
+msgstr "StorageHealth ジョブ処理数（過去10秒）"

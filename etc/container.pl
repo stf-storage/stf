@@ -20,6 +20,18 @@ if (STF_TRACE) {
 
 register JSON => JSON->new->utf8;
 register Furl => Furl::HTTP->new( timeout => 30 );
+register Localizer => sub {
+    my $c = shift;
+
+    my $config = $c->get('config');
+    require Data::Localize;
+    my $dl = Data::Localize->new(auto => 1);
+    foreach my $loc ( @{ $config->{ Localizer }->{ localizers } } ) {
+        $dl->add_localizer( %$loc );
+    }
+    $dl->set_languages('ja', 'en');
+    return $dl;
+};
 register Memcached => sub {
     my $c = shift;
     my $config = $c->get('config');

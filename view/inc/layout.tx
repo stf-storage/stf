@@ -46,8 +46,9 @@
                     <li class="nav-header">Menu</li>
                     <li><a href="[% c.uri_for( "/cluster/list" ) %]">Storage Clusters</a></li>
                     <li><a href="[% c.uri_for( "/storage/list" ) %]">Storage Nodes</a></li>
-                    <li><a href="[% c.uri_for( "/config/list" ) %]">Config</a></li>
                     <li><a href="[% c.uri_for( "/bucket/list" ) %]">Buckets</a></li>
+                    <li><a href="[% c.uri_for( "/config/list" ) %]">Config</a></li>
+                    <li><a href="[% c.uri_for( "/state" ) %]">States</a></li>
                 </ul>
             </div><!--/.well -->
         </div><!--/span-->

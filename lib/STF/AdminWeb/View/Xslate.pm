@@ -24,12 +24,17 @@ has xslate => (
 sub BUILDARGS {
     my ($class, %args) = @_;
 
+    my $app = delete $args{app};
     my $function = $args{function} ||= {};
     $function->{nl2br} = Text::Xslate::html_builder(sub {
         my $text = "$_[0]";
         $text =~ s{\n}{<br />}gsm;
         return $text;
     });
+    $function->{loc} = sub {
+        $app->context->get('Localizer')->localize(@_);
+    };
+    $function->{strftime} = sub { POSIX::strftime($_[0], localtime($_[1])) };
 
     my %parsed;
     if (my $fif = delete $args{fif}) {
@@ -38,7 +43,6 @@ sub BUILDARGS {
     if (my $suffix = delete $args{suffix}) {
         $parsed{suffix} = $suffix;
     }
-    delete $args{app};
     $parsed{xslate} = Text::Xslate->new(%args);
 
     return \%parsed;

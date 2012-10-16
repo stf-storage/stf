@@ -6,6 +6,16 @@ router {
         action     => 'index',
     };
 
+    connect '/state' => {
+        controller => 'Root',
+        action => 'state'
+    };
+
+    connect '/config/worker/:worker_name' => {
+        controller => 'Config',
+        action     => 'worker',
+    };
+
     connect '/config/list' => {
         controller => 'Config',
         action     => 'list',

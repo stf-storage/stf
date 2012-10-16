@@ -67,6 +67,9 @@ sub to_app {
         my $env = shift;
         $self->handle_psgi($env);
     };
+
+    require Plack::Middleware::Session;
+    $app = Plack::Middleware::Session->wrap($app);
     if ($self->use_reverse_proxy) {
         require Plack::Middleware::ReverseProxy;
         return Plack::Middleware::ReverseProxy->wrap( $app );
@@ -88,6 +91,17 @@ sub handle_psgi {
         container => $context->container,
     );
     my $guard = $context->container->new_scope();
+    my $localizer = $context->get('Localizer');
+
+    my $sessions = $rc->session;
+    if (my $lang = $rc->request->param('lang')) {
+        $localizer->set_languages( $lang );
+        $sessions->set(lang => $lang);
+    } else {
+        my $lang = $sessions->get('lang') || 'ja';
+        $localizer->set_languages( $lang );
+        $sessions->set(lang => $lang);
+    }
     eval {
         $self->dispatch( $rc, $env );
     };

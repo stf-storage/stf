@@ -9,6 +9,7 @@ use URI::_server;
 use URI::_generic;
 use URI::_query;
 use Plack::Request;
+use Plack::Session;
 
 with 'STF::Trait::WithContainer';
 
@@ -35,6 +36,12 @@ has response => (
     is => 'rw',
     lazy => 1,
     default => sub { $_[0]->request->new_response(200) },
+);
+
+has session => (
+    is => 'rw',
+    lazy => 1,
+    default => sub { Plack::Session->new($_[0]->request->env) }
 );
 
 sub BUILDARGS {

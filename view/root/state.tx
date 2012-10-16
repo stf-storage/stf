@@ -1,0 +1,36 @@
+[% WRAPPER "inc/layout.tx" %]
+
+<h2>[% loc("System State") %]</h2>
+
+<h3>[% loc("Election Status") %]</h3>
+
+<table class="table">
+[% IF (election.size() <= 0) %]
+<tr><td>[% loc("No workers registered") %]</td></tr>
+[% ELSE %]
+<tr>
+    <th>[% loc("Drone ID") %]</th>
+    <th>[% loc("Expires At") %]</th>
+</tr>
+[% FOREACH e IN election %]
+<tr>
+    <td>[% e.drone_id %]</td>
+    <td>[% strftime("%Y/%m/%d %H:%M:%S", e.expires_at) %]</td>
+</tr>
+[% END %]
+[% END # IF-ELSE %]
+</table>
+
+<h3>[% loc("States") %]</h3>
+<table class="table">
+[% FOREACH st IN states.keys() %]
+<tr>
+    <td>[% loc(st) %]</td>
+    <td>[% states.$st %]</td>
+</tr>
+[% END %]
+</table>
+
+
+
+[% END %]
