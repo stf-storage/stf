@@ -53,6 +53,7 @@ WriteMakefile(
         'Log::Minimal' => '0.10',
         'Math::Round' => 0,
         'Mouse' => 0,
+        'Net::SNMP' => 0,
         'Plack' => '0.9981',
         'Plack::Middleware::ReverseProxy' => 0,
         'Plack::Middleware::Session' => 0,
