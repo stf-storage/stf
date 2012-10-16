@@ -32,7 +32,7 @@
 <button id="stf-config-reload-btn" class="btn btn-success btn-mini"><i class="icon-plus icon-white"></i> Reload</button>
 </div>
 
-<h3>Workers</h3>
+<h3>[% loc("Workers") %]</h3>
 
 <table class="table">
 [% FOREACH worker_name IN [ "ContinuousRepair", "DeleteBucket", "DeleteObject", "RepairObject", "RepairStorage", "Replicate", "StorageHealth" ] %]

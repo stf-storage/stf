@@ -49,17 +49,23 @@ msgstr "STFインスタンス全体でのワーカー数（最大処理能力）
 msgid "stf.drone.Replicate.instances.help"
 msgstr "10分ごとに反映されます。即時反映するには<a class=\"reload-link\" href=\"#\">リロードしてください</a>。<br />低くしすぎると処理能力が落ちるので注意してください。"
 
+msgid "stf.worker.RepairObject.throttle.auto_adapt"
+msgstr "自動的にスロットリング制御する(0=NO, それ以外=YES)"
+
+msgid "stf.worker.RepairObject.throttle.auto_adapt.help"
+msgstr "有効な場合、ワーカーのストレージ負荷をSNMPで確認しつつスロットリングの閾値を変更します"
+
 msgid "stf.worker.RepairObject.throttle.threshold"
-msgstr "自動スロットリングの最大値（ジョブ/10秒）"
+msgstr "自動スロットリングの閾値の最大値"
 
 msgid "stf.worker.RepairObject.throttle.threshold.help"
-msgstr "自動制御の値がこの値を超えることはありません"
+msgstr "「現在の自動スロットリングの閾値」の値の上限。cronジョブによって自動制御されている値がこの値を超える事はありません。"
 
 msgid "stf.worker.RepairObject.throttle.current_threshold"
 msgstr "現在の自動スロットリングの閾値（ジョブ/10秒)"
 
 msgid "stf.worker.RepairObject.throttle.current_threshold.help"
-msgstr "cronジョブによって自動制御。0にすると無制限"
+msgstr "実際に適用されるスロットリングの閾値。1 から 「自動スロットリングの閾値の最大値」の間でストレージの負荷にあわせて自動的に変更されます。0にするとスロットリングがない状態となり、無制限になります"
 
 msgid "stf.worker.ContinuousRepair.description"
 msgstr "定期的にオブジェクトをサンプリングしRepairObjectワーカーに投げます"

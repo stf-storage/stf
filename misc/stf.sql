@@ -4,6 +4,8 @@ CREATE TABLE config (
 ) ENGINE=InnoDB;
 
 REPLACE INTO config (varname, varvalue)
+    VALUES ("stf.drone.AdaptiveThrottler.instances", 1);
+REPLACE INTO config (varname, varvalue)
     VALUES ("stf.drone.Replicate.instances", 8);
 REPLACE INTO config (varname, varvalue)
     VALUES ("stf.drone.RepairObject.instances", 4);
@@ -18,9 +20,8 @@ REPLACE INTO config (varname, varvalue)
 REPLACE INTO config (varname, varvalue)
     VALUES ("stf.drone.StorageHealth.instances", 1);
 
-/* from experience, 300 repair jobs/hour seems to be a
- * sane default. 
- */
+REPLACE INTO config (varname, varvalue)
+    VALUES ("stf.worker.RepairObject.throttle.auto_adapt", 1);
 REPLACE INTO config (varname, varvalue)
     VALUES ("stf.worker.RepairObject.throttle.threshold", 300);
 REPLACE INTO config (varname, varvalue)
