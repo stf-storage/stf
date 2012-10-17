@@ -486,14 +486,23 @@ sub get_any_valid_entity_url {
         foreach my $storage_id ( @storage_ids ) {
             my $storage = $lookup->{ $storage_id };
             if (! $storage || ! $storage_api->is_readable( $storage ) ) {
-                debugf(
-                    "Storage '%s' is not readable anymore. Invalidating cache",
-                    $storage_id,
-                ) if STF_DEBUG;
-
-                # Invalidate the cached entry, and set the repair flag
+                # Invalidate the cached entry
                 undef $storages;
-                $repair++;
+
+                # If this storage is just DOWN, then it's a temporary problem.
+                # we don't need to repair it. Hopefully it will come back up soon
+                if ($storage->{mode} == STORAGE_MODE_TEMPORARILY_DOWN) {
+                    if (STF_DEBUG) {
+                        debugf("Storage '%s' is down. Invalidating cache, but NOT triggering a repair", $storage_id);
+                    }
+                } else {
+                    # Otherwise, by all means please repair this object
+                    $repair++;
+                    if (STF_DEBUG) {
+                        debugf( "Storage '%s' is not readable anymore. Invalidating cache", $storage_id);
+                    }
+                }
+
                 if (STF_TRACE) {
                     $self->get('Trace')->trace( "stf.object.get_any_valid_entity_url.invalidated_storage_cache");
                 }
