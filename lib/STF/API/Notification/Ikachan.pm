@@ -36,8 +36,6 @@ sub notify {
     my @res = $furl->post( "$url/$method", [], [
         channel => $channel, message => $args->{message}
     ]);
-use Data::Dumper::Concise;
-warn Dumper(\@res);
 }
 
 1;
