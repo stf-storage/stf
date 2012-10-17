@@ -69,14 +69,6 @@ sub search_with_entity_info {
     return wantarray ? @objects : \@objects;
 }
 
-sub load_objects_since {
-    my ($self, $object_id, $limit) = @_;
-    my $dbh = $self->dbh('DB::Master');
-    my $results = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id, $limit );
-        SELECT * FROM object WHERE id > ? LIMIT ?
-EOSQL
-    return wantarray ? @$results : $results;
-}
 
 sub create_internal_name {
     my ($self, $args) = @_;
@@ -114,65 +106,6 @@ EOSQL
 
     my ($id) = $dbh->selectrow_array( $sql, undef, @args );
     return $id;
-}
-
-sub find_neighbors {
-    my ($self, $object_id, $breadth) = @_;
-
-    if ($breadth <= 0) {
-        $breadth = 10;
-    }
-
-    my $dbh = $self->dbh;
-    # find neighbors (+/- $breadth items)
-    my $before = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id );
-        SELECT * FROM object WHERE id < ? ORDER BY id DESC LIMIT $breadth 
-EOSQL
-    my $after = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id );
-        SELECT * FROM object WHERE id > ? ORDER BY id ASC LIMIT $breadth 
-EOSQL
-
-    return (@$before, @$after)
-}
-
-sub find_suspicious_neighbors {
-    my ($self, $args) = @_;
-
-    my $object_id = $args->{object_id} or die "XXX no object_id";
-    my $storages  = $args->{storages}  or die "XXX no storages";
-    my $breadth   = $args->{breadth} || 0;
-
-    if ($breadth <= 0) {
-        $breadth = 10;
-    }
-
-    my %objects;
-    my $dbh = $self->dbh;
-    foreach my $storage_id ( @$storages ) {
-        # find neighbors in this storage
-        my $before = $dbh->selectall_arrayref( <<EOSQL, undef, $storage_id, $object_id );
-            SELECT e.object_id FROM entity e FORCE INDEX (PRIMARY)
-                WHERE e.storage_id = ? AND e.object_id < ?
-                ORDER BY e.object_id DESC LIMIT $breadth
-EOSQL
-        my $after = $dbh->selectall_arrayref( <<EOSQL, undef, $storage_id, $object_id );
-            SELECT e.object_id FROM entity e FORCE INDEX (PRIMARY)
-                WHERE e.storage_id = ? AND e.object_id > ?
-                ORDER BY e.object_id ASC LIMIT $breadth
-EOSQL
-
-        foreach my $row ( @$before, @$after ) {
-            my $object_id = $row->[0];
-            next if $objects{ $object_id };
-
-            my $object = $self->lookup( $object_id );
-            if ($object) {
-                $objects{ $object_id } = $object;
-            }
-        }
-    }
-
-    return values %objects;
 }
 
 sub create {
@@ -251,7 +184,7 @@ sub store {
         eval { $self->delete( $object_id ) };
     });
 
-    # Load all possible clusteres, ordered by a consistent hash
+    # Load all possible clusters, ordered by a consistent hash
     my @clusters = $cluster_api->load_candidates_for( $object_id );
     if (! @clusters) {
         critf(
@@ -456,7 +389,7 @@ sub get_any_valid_entity_url {
             my $memd = $self->get('Memcached');
             if (! $memd->get("repair_from_dispatcher.$object_id")) {
                 $self->get('API::Queue')->enqueue( repair_object => $object_id );
-                $memd->set("repair_from_dispatcher.$object_id", 1, 300);
+                $memd->add("repair_from_dispatcher.$object_id", 1, 300);
             }
         };
     }
@@ -486,14 +419,23 @@ sub get_any_valid_entity_url {
         foreach my $storage_id ( @storage_ids ) {
             my $storage = $lookup->{ $storage_id };
             if (! $storage || ! $storage_api->is_readable( $storage ) ) {
-                debugf(
-                    "Storage '%s' is not readable anymore. Invalidating cache",
-                    $storage_id,
-                ) if STF_DEBUG;
-
-                # Invalidate the cached entry, and set the repair flag
+                # Invalidate the cached entry
                 undef $storages;
-                $repair++;
+
+                # If this storage is just DOWN, then it's a temporary problem.
+                # we don't need to repair it. Hopefully it will come back up soon
+                if ($storage->{mode} == STORAGE_MODE_TEMPORARILY_DOWN) {
+                    if (STF_DEBUG) {
+                        debugf("Storage '%s' is down. Invalidating cache, but NOT triggering a repair", $storage_id);
+                    }
+                } else {
+                    # Otherwise, by all means please repair this object
+                    $repair++;
+                    if (STF_DEBUG) {
+                        debugf( "Storage '%s' is not readable anymore. Invalidating cache", $storage_id);
+                    }
+                }
+
                 if (STF_TRACE) {
                     $self->get('Trace')->trace( "stf.object.get_any_valid_entity_url.invalidated_storage_cache");
                 }
@@ -550,18 +492,6 @@ EOSQL
         }
     }
 
-    # XXX repair shouldn't be triggered by entities < num_replica
-    #
-    # We used to put the object in repair if entities < num_replica, but
-    # in hindsight this was bad mistake. Suppose we mistakenly set
-    # num_replica > # of storages (say you have 3 storages, but you
-    # specified 5 replicas). In this case regardless of how many times we
-    # try to repair the object, we cannot create enough replicas to
-    # satisfy this condition.
-    #
-    # So that check is off. Let ObjectHealth worker handle it once
-    # in a while.
-
     # Send successive HEAD requests
     my $fastest;
     my $furl = $self->get('Furl');
@@ -595,6 +525,7 @@ EOSQL
             ) if STF_DEBUG;
             STF::Dispatcher::PSGI::HTTPException->throw( 304, [], [] );
         } else {
+            # What?! the request FAILED? Need to repair this sucker.
             $repair++;
         }
     };
@@ -605,7 +536,7 @@ EOSQL
             debugf("Object %s needs repair", $object_id) if STF_DEBUG;
             eval {
                 $self->get('API::Queue')->enqueue( repair_object => $object_id );
-                $memd->set("repair_from_dispatcher.$object_id", 1, 300);
+                $memd->add("repair_from_dispatcher.$object_id", 1, 300);
                 # Also, kill the cache
                 $self->cache_delete( @$cache_key );
             };
@@ -620,7 +551,7 @@ EOSQL
                 "HEAD request to %s was fastest (object_id = %s)",
                 $fastest,
                 $object_id,
-            ) if STF_DEBUG;
+            );
         }
     }
 
