@@ -559,18 +559,6 @@ EOSQL
         }
     }
 
-    # XXX repair shouldn't be triggered by entities < num_replica
-    #
-    # We used to put the object in repair if entities < num_replica, but
-    # in hindsight this was bad mistake. Suppose we mistakenly set
-    # num_replica > # of storages (say you have 3 storages, but you
-    # specified 5 replicas). In this case regardless of how many times we
-    # try to repair the object, we cannot create enough replicas to
-    # satisfy this condition.
-    #
-    # So that check is off. Let ObjectHealth worker handle it once
-    # in a while.
-
     # Send successive HEAD requests
     my $fastest;
     my $furl = $self->get('Furl');
