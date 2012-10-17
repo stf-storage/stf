@@ -5,6 +5,8 @@ with 'STF::API::WithDBI';
 
 around create => sub {
     my ($next, $self, $args) = @_;
+
+    $args->{created_at} ||= time();
     return unless $self->$next($args);
     my $object = $self->lookup($self->dbh->{mysql_insertid});
     $self->get('API::Queue')->enqueue(notify => $object->{id});
