@@ -35,6 +35,29 @@
 <h2>[% loc("Configuration for [_1]", worker_name) %]</h2>
 </div>
 
+<h3>[% loc("Worker State Variables") %]</h3>
+<table class="table">
+<tr>
+    <td>[% loc("Drones hosting this worker") %]</td>
+    <td>
+[% IF (drones.size() <= 0) %]
+[% loc("Not running anywhere") %]
+[% ELSE %]
+<ul>
+[% FOREACH drone IN drones %]
+    <li>[% drone %]</li>
+[% END # FOREACH %]
+</ul>
+[% END # IF %]
+[% FOREACH st IN states.keys() %]
+<tr>
+    <td>[% loc(st) %]</td>
+    <td>[% states.$st %]</td>
+</tr>
+[% END %]
+</table>
+
+<h3>[% loc("Worker Configuration Variables") %]</h3>
 <form action="/config/update" method="POST">
 <input type="submit" value="Update">
 <table class="table">

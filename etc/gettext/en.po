@@ -1,3 +1,6 @@
+msgid "stf.worker.AdaptiveThrottler.processed_jobs"
+msgstr "Jobs processed in the last 10 seconds for AdaptiveThrottler"
+
 msgid "stf.drone.AdaptiveThrottler.instances"
 msgstr "Instances to spawn"
 
@@ -46,6 +49,12 @@ msgstr "Instances to spawn"
 msgid "stf.drone.Replicate.instances.help"
 msgstr "This setting will be applied every 10 minutes. If you need this to be propagated immediately please <a class=\"reload-link\" href=\"#\">forcefully reload the worker setting</a>.<br />You should not make this setting too low as it will decrease the maximum capacity"
 
+msgid "stf.worker.RepairObject.throttle.auto_adapt"
+msgstr "Enable automatic adapting for throttling threshold (1=YES, anything else=NO)"
+
+msgid "stf.worker.RepairObject.throttle.auto_adapt.help"
+msgstr "If <a href=\"/config/worker/AdaptiveThrottler\">AdaptiveThrottler</a> is enabled AND this variable is set to 1, the throttling threshold will automatically be adjusted based on the load average of the storage servers"
+
 msgid "stf.worker.RepairObject.throttle.threshold"
 msgstr "Maximum threshold for automatic-throttling (jobs/10secs)"
 
@@ -56,7 +65,7 @@ msgid "stf.worker.RepairObject.throttle.current_threshold"
 msgstr "Current threshold value (jobs/10secs)"
 
 msgid "stf.worker.RepairObject.throttle.current_threshold.help"
-msgstr "Automatically adjusted by a cron job. If set to 0, will mean 'unlimited'"
+msgstr "Automatically adjusted if <a href=\"/config/worker/AdaptiveThrottler\">AdaptiveThrottler</a> is enabled. If set to -1, will mean 'unlimited'"
 
 msgid "stf.worker.AdaptiveThrottler.description"
 msgstr "Automatically changes throttling thresholds based on storage load"

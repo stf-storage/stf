@@ -16,7 +16,7 @@ has '+interval' => (
 # Note: threshold from SNMP is NOT in fractional. use 1=100
 has la_threshold => (
     is => 'ro',
-    default => 500
+    default => 700
 );
 
 sub work_once {
@@ -155,8 +155,8 @@ sub set_throttle_limit {
         }
 
         my $new_threshold = int($cur_threshold * 0.6);
-        if ($new_threshold < 1) {
-            $new_threshold = 1;
+        if ($new_threshold < 0) {
+            $new_threshold = 0;
         }
 
         $config_api->set($threshold_key, $new_threshold);

@@ -181,7 +181,7 @@ EOSQL
 sub check_throttle {
     my $self = shift;
     my $throttle_threshold = $self->throttler->threshold;
-    if (! $throttle_threshold) {
+    if ($throttle_threshold < 0) {
         return;
     }
 

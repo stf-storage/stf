@@ -3,6 +3,7 @@ use Mouse;
 use JSON();
 use Time::HiRes ();
 use STF::Utils;
+use STF::API::Throttler;
 
 extends 'STF::AdminWeb::Controller';
 
@@ -10,6 +11,33 @@ sub worker {
     my ($self, $c) = @_;
 
     my $worker_name = $c->match->{worker_name};
+
+    # Find where this worker should be running on
+    my @drones;
+    {
+        my $dbh = $c->get('DB::Master');
+        my $sth = $dbh->prepare(<<EOSQL);
+            SELECT drone_id FROM worker_instances WHERE worker_type = ?
+EOSQL
+        $sth->execute( $worker_name );
+        my $drone;
+        $sth->bind_columns(\($drone));
+        while ($sth->fetchrow_arrayref) {
+            push @drones, $drone;
+        }
+    }
+
+    # XXX Throttler API sucks. fix it
+    # Get the current throttling count
+    my $throttler = STF::API::Throttler->new(
+        key => "stf.worker.$worker_name.processed_jobs",
+        throttle_span => 10,
+        container => $c->container,
+    );
+    my %states = (
+        "stf.worker.$worker_name.processed_jobs" => $throttler->current_count(time()),
+    );
+
     my $prefix = sprintf 'stf.worker.%s.%%', $worker_name;
     my $config_vars = $c->get('API::Config')->search({
         varname => [
@@ -19,6 +47,8 @@ sub worker {
     });
 
     my $stash = $c->stash;
+    $stash->{drones} = \@drones;
+    $stash->{states} = \%states;
     $stash->{config_vars} = $config_vars;
     $stash->{worker_name} = $worker_name;
     my %fdat;

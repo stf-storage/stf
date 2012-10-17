@@ -21,7 +21,7 @@ EOSQL
     );
     my $throttler = STF::API::Throttler->new(
         key => "DUMMY",
-        throttle_span => 60,
+        throttle_span => 10,
         container => $c->container,
     );
     $h = {
