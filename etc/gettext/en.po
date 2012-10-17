@@ -65,7 +65,7 @@ msgid "stf.worker.RepairObject.throttle.current_threshold"
 msgstr "Current threshold value (jobs/10secs)"
 
 msgid "stf.worker.RepairObject.throttle.current_threshold.help"
-msgstr "Automatically adjusted if <a href=\"/config/worker/AdaptiveThrottler\">AdaptiveThrottler</a> is enabled. If set to -1, will mean 'unlimited'"
+msgstr "Automatically adjusted if <a href=\"/config/worker/AdaptiveThrottler\">AdaptiveThrottler</a> is enabled. <br />If set to 0, completely chokes the worker. If set to -1, will mean 'unlimited'.<br />If you manually change this value, make sure that automatic adapting for throttling threshold is DISABLED"
 
 msgid "stf.worker.AdaptiveThrottler.description"
 msgstr "Automatically changes throttling thresholds based on storage load"
