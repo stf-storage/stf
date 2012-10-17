@@ -137,8 +137,8 @@ sub update_meta {
 }
 
 around update => sub {
-    my ($next, $self, $id, $args) = @_;
-    my $rv = $self->$next($id, $args);
+    my ($next, $self, $id, $args, $where) = @_;
+    my $rv = $self->$next($id, $args, $where);
     eval {
         my $pk = ref $id ? $id->{id} : $id;
         my $storage = $self->lookup( $id );
