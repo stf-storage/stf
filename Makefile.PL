@@ -39,7 +39,6 @@ WriteMakefile(
     AUTHOR    => 'Daisuke Maki C<< <daisuke@endeworks.jp> >>',
     PREREQ_PM => {
         'Cache::Memcached::Fast' => 0,
-        'Class::Load' => 0,
         'Data::Page' => 0,
         'Data::FormValidator' => 0,
         'Data::Localize' => 0,

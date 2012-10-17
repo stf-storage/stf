@@ -146,3 +146,12 @@ CREATE TABLE worker_instances (
     FOREIGN KEY(drone_id) REFERENCES worker_election (drone_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARACTER SET = 'utf8';
 
+CREATE TABLE notification (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ntype CHAR(40) NOT NULL,
+    message TEXT NOT NULL,
+    created_at INT NOT NULL,
+    KEY(created_at),
+    KEY(ntype)
+) ENGINE=InnoDB DEFAULT CHARACTER SET = 'utf8';
+

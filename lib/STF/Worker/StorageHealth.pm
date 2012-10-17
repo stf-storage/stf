@@ -82,6 +82,18 @@ EOM
                 sleep 1;
                 $cached = $storage_api->lookup( $storage->{id} );
             }
+
+            # Don't let this fail this job, so wrap in eval {}
+            eval {
+                $self->get('API::Notification')->enqueue({
+                    ntype => "storage.down",
+                    message => "CRITICAL: Brought storage $storage->{id} ($storage->{uri}) DOWN because one of PUT/HEAD/GET/DELETE failed"
+                });
+            };
+            if ($@) {
+                critf($@);
+            }
+
             if (STF_DEBUG) {
                 debugf("Successfully brough storage %s DOWN", $storage->{id});
             }

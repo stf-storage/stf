@@ -27,6 +27,8 @@ has max_works_per_child => (
     default => 1_000
 );
 
+sub reload {}
+
 sub create_loop {
     my $self = shift;
     my $klass = $self->loop_class;

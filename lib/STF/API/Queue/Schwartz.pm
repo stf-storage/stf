@@ -17,6 +17,7 @@ has ability_map => (
 
 sub build_ability_map {
     return {
+        notify        => "STF::Worker::Notify::Proxy",
         replicate     => "STF::Worker::Replicate::Proxy",
         delete_object => "STF::Worker::DeleteObject::Proxy",
         delete_bucket => "STF::Worker::DeleteBucket::Proxy",

@@ -167,13 +167,12 @@ sub reload {
     if (STF_DEBUG) {
         debugf("Reloading worker config");
     }
-    my $dbh = $self->get('DB::Master');
-    my $sth = $dbh->prepare(<<EOSQL);
-        SELECT varvalue FROM config WHERE varname = ?
-EOSQL
-    my ($throttle_threshold) = $dbh->selectrow_array($sth, undef, $self->throttle_threshold_key);
+    my $throttle_threshold = $self->get('API::Config')->load_variable($self->throttle_threshold_key);
 
     $self->throttler->threshold($throttle_threshold);
+
+    $self->parent->reload();
+
     $self->should_reload(0);
     $self->next_reload($self->now + 60);
 }

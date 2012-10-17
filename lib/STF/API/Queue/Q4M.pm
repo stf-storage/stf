@@ -17,11 +17,11 @@ has funcmap => (
 
 sub build_funcmap {
     return {
+        notify        => Q4M_FUNC_NOTIFY,
         replicate     => Q4M_FUNC_REPLICATE,
         delete_object => Q4M_FUNC_DELETE_OBJECT,
         delete_bucket => Q4M_FUNC_DELETE_BUCKET,
         repair_object => Q4M_FUNC_REPAIR_OBJECT,
-        object_health => Q4M_FUNC_OBJECT_HEALTH,
     }
 }
 

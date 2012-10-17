@@ -34,10 +34,11 @@ CREATE TABLE queue_repair_object (
     created_at INT NOT NULL
 ) ENGINE=QUEUE;
 
-CREATE TABLE queue_object_health (
+CREATE TABLE queue_notify (
     args VARCHAR(255) NOT NULL,
     num_fails INT DEFAULT 0 NOT NULL,
     retry_at INT DEFAULT 0 NOT NULL,
     created_at INT NOT NULL
 ) ENGINE=QUEUE;
+
 

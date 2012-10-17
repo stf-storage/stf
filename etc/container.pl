@@ -2,10 +2,14 @@ use strict;
 use Furl::HTTP;
 use String::Urandom;
 use Cache::Memcached::Fast;
-use Class::Load ();
 use JSON ();
-use STF::Constants qw(STF_ENABLE_STORAGE_META STF_ENABLE_OBJECT_META);
-use STF::Constants qw(STF_DEBUG STF_TRACE);
+use STF::Constants qw(
+    STF_ENABLE_STORAGE_META
+    STF_ENABLE_OBJECT_META
+    STF_ENABLE_NOTIFY_IKACHAN
+    STF_DEBUG
+    STF_TRACE
+);
 
 if (STF_TRACE) {
     # The tracer is a special mechanism to trace activities from stf.
@@ -100,7 +104,7 @@ register 'API::Object' => sub {
     );
 };
 
-my @api_names = qw(API::Bucket API::Config API::Entity API::DeletedObject API::Storage API::StorageCluster);
+my @api_names = qw(API::Bucket API::Config API::Entity API::DeletedObject API::Notification API::Storage API::StorageCluster);
 if ( STF_ENABLE_STORAGE_META ) {
     require STF::API::StorageMeta;
     push @api_names, 'API::StorageMeta';
@@ -127,8 +131,8 @@ foreach my $name (@api_names) {
 register "API::Queue" => sub {
     my $c = shift;
     my $klass = "STF::API::Queue::$queue_type";
-    Class::Load::load_class($klass)
-        if ! Class::Load::is_class_loaded($klass);
+    Mouse::Util::load_class($klass)
+        if ! Mouse::Util::is_class_loaded($klass);
 
     $klass->new(
         cache_expires => 86400,
@@ -152,3 +156,18 @@ register 'AdminWeb::Router' => sub {
     require $c->get('config')->{'AdminWeb::Router'}->{routes};
 };
 
+my @notifiers = (
+    STF_ENABLE_NOTIFY_IKACHAN ? "Ikachan" : (),
+);
+foreach my $notifier (@notifiers) {
+    my $key = "API::Notification::$notifier";
+    my $klass = "STF::$key";
+    Mouse::Util::load_class($klass)
+        if ! Mouse::Util::is_class_loaded($klass);
+    register $key => sub {
+        my $c = shift;
+        $klass->new( %{ $c->get('config')->{$key} || {} }, container => $c );
+    };
+}
+
+"DONE";
