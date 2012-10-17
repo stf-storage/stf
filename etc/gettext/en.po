@@ -50,7 +50,7 @@ msgid "stf.drone.Replicate.instances.help"
 msgstr "This setting will be applied every 10 minutes. If you need this to be propagated immediately please <a class=\"reload-link\" href=\"#\">forcefully reload the worker setting</a>.<br />You should not make this setting too low as it will decrease the maximum capacity"
 
 msgid "stf.worker.RepairObject.throttle.auto_adapt"
-msgstr "Enable automatic adapting for throttling threshold (1=YES, anything else=NO)"
+msgstr "Enable automatic adapting for throttling threshold (0=NO, anything else=YES)"
 
 msgid "stf.worker.RepairObject.throttle.auto_adapt.help"
 msgstr "If <a href=\"/config/worker/AdaptiveThrottler\">AdaptiveThrottler</a> is enabled AND this variable is set to 1, the throttling threshold will automatically be adjusted based on the load average of the storage servers"
