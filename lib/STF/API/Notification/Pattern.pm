@@ -25,15 +25,19 @@ has op_arg => (
 
 sub match {
     my ($self, $args) = @_;
-    my $match = do {
-        given ($self->operation) {
-            $args->{$self->op_field} eq $self->op_arg when ("eq");
-            $args->{$self->op_field} == $self->op_arg when ("==");
-            $args->{$self->op_field} != $self->op_arg when ("!=");
-            $args->{$self->op_field} >= $self->op_arg when (">=");
-            $args->{$self->op_field} <= $self->op_arg when ("<=");
-            $args->{$self->op_field} =~ $self->op_arg when ("=~");
-        }
+
+    # XXX CI smoking shows that perl 5.14.x and 5.12.x behave differently
+    # in terms of return value for give() {...} block. 5.12.x seems to
+    # NOT return the value of the evaluated when block. So explicitly
+    # assign to $match in each when()
+    my $match = 0;
+    given ($self->operation) {
+        $match = $args->{$self->op_field} eq $self->op_arg when ("eq");
+        $match = $args->{$self->op_field} == $self->op_arg when ("==");
+        $match = $args->{$self->op_field} != $self->op_arg when ("!=");
+        $match = $args->{$self->op_field} >= $self->op_arg when (">=");
+        $match = $args->{$self->op_field} <= $self->op_arg when ("<=");
+        $match = $args->{$self->op_field} =~ $self->op_arg when ("=~");
     };
 
     return $match ? 1 :();
