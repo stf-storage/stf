@@ -69,14 +69,6 @@ sub search_with_entity_info {
     return wantarray ? @objects : \@objects;
 }
 
-sub load_objects_since {
-    my ($self, $object_id, $limit) = @_;
-    my $dbh = $self->dbh('DB::Master');
-    my $results = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id, $limit );
-        SELECT * FROM object WHERE id > ? LIMIT ?
-EOSQL
-    return wantarray ? @$results : $results;
-}
 
 sub create_internal_name {
     my ($self, $args) = @_;
@@ -114,65 +106,6 @@ EOSQL
 
     my ($id) = $dbh->selectrow_array( $sql, undef, @args );
     return $id;
-}
-
-sub find_neighbors {
-    my ($self, $object_id, $breadth) = @_;
-
-    if ($breadth <= 0) {
-        $breadth = 10;
-    }
-
-    my $dbh = $self->dbh;
-    # find neighbors (+/- $breadth items)
-    my $before = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id );
-        SELECT * FROM object WHERE id < ? ORDER BY id DESC LIMIT $breadth 
-EOSQL
-    my $after = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id );
-        SELECT * FROM object WHERE id > ? ORDER BY id ASC LIMIT $breadth 
-EOSQL
-
-    return (@$before, @$after)
-}
-
-sub find_suspicious_neighbors {
-    my ($self, $args) = @_;
-
-    my $object_id = $args->{object_id} or die "XXX no object_id";
-    my $storages  = $args->{storages}  or die "XXX no storages";
-    my $breadth   = $args->{breadth} || 0;
-
-    if ($breadth <= 0) {
-        $breadth = 10;
-    }
-
-    my %objects;
-    my $dbh = $self->dbh;
-    foreach my $storage_id ( @$storages ) {
-        # find neighbors in this storage
-        my $before = $dbh->selectall_arrayref( <<EOSQL, undef, $storage_id, $object_id );
-            SELECT e.object_id FROM entity e FORCE INDEX (PRIMARY)
-                WHERE e.storage_id = ? AND e.object_id < ?
-                ORDER BY e.object_id DESC LIMIT $breadth
-EOSQL
-        my $after = $dbh->selectall_arrayref( <<EOSQL, undef, $storage_id, $object_id );
-            SELECT e.object_id FROM entity e FORCE INDEX (PRIMARY)
-                WHERE e.storage_id = ? AND e.object_id > ?
-                ORDER BY e.object_id ASC LIMIT $breadth
-EOSQL
-
-        foreach my $row ( @$before, @$after ) {
-            my $object_id = $row->[0];
-            next if $objects{ $object_id };
-
-            my $object = $self->lookup( $object_id );
-            if ($object) {
-                $objects{ $object_id } = $object;
-            }
-        }
-    }
-
-    return values %objects;
 }
 
 sub create {
@@ -251,7 +184,7 @@ sub store {
         eval { $self->delete( $object_id ) };
     });
 
-    # Load all possible clusteres, ordered by a consistent hash
+    # Load all possible clusters, ordered by a consistent hash
     my @clusters = $cluster_api->load_candidates_for( $object_id );
     if (! @clusters) {
         critf(
@@ -456,7 +389,7 @@ sub get_any_valid_entity_url {
             my $memd = $self->get('Memcached');
             if (! $memd->get("repair_from_dispatcher.$object_id")) {
                 $self->get('API::Queue')->enqueue( repair_object => $object_id );
-                $memd->set("repair_from_dispatcher.$object_id", 1, 300);
+                $memd->add("repair_from_dispatcher.$object_id", 1, 300);
             }
         };
     }
@@ -592,6 +525,7 @@ EOSQL
             ) if STF_DEBUG;
             STF::Dispatcher::PSGI::HTTPException->throw( 304, [], [] );
         } else {
+            # What?! the request FAILED? Need to repair this sucker.
             $repair++;
         }
     };
@@ -602,7 +536,7 @@ EOSQL
             debugf("Object %s needs repair", $object_id) if STF_DEBUG;
             eval {
                 $self->get('API::Queue')->enqueue( repair_object => $object_id );
-                $memd->set("repair_from_dispatcher.$object_id", 1, 300);
+                $memd->add("repair_from_dispatcher.$object_id", 1, 300);
                 # Also, kill the cache
                 $self->cache_delete( @$cache_key );
             };
@@ -617,7 +551,7 @@ EOSQL
                 "HEAD request to %s was fastest (object_id = %s)",
                 $fastest,
                 $object_id,
-            ) if STF_DEBUG;
+            );
         }
     }
 
