@@ -46,8 +46,6 @@ sub notify {
     return unless $notification;
 
     foreach my $rule ( @{$self->rules} ) {
-use Data::Dumper::Concise;
-warn Dumper($rule);
         next unless $rule->match($notification);
 
         my $notifier = eval { $self->get($rule->notifier_name) };
