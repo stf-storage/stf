@@ -15,6 +15,12 @@ has mailer_args => (
     default => sub { +{} }
 );
 
+has mailer_type => (
+    is => 'ro',
+    required => 1,
+    default => 'Sendmail'
+);
+
 has mailer => (
     is => 'ro',
     lazy => 1,
@@ -23,7 +29,11 @@ has mailer => (
 
 sub build_mailer {
     my $self = shift;
-    Email::Send->new( $self->mailer_args );
+    my $mailer = Email::Send->new({ $self->mailer_type });
+    if (my $args = $self->mailer_args) {
+        $mailer->mailer_args($args);
+    }
+    return $mailer;
 }
 
 sub notify {
