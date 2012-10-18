@@ -82,6 +82,12 @@ msgstr "Delets the specified bucket"
 msgid "stf.worker.DeleteBucket.processed_jobs"
 msgstr "Jobs processed in the last 10 seconds for DeleteBucket"
 
+msgid "stf.worker.Notify.description"
+msgstr "Sends out notifications"
+
+msgid "stf.worker.NOtify.processed_jobs"
+msgstr "Jobs processed in the last 10 seconds for Notify"
+
 msgid "stf.worker.DeleteObject.description"
 msgstr "Deletes the specified object"
 
