@@ -38,8 +38,12 @@ sub notify {
     # -- we don't care)
     $furl->post( "$url/join", [], [ channel => $channel ]);
 
+    my $message = $args->{message};
+    if (my $severity = $args->{severity}) {
+        $message = "[$severity] $message";
+    }
     my ($code) = $furl->post( "$url/$method", [], [
-        channel => $channel, message => $args->{message}
+        channel => $channel, message => $message
     ]);
     if (STF_DEBUG) {
         if ($code ne 200) {

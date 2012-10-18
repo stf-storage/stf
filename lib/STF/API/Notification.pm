@@ -7,6 +7,7 @@ around create => sub {
     my ($next, $self, $args) = @_;
 
     $args->{created_at} ||= time();
+    $args->{severity}   ||= 'info';
     if (! $args->{source}) {
         my $i = 0;
         my @caller = caller($i++);

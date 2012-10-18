@@ -115,6 +115,9 @@ msgstr "Jobs processed in the last 10 seconds for StorageHealth"
 msgid "notification.ntype"
 msgstr "Notification Type"
 
+msgid "notification.severity"
+msgstr "Severity"
+
 msgid "notification.notifier_name"
 msgstr "Notification Module"
 

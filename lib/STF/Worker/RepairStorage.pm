@@ -77,7 +77,7 @@ sub work_once {
 
         eval {
             $self->get('API::Notification')->create({
-                ntype => "worker.storage_repair.start",
+                ntype => "storage_repair.start",
                 message => "Starting repair for storage $storage_id"
             });
         };
@@ -167,7 +167,7 @@ EOSQL
         }
         eval {
             $self->get('API::Notification')->create({
-                ntype => "worker.storage_repair.done",
+                ntype => "storage_repair.done",
                 message => "Finished enqueuing jobs to RepairObject for storage $storage_id"
             });
         };

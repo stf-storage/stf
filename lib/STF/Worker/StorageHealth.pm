@@ -87,7 +87,8 @@ EOM
             eval {
                 $self->get('API::Notification')->create({
                     ntype => "storage.down",
-                    message => "CRITICAL: Brought storage $storage->{id} ($storage->{uri}) DOWN because one of PUT/HEAD/GET/DELETE failed"
+                    severity => "critical",
+                    message => "Brought storage $storage->{id} ($storage->{uri}) DOWN because one of PUT/HEAD/GET/DELETE failed"
                 });
             };
             if ($@) {

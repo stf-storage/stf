@@ -157,6 +157,9 @@ msgstr "既存の通知設定"
 msgid "notification.ntype"
 msgstr "通知種別"
 
+msgid "notification.severity"
+msgstr "重要度"
+
 msgid "notification.notifier_name"
 msgstr "通知モジュール"
 

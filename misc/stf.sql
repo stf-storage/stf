@@ -151,6 +151,8 @@ CREATE TABLE notification (
     ntype CHAR(40) NOT NULL,
     /* source of this notification. should include file + linu num */
     source TEXT NOT NULL,
+    /* severity of this notification: critical, info ? anything else? */
+    severity VARCHAR(32) NOT NULL DEFAULT 'info',
     message TEXT NOT NULL,
     created_at INT NOT NULL,
     KEY(created_at),

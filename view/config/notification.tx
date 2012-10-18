@@ -57,6 +57,7 @@
     <td>
 <select name="op_field">
     <option value="ntype">[% loc("notification.ntype") %]</option>
+    <option value="severity">[% loc("notification.severity") %]</option>
 </select>
     </td>
 </tr>
