@@ -105,7 +105,7 @@ register 'API::Object' => sub {
     );
 };
 
-my @api_names = qw(API::Bucket API::Config API::Entity API::DeletedObject API::Notification API::NotificationRule API::Storage API::StorageCluster);
+my @api_names = qw(API::Bucket API::Config API::Entity API::DeletedObject API::Storage API::StorageCluster);
 if ( STF_ENABLE_STORAGE_META ) {
     require STF::API::StorageMeta;
     push @api_names, 'API::StorageMeta';
@@ -114,6 +114,11 @@ if ( STF_ENABLE_OBJECT_META ) {
     require STF::API::ObjectMeta;
     push @api_names, 'API::ObjectMeta';
 }
+
+if (STF_ENABLE_NOTIFICATIONS) {
+    push @api_names, qw(API::Notification API::NotificationRule);
+}
+
 foreach my $name (@api_names) {
     my $klass = "STF::$name";
     eval "require $klass";
@@ -157,19 +162,21 @@ register 'AdminWeb::Router' => sub {
     require $c->get('config')->{'AdminWeb::Router'}->{routes};
 };
 
-my @notifiers = (
-    STF_ENABLE_NOTIFY_IKACHAN ? "Ikachan" : (),
-    STF_ENABLE_NOTIFY_EMAIL   ? "Email"   : (),
-);
-foreach my $notifier (@notifiers) {
-    my $key = "API::Notification::$notifier";
-    my $klass = "STF::$key";
-    Mouse::Util::load_class($klass)
-        if ! Mouse::Util::is_class_loaded($klass);
-    register $key => sub {
-        my $c = shift;
-        $klass->new( %{ $c->get('config')->{$key} || {} }, container => $c );
-    };
+if (STF_ENABLE_NOTIFICATIONS) {
+    my @notifiers = qw(
+        Ikachan
+        Email
+    );
+    foreach my $notifier (@notifiers) {
+        my $key = "API::Notification::$notifier";
+        my $klass = "STF::$key";
+        register $key => sub {
+            Mouse::Util::load_class($klass)
+                if ! Mouse::Util::is_class_loaded($klass);
+            my $c = shift;
+            $klass->new( %{ $c->get('config')->{$key} || {} }, container => $c );
+        };
+    }
 }
 
 "DONE";
