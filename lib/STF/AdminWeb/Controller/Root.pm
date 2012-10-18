@@ -5,6 +5,18 @@ use STF::API::Throttler;
 extends 'STF::AdminWeb::Controller';
 
 sub index {}
+
+sub setlang {
+    my ($self, $c) = @_;
+
+    if (my $lang = $c->request->param('lang')) {
+        my $localizer = $c->get('Localizer')->set_languages( $lang );
+        $c->session->set(lang => $lang);
+    } 
+
+    $c->redirect("/");
+}
+
 sub state {
     my ($self, $c) = @_;
     # Load the current state of leader election

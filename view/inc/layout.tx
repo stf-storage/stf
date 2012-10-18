@@ -28,12 +28,8 @@
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container-fluid">
-            <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-            </a>
             <a class="brand" href="/">STF Web Interface</a>
+            <a class="btn btn-info pull-right" href="[% c.uri_for("/setlang", { lang => session.get('lang') == 'ja' ? 'en' : 'ja' }) %]">[% session.get('lang') == 'ja' ? "English" : "日本語" %]</a>
         </div>
     </div>
 </div>

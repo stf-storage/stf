@@ -94,14 +94,10 @@ sub handle_psgi {
     my $localizer = $context->get('Localizer');
 
     my $sessions = $rc->session;
-    if (my $lang = $rc->request->param('lang')) {
-        $localizer->set_languages( $lang );
-        $sessions->set(lang => $lang);
-    } else {
-        my $lang = $sessions->get('lang') || 'ja';
-        $localizer->set_languages( $lang );
-        $sessions->set(lang => $lang);
-    }
+    my $lang = $sessions->get('lang') || 'ja';
+    $localizer->set_languages( $lang );
+    $sessions->set(lang => $lang);
+
     eval {
         $self->dispatch( $rc, $env );
     };
@@ -209,6 +205,7 @@ sub render {
     $stash->{c} = $context;
     $stash->{const} = STF::Constants::as_hashref();
     $stash->{stf_base} = $self->stf_base;
+    $stash->{session} = $context->session;
     $view->process( $context, $template );
 }
 

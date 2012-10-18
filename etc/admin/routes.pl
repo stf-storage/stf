@@ -6,6 +6,11 @@ router {
         action     => 'index',
     };
 
+    connect '/setlang' => {
+        controller => 'Root',
+        action     => "setlang",
+    };
+
     connect '/state' => {
         controller => 'Root',
         action => 'state'
