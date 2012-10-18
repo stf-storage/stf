@@ -136,7 +136,7 @@ return +{
         constraint_methods => {
             notifier_name => qr{^API::Notification::(?:Email|Ikachan)$},
             operation     => qr{^(?:eq|ne|==|!=|<=|>=|=~)$},
-            op_field      => qr{^ntype$},
+            op_field      => qr{^(?:ntype|severity)$},
             op_arg        => sub {
                 my ($dfv, $arg) = @_;
                 my $op = $dfv->get_input_data->{operation};
