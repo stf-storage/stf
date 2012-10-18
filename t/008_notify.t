@@ -2,10 +2,10 @@ use strict;
 use Test::More;
 
 use_ok "STF::API::Notification";
-use_ok "STF::API::Notification::Pattern";
+use_ok "STF::API::NotificationRule";
 
 subtest "pattern" => sub {
-    my $pattern = STF::API::Notification::Pattern->new(
+    my $pattern = STF::API::NotificationRule::Matcher->new(
         notifier_name => "Foo",
         operation     => "eq",
         op_field      => "type",
