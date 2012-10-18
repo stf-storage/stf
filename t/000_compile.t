@@ -5,6 +5,7 @@ my $have_sqlite = eval { require DBD::SQLite };
 my $have_schwartz = eval { require TheSchwartz };
 my $have_resque = eval { require Resque };
 my $have_redis = eval { require Redis };
+my $have_email = eval { require Email::MIME; require Email::Send };
 my @modules = map {
     my $f = $_;
     $f =~ s{^lib/}{};
@@ -29,6 +30,10 @@ foreach my $module (@modules) {
 
         if ( $module =~ /Redis/ && ! $have_redis ) {
             skip "Redis is not available", 1;
+        }
+
+        if ( $module =~ /Notification::Email/ && ! $have_email ) {
+            skip "Email::MIME and/or Email::Send is not available", 1;
         }
 
         use_ok $module;
