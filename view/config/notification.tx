@@ -3,6 +3,7 @@
 <style type="text/css">
 <!--
     .extra-args-help { display: none }
+    p.help { font-size: 0.8em; color: #999 }
 -->
 </style>
 
@@ -40,7 +41,7 @@
 <form action="/config/notification/rule/add" method="POST">
 [% error_msgs(result) %]
 
-<table>
+<table class="table">
 <tr>
     <td>[% loc("notification.notifier_name") %]</td>
     <td>
@@ -73,29 +74,42 @@
     </td>
 </tr>
 <tr>
-    <td>[% loc("notification.op_arg") %]</td>
+    <td>[% loc("notification.op_arg") %]<br/>
+<p class="help"> [% loc("notification.op_arg.help") %]</p>
+</td>
     <td>
 <input type="text" name="op_arg">
     </td>
 </tr>
 <tr>
-    <td>[% loc("notification.extra_args") %]</td>
+    <td>[% loc("notification.extra_args") %]<br />
+    <p class="help">[% loc("notification.extra_args.help") %]</td>
     <td>
 <textarea name="extra_args" rows="5">
 </textarea>
     </td>
 </tr>
 <tr>
-    <td><input type="submit" value="[% loc("Create") %]"></td>
+    <td colspan="2"><input type="submit" value="[% loc("Create") %]"></td>
 </tr>
 </table>
 </form>
 
 <h3>[% loc("Current Notification Rules") %]</h3>
 <table class="table">
+<tr>
+    <th>ID</th>
+    <th>[% loc("notification.notifier_name") %]</th>
+    <th>[% loc("notification.op_field") %]</th>
+    <th>[% loc("notification.operation") %]</th>
+    <th>[% loc("notification.op_arg") %]</th>
+    <th>[% loc("notification.extra_args") %]</th>
+    <th>[% loc("Action") %]</th>
+</tr>
 [% FOREACH rule IN rules %]
 <tr>
     <td>[% rule.id %]</td>
+    <td>[% rule.notifier_name %]</td>
     <td>[% loc("notification." _ rule.op_field) %]</td>
     <td>[% rule.operation %]</td>
     <td>[% rule.op_arg %]</td>

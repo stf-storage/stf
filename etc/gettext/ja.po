@@ -43,6 +43,12 @@ msgstr "STFインスタンス全体でのワーカー数（最大処理能力）
 msgid "stf.drone.DeleteObject.instances.help"
 msgstr "10分ごとに反映されます。即時反映するには<a class=\"reload-link\" href=\"#\">リロードしてください</a>。<br />低くしすぎると処理能力が落ちるので注意してください。"
 
+msgid "stf.drone.Notify.instances"
+msgstr "STFインスタンス全体でのワーカー数（最大処理能力）"
+
+msgid "stf.drone.Notify.instances.help"
+msgstr "10分ごとに反映されます。即時反映するには<a class=\"reload-link\" href=\"#\">リロードしてください</a>。<br />低くしすぎると処理能力が落ちるので注意してください。"
+
 msgid "stf.drone.RepairObject.instances"
 msgstr "STFインスタンス全体でのワーカー数（最大処理能力）"
 
@@ -136,8 +142,20 @@ msgstr "各ストレージに対して書き込み・読み込みが可能か定
 msgid "stf.worker.StorageHealth.processed_jobs"
 msgstr "StorageHealth ジョブ処理数（過去10秒）"
 
+msgid "Notification Configuration"
+msgstr "通知設定"
+
+msgid "View or edit notification rules"
+msgstr "通知設定の閲覧・編集"
+
+msgid "Create A New Rule"
+msgstr "新規作成"
+
+msgid "Current Notification Rules"
+msgstr "既存の通知設定"
+
 msgid "notification.ntype"
-msgstr "通知タイプ"
+msgstr "通知種別"
 
 msgid "notification.notifier_name"
 msgstr "通知モジュール"
@@ -149,7 +167,14 @@ msgid "notification.operation"
 msgstr "マッチ操作種別"
 
 msgid "notification.op_arg"
-msgstr "マッチ文字列（正規表現の場合はqr//で囲われます)"
+msgstr "マッチ文字列"
+
+msgid "notification.op_arg.help"
+msgstr "正規表現の場合はqr//で囲われます"
 
 msgid "notification.extra_args"
-msgstr "その他通知モジュール用引数(JSON形式)"
+msgstr "その他通知モジュール用引数"
+
+msgid "notification.extra_args.help"
+msgstr "モジュール毎の任意引数。通常はハッシュ。JSON形式"
+

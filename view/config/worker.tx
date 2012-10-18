@@ -57,6 +57,13 @@
 [% END %]
 </table>
 
+[% IF (worker_name == "Notify") %]
+<h3>[% loc("Notification Configuration") %]</h3>
+<ul>
+    <li><a href="/config/notification">[% loc("View or edit notification rules") %]</a></li>
+</ul>
+[% END %]
+
 <h3>[% loc("Worker Configuration Variables") %]</h3>
 <form action="/config/update" method="POST">
 <input type="submit" value="Update">

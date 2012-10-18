@@ -111,3 +111,27 @@ msgstr "Checks each storage if it's writable and readable. If there's a problem,
 
 msgid "stf.worker.StorageHealth.processed_jobs"
 msgstr "Jobs processed in the last 10 seconds for StorageHealth"
+
+msgid "notification.ntype"
+msgstr "Notification Type"
+
+msgid "notification.notifier_name"
+msgstr "Notification Module"
+
+msgid "notification.op_field"
+msgstr "Match target field"
+
+msgid "notification.operation"
+msgstr "Match operator"
+
+msgid "notification.op_arg"
+msgstr "Match operand"
+
+msgid "notification.op_arg.help"
+msgstr "Will be quoted using qr// if operator is a regular expression."
+
+msgid "notification.extra_args"
+msgstr "Extra arguments to module"
+
+msgid "notification.extra_args.help"
+msgstr "Arbitrary parameter (usually a hash) in JSON format"
