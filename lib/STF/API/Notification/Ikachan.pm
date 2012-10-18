@@ -33,9 +33,19 @@ sub notify {
 
     my $url = $self->url;
     my $furl = $self->get('Furl');
-    my @res = $furl->post( "$url/$method", [], [
+
+    # do a join to make sure that we're in this channel (throw away results
+    # -- we don't care)
+    $furl->post( "$url/join", [], [ channel => $channel ]);
+
+    my ($code) = $furl->post( "$url/$method", [], [
         channel => $channel, message => $args->{message}
     ]);
+    if (STF_DEBUG) {
+        if ($code ne 200) {
+            debugf("HTTP request to Ikachan seems to have returned %d", $code);
+        }
+    }
 }
 
 1;
