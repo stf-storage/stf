@@ -137,6 +137,15 @@ return +{
             notifier_name => qr{^API::Notification::(?:Email|Ikachan)$},
             operation     => qr{^(?:eq|ne|==|!=|<=|>=|=~)$},
             op_field      => qr{^ntype$},
+            op_arg        => sub {
+                my ($dfv, $arg) = @_;
+                my $op = $dfv->get_input_data->{operation};
+                if ($op eq '=~') {
+                    eval { qr/$arg/ };
+                    return !$@;
+                }
+                return 1;
+            },
             extra_args    => sub {
                 my ($dfv, $arg) = @_;
                 eval {
