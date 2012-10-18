@@ -18,6 +18,11 @@ has rules => (
     default => sub { +[] }
 );
 
+has keep_notifications => (
+    is => 'rw',
+    default => 0
+);
+
 sub work_once {
     my ($self, $notification_id) = @_;
 
@@ -32,6 +37,9 @@ sub work_once {
 
 sub reload {
     my $self = shift;
+
+    my $keep = $self->get('API::Config')->load_variable("stf.worker.Notify.keep_notifications");
+    $self->keep_notifications($keep ? 1 : 0);
     my @rules = $self->get("API::NotificationRule")->search(
         { status => 1, },
     );
@@ -41,7 +49,8 @@ sub reload {
 sub notify {
     my ($self, $notification_id) = @_;
 
-    my $notification = $self->get('API::Notification')->lookup($notification_id);
+    my $notification_api =$self->get('API::Notification');
+    my $notification = $notification_api->lookup($notification_id);
     return unless $notification;
 
     foreach my $rule ( @{$self->rules} ) {
@@ -54,6 +63,13 @@ sub notify {
         }
         my $extra_args = $self->get('JSON')->decode($rule->extra_args || "null");
         $notifier->notify($notification, $extra_args);
+    }
+
+    # By default delete the notification that just got handled.
+    # If you want to keep them, it's your responsibility to delete them
+    # as appropriate.
+    if (! $self->keep_notifications) {
+        $notification_api->delete($notification_id);
     }
 }
 
