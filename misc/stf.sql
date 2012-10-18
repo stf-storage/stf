@@ -19,6 +19,8 @@ REPLACE INTO config (varname, varvalue)
     VALUES ("stf.drone.ContinuousRepair.instances", 1);
 REPLACE INTO config (varname, varvalue)
     VALUES ("stf.drone.StorageHealth.instances", 1);
+REPLACE INTO config (varname, varvalue)
+    VALUES ("stf.drone.Notify.instances", 1);
 
 REPLACE INTO config (varname, varvalue)
     VALUES ("stf.worker.RepairObject.throttle.auto_adapt", 1);
