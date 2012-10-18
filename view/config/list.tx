@@ -35,7 +35,7 @@
 <h3>[% loc("Workers") %]</h3>
 
 <table class="table">
-[% FOREACH worker_name IN [ "AdaptiveThrottler", "ContinuousRepair", "DeleteBucket", "DeleteObject", "RepairObject", "RepairStorage", "Replicate", "StorageHealth" ] %]
+[% FOREACH worker_name IN [ "AdaptiveThrottler", "ContinuousRepair", "DeleteBucket", "DeleteObject", "Notify", "RepairObject", "RepairStorage", "Replicate", "StorageHealth" ] %]
 <tr>
     <td><a href="/config/worker/[% worker_name %]">[% worker_name %]</a></td>
     <td>[% loc("stf.worker." _ worker_name _ ".description") %]</td>

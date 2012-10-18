@@ -1,15 +1,10 @@
 use strict;
 use Test::More;
 BEGIN {
-    use_ok "STF::Constants", qw(STF_ENABLE_NOTIFICATIONS);
     use_ok "STF::Context";
 }
 
-SKIP: {
-    if (! STF_ENABLE_NOTIFICATIONS) {
-        skip "Notifications are not enabled. Skipping test...", 2;
-    }
-
+{
     my $cxt = STF::Context->bootstrap;
     my $container = $cxt->container;
 

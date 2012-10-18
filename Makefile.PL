@@ -45,6 +45,8 @@ WriteMakefile(
         'Digest::MurmurHash' => 0,
         'DBI' => 0,
         'DBD::mysql' => 0,
+        'Email::MIME' => 0,
+        'Email::Send' => 0,
         'Furl' => '0.38',
         'HTML::FillInForm::Lite' => 0,
         'HTTP::Parser::XS' => 0,

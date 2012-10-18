@@ -6,7 +6,6 @@ use JSON ();
 use STF::Constants qw(
     STF_ENABLE_STORAGE_META
     STF_ENABLE_OBJECT_META
-    STF_ENABLE_NOTIFICATIONS
     STF_DEBUG
     STF_TRACE
 );
@@ -104,7 +103,17 @@ register 'API::Object' => sub {
     );
 };
 
-my @api_names = qw(API::Bucket API::Config API::Entity API::DeletedObject API::Storage API::StorageCluster);
+my @api_names = qw(
+    API::Bucket
+    API::Config
+    API::Entity
+    API::DeletedObject
+    API::Notification
+    API::NotificationRule
+    API::Storage
+    API::StorageCluster
+);
+
 if ( STF_ENABLE_STORAGE_META ) {
     require STF::API::StorageMeta;
     push @api_names, 'API::StorageMeta';
@@ -114,15 +123,11 @@ if ( STF_ENABLE_OBJECT_META ) {
     push @api_names, 'API::ObjectMeta';
 }
 
-if (STF_ENABLE_NOTIFICATIONS) {
-    push @api_names, qw(API::Notification API::NotificationRule);
-}
-
 foreach my $name (@api_names) {
     my $klass = "STF::$name";
-    eval "require $klass";
-    die if $@;
     register $name => sub {
+        Mouse::Util::load_class($klass)
+            if ! Mouse::Util::is_class_loaded($klass);
         my $c = shift;
         $klass->new(
             cache_expires => 86400,
@@ -161,21 +166,19 @@ register 'AdminWeb::Router' => sub {
     require $c->get('config')->{'AdminWeb::Router'}->{routes};
 };
 
-if (STF_ENABLE_NOTIFICATIONS) {
-    my @notifiers = qw(
-        Ikachan
-        Email
-    );
-    foreach my $notifier (@notifiers) {
-        my $key = "API::Notification::$notifier";
-        my $klass = "STF::$key";
-        register $key => sub {
-            Mouse::Util::load_class($klass)
-                if ! Mouse::Util::is_class_loaded($klass);
-            my $c = shift;
-            $klass->new( %{ $c->get('config')->{$key} || {} }, container => $c );
-        };
-    }
+my @notifiers = qw(
+    Ikachan
+    Email
+);
+foreach my $notifier (@notifiers) {
+    my $key = "API::Notification::$notifier";
+    my $klass = "STF::$key";
+    register $key => sub {
+        Mouse::Util::load_class($klass)
+            if ! Mouse::Util::is_class_loaded($klass);
+        my $c = shift;
+        $klass->new( %{ $c->get('config')->{$key} || {} }, container => $c );
+    };
 }
 
 "DONE";

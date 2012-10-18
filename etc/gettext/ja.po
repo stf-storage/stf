@@ -106,6 +106,12 @@ msgstr "指定されたオブジェクトを削除します"
 msgid "stf.worker.DeleteObject.processed_jobs"
 msgstr "DeleteObject ジョブ処理数（過去10秒）"
 
+msgid "stf.worker.Notify.description"
+msgstr "STFからの通知を処理します"
+
+msgid "stf.worker.Notify.processed_jobs"
+msgstr "Notify ジョブ処理数（過去10秒）"
+
 msgid "stf.worker.RepairObject.description"
 msgstr "オブジェクトをリペアします（クラスタの移動、エンティティの補充等）"
 
