@@ -39,8 +39,12 @@ sub notify {
     $furl->post( "$url/join", [], [ channel => $channel ]);
 
     my $message = $args->{message};
-    if (my $severity = $args->{severity}) {
-        $message = "[$severity] $message";
+    if (my $severity = uc $args->{severity}) {
+        if ($severity eq 'CRITICAL') {
+            $message = "\x{02}\x{16}\x{03}04($severity)\x{0f} $message";
+        } else {
+            $message = "$severity $message";
+        }
     }
     my ($code) = $furl->post( "$url/$method", [], [
         channel => $channel, message => $message
