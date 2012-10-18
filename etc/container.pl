@@ -152,6 +152,24 @@ register "API::Queue" => sub {
     );
 };
 
+register 'AdminWeb::Session::Store' => sub {
+    my $c = shift;
+    my $config = $c->get('config');
+    require Plack::Session::Store::Cache;
+    return Plack::Session::Store::Cache->new(
+        cache => $c->get('Memcached')
+    );
+};
+
+register 'AdminWeb::Session::State' => sub {
+    my $c = shift;
+    my $config = $c->get('config');
+    require Plack::Session::State::Cookie;
+    return Plack::Session::State::Cookie->new(
+        %{ $config->{'AdminWeb::Session::State'} }
+    );
+};
+
 register 'AdminWeb::Validator' => sub {
     require STF::DFV;
     my $c = shift;

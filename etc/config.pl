@@ -41,6 +41,15 @@ my $queue_type = $ENV{STF_QUEUE_TYPE} || 'Q4M';
         # Path to static files
         # htdocs => path_to( "htdocs" ),
     },
+
+    # Session state configuration
+    'AdminWeb::Session::State' => {
+        path => "/",
+        domain => "admin.stf.your.company.com",
+        expires => 86400,
+        httponly => 1,
+        secure => 1,
+    },
     # Used for Admin interface. You should not need to change this
     'AdminWeb::Router' => {
         routes => path_to("etc/admin/routes.pl"),

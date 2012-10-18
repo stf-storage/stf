@@ -68,8 +68,12 @@ sub to_app {
         $self->handle_psgi($env);
     };
 
+    my $container = $self->context->container;
     require Plack::Middleware::Session;
-    $app = Plack::Middleware::Session->wrap($app);
+    $app = Plack::Middleware::Session->wrap($app,
+        store => $container->get("AdminWeb::Session::Store"),
+        state => $container->get("AdminWeb::Session::State"),
+    );
     if ($self->use_reverse_proxy) {
         require Plack::Middleware::ReverseProxy;
         return Plack::Middleware::ReverseProxy->wrap( $app );
