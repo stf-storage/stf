@@ -75,6 +75,13 @@ sub work_once {
             } );
         });
 
+        eval {
+            $self->get('API::Notification')->create({
+                ntype => "worker.storage_repair.start",
+                message => "Starting repair for storage $storage_id"
+            });
+        };
+
         # Signals terminate the process, but don't allow us to fire the
         # guard object, so we manually fire it up
         my $loop = 1;
@@ -158,6 +165,12 @@ EOSQL
         if (! $bailout) {
             $api->update( $storage_id => { mode => $end_mode } );
         }
+        eval {
+            $self->get('API::Notification')->create({
+                ntype => "worker.storage_repair.done",
+                message => "Finished enqueuing jobs to RepairObject for storage $storage_id"
+            });
+        };
     };
     if (my $e = $@) {
         if ($e !~ /Received signal/) {
