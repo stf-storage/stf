@@ -149,6 +149,8 @@ CREATE TABLE worker_instances (
 CREATE TABLE notification (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     ntype CHAR(40) NOT NULL,
+    /* source of this notification. should include file + linu num */
+    source TEXT NOT NULL,
     message TEXT NOT NULL,
     created_at INT NOT NULL,
     KEY(created_at),
@@ -157,6 +159,10 @@ CREATE TABLE notification (
 
 CREATE TABLE notification_rule (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
+
+    /* status: 0 -> suspended, won't execute. status: 1 -> will execute */
+    status TINYINT NOT NULL DEFAULT 1,
+
     /* operation type, "eq", "ne", "==", "!=", "<=", ">=", "=~" */
     operation CHAR(2) NOT NULL,
     /* which notificiation object field to apply thie operation against */
@@ -176,6 +182,7 @@ CREATE TABLE notification_rule (
     /* which notifier to invoke upon rule match. Must be able to
        look this up via container->get. e.g. API::Notification::Email
     */
-    notifier_name VARCHAR(255) NOT NULL
+    notifier_name VARCHAR(255) NOT NULL,
+    KEY(status)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET = 'utf8';
 

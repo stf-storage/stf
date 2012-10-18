@@ -4,6 +4,7 @@
 <!--
     .extra-args-help { display: none }
     p.help { font-size: 0.8em; color: #999 }
+    tr.rule-disabled td { color: #999 }
 -->
 </style>
 
@@ -107,14 +108,16 @@
     <th>[% loc("Action") %]</th>
 </tr>
 [% FOREACH rule IN rules %]
-<tr>
+<tr[% IF (!rule.status) %] class="rule-disabled"[% END %]>
     <td>[% rule.id %]</td>
     <td>[% rule.notifier_name %]</td>
     <td>[% loc("notification." _ rule.op_field) %]</td>
     <td>[% rule.operation %]</td>
     <td>[% rule.op_arg %]</td>
     <td>[% rule.extra_args %]</td>
-    <td><a class="rule-delete btn btn-danger" href="#" data-for="[% rule.id %]">[% loc("Delete") %]</a></td>
+    <td>
+        <a class="rule-toggle btn btn-info" href="#" data-for="[% rule.id %]">[% IF (rule.status) %][% loc("Disable") %][% ELSE %][% loc("Enable") %][% END %]</a>
+        <a class="rule-delete btn btn-danger" href="#" data-for="[% rule.id %]">[% loc("Delete") %]</a></td>
 </tr>
 [% END %]
 </table>
@@ -142,7 +145,23 @@
         if ($("textarea[name='extra_args']").text() == "") {
             showExtraArgHelp(select.val());
         }
-        
+
+        $("a.rule-toggle").click(function(e) {
+            var el = $(e.target);
+            $.ajax({
+                url: "/ajax/notification/rule/toggle.json",
+                data: {id: el.attr("data-for") },
+                type: "POST",
+                error: function(xhr, stf, err) {
+                    alert("Failed to toggle rule");
+                },
+                success: function() {
+                    location.reload();
+                }
+            });
+            return false;
+        });
+
         $("a.rule-delete").click(function(e) {
             var ctx = $("#stf-rule-delete-confirm div.modal-body");
             $("div.main", ctx).show();

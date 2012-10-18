@@ -41,6 +41,11 @@ router {
         action     => 'reload',
     };
 
+    connect '/ajax/notification/rule/toggle.json' => {
+        controller => 'Config',
+        action     => 'notification_rule_toggle',
+    }, { method => 'POST' };
+
     connect '/ajax/notification/rule/delete.json' => {
         controller => 'Config',
         action     => 'notification_rule_delete',

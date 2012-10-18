@@ -30,6 +30,24 @@ sub notification_rule_add {
     $c->redirect( $c->uri_for("/config/notification") );
 }
 
+sub notification_rule_toggle {
+    my ($self, $c) = @_;
+
+    my $id = $c->request->param('id');
+    my $rule_api = $c->get('API::NotificationRule');
+    my $rule = $rule_api->lookup($id);
+    $rule_api->update($id, {
+        status => $rule->{status} ? 0 : 1,
+    });
+    
+    my $response = $c->response;
+    $response->code( 200 );
+    $response->content_type("application/json");
+    $c->finished(1);
+
+    $response->body(JSON::encode_json({ message => "toggled rule" }));
+}
+
 sub notification_rule_delete {
     my ($self, $c) = @_;
 

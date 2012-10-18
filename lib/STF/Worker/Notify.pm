@@ -33,7 +33,7 @@ sub work_once {
 sub reload {
     my $self = shift;
     my @rules = $self->get("API::NotificationRule")->search(
-        {},
+        { status => 1, },
         { order_by => 'sort_order ASC' }
     );
     $self->rules([ map { STF::API::NotificationRule::Matcher->new(%$_) } @rules ]);

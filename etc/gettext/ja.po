@@ -178,3 +178,5 @@ msgstr "その他通知モジュール用引数"
 msgid "notification.extra_args.help"
 msgstr "モジュール毎の任意引数。通常はハッシュ。JSON形式"
 
+msgid "Action"
+msgstr "アクション"
