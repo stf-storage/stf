@@ -129,7 +129,24 @@ return +{
     object_edit => {
         required => [qw(id num_replica status)],
         optional => [qw(cluster_id)],
-    }
+    },
+    notification_rule_add => {
+        required => [qw(notifier_name operation op_field op_arg)],
+        optional => [qw(extra_args)],
+        constraint_methods => {
+            notifier_name => qr{^API::Notification::(?:Email|Ikachan)$},
+            operation     => qr{^(?:eq|ne|==|!=|<=|>=|=~)$},
+            op_field      => qr{^ntype$},
+            extra_args    => sub {
+                my ($dfv, $arg) = @_;
+                eval {
+                    # make sure it's valid json
+                    $dfv->container->get('JSON')->decode($arg);
+                };
+                return !$@;
+            }
+        }
+    },
 };
 
 

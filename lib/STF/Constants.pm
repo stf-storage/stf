@@ -1,4 +1,5 @@
 package STF::Constants;
+
 use strict;
 use parent qw(Exporter);
 use Config ();
@@ -16,6 +17,7 @@ BEGIN {
         STF_ENABLE_STORAGE_META => $ENV{ STF_ENABLE_STORAGE_META },
         STF_ENABLE_OBJECT_META => $ENV{ STF_ENABLE_OBJECT_META },
         STF_ENABLE_NOTIFY_IKACHAN => $ENV{ STF_ENABLE_NOTIFY_IKACHAN },
+        STF_ENABLE_NOTIFY_EMAIL => $ENV{ STF_ENABLE_NOTIFY_EMAIL },
 
         OBJECT_ACTIVE => 1,
         OBJECT_INACTIVE => 0,
@@ -107,7 +109,6 @@ my @storage = qw(
     STORAGE_CLUSTER_MODE_READ_ONLY
     STORAGE_CLUSTER_MODE_READ_WRITE
     STORAGE_CLUSTER_MODE_RETIRE
-    STORAGE_MODE_REMOVED
     STORAGE_MODE_CRASH_RECOVERED
     STORAGE_MODE_CRASH_RECOVER_NOW
     STORAGE_MODE_CRASH                    
@@ -132,21 +133,6 @@ our %EXPORT_TAGS = (
     server => \@server,
     storage => \@storage,
 );
-
-our @EXPORT_OK = (
-    qw(
-        HAVE_64BITINT
-        STF_CACHE_DEBUG
-        STF_DEBUG
-        STF_TIMER
-        STF_TRACE
-        STF_NGINX_STYLE_REPROXY
-        STF_NGINX_STYLE_REPROXY_ACCEL_REDIRECT_URL
-        STF_ENABLE_OBJECT_META
-        STF_ENABLE_STORAGE_META
-        STF_ENABLE_NOTIFY_IKACHAN
-    ),
-    map { @$_ } values %EXPORT_TAGS
-);
+our @EXPORT_OK = keys %constants;
 
 1;

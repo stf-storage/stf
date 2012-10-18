@@ -155,3 +155,27 @@ CREATE TABLE notification (
     KEY(ntype)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET = 'utf8';
 
+CREATE TABLE notification_rule (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    /* operation type, "eq", "ne", "==", "!=", "<=", ">=", "=~" */
+    operation CHAR(2) NOT NULL,
+    /* which notificiation object field to apply thie operation against */
+    op_field  VARCHAR(255) NOT NULL DEFAULT "ntype",
+    /* user-defined operand.
+       e.g., op_field = "ntype", operation = "=~", op_arg = "^foo"
+             yields "ntype" =~ /^foo/
+    */
+    op_arg    VARCHAR(255) NOT NULL,
+    /* user-defined extra set of arguments that are required by
+       the notifier to complete the notification. e.g.
+       Ikachan notification requires "channel", email notification
+       requires "to" address.
+       encoded as JSON string
+    */
+    extra_args TEXT,
+    /* which notifier to invoke upon rule match. Must be able to
+       look this up via container->get. e.g. API::Notification::Email
+    */
+    notifier_name VARCHAR(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARACTER SET = 'utf8';
+

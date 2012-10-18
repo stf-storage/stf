@@ -6,6 +6,7 @@ use JSON ();
 use STF::Constants qw(
     STF_ENABLE_STORAGE_META
     STF_ENABLE_OBJECT_META
+    STF_ENABLE_NOTIFY_EMAIL
     STF_ENABLE_NOTIFY_IKACHAN
     STF_DEBUG
     STF_TRACE
@@ -104,7 +105,7 @@ register 'API::Object' => sub {
     );
 };
 
-my @api_names = qw(API::Bucket API::Config API::Entity API::DeletedObject API::Notification API::Storage API::StorageCluster);
+my @api_names = qw(API::Bucket API::Config API::Entity API::DeletedObject API::Notification API::NotificationRule API::Storage API::StorageCluster);
 if ( STF_ENABLE_STORAGE_META ) {
     require STF::API::StorageMeta;
     push @api_names, 'API::StorageMeta';
@@ -158,6 +159,7 @@ register 'AdminWeb::Router' => sub {
 
 my @notifiers = (
     STF_ENABLE_NOTIFY_IKACHAN ? "Ikachan" : (),
+    STF_ENABLE_NOTIFY_EMAIL   ? "Email"   : (),
 );
 foreach my $notifier (@notifiers) {
     my $key = "API::Notification::$notifier";

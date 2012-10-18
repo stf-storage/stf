@@ -13,6 +13,9 @@ my $queue_type = $ENV{STF_QUEUE_TYPE} || 'Q4M';
     # 'API::Object' => {}
     # 'API::Entity' => {},
     # 'API::Storage' => {}
+    'API::Notification::Email' => {
+        from => 'hello@world.net'
+    },
 
     # Dispatcher settings
     'Dispatcher' => {

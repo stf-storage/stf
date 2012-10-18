@@ -11,6 +11,16 @@ router {
         action => 'state'
     };
 
+    connect '/config/notification' => {
+        controller => 'Config',
+        action     => 'notification',
+    };
+
+    connect '/config/notification/rule/add' => {
+        controller => 'Config',
+        action     => 'notification_rule_add',
+    };
+
     connect '/config/worker/:worker_name' => {
         controller => 'Config',
         action     => 'worker',
@@ -30,6 +40,11 @@ router {
         controller => 'Config',
         action     => 'reload',
     };
+
+    connect '/ajax/notification/rule/delete.json' => {
+        controller => 'Config',
+        action     => 'notification_rule_delete',
+    }, { method => 'POST' };
 
     my %namespace = (
         Storage => 'storage',

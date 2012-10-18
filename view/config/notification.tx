@@ -1,0 +1,165 @@
+[% WRAPPER "inc/layout.tx" %]
+
+<style type="text/css">
+<!--
+    .extra-args-help { display: none }
+-->
+</style>
+
+<div class="modal fade" data-toggle="modal" id="stf-rule-delete-confirm">
+    <div class="modal-header">
+        <a class="close" data-dismiss="modal">x</a>
+        <h3>Delete rule</h3>
+    </div>
+    <div class="modal-body">
+        <div class="main">
+            <div class="alert alert-error">
+                <p>This will <em>DELETE</em> the specified rule</p>
+                <p>YOU CAN NOT UNDO THIS!</p>
+            </div>
+            <p>Are you sure you want to do this?</p>
+        </div>
+        <div class="processing" style="display: none">
+            <img src="/static/images/ajax-loader.gif"> Processing...
+        </div>
+        <div class="error" style="display: none">
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#" class="btn btn-danger" data-dismiss="modal">Cancel</a>
+        <a href="#" class="btn btn-primary">Delete</a>
+    </div>
+</div>
+
+
+<div class="well">
+<h2>[% loc("Notification Configuration") %]</h2>
+</div>
+
+<h3>[% loc("Create A New Rule") %]</h3>
+<form action="/config/notification/rule/add" method="POST">
+[% error_msgs(result) %]
+
+<table>
+<tr>
+    <td>[% loc("notification.notifier_name") %]</td>
+    <td>
+<select name="notifier_name">
+    <option value="API::Notification::Ikachan">Ikachan</option>
+    <option value="API::Notification::Email">Email</option>
+</select>
+    </td>
+</tr>
+<tr>
+    <td>[% loc("notification.op_field") %]</td>
+    <td>
+<select name="op_field">
+    <option value="ntype">[% loc("notification.ntype") %]</option>
+</select>
+    </td>
+</tr>
+<tr>
+    <td>[% loc("notification.operation") %]</td>
+    <td>
+<select name="operation">
+    <option value="=~">=~</option>
+    <option value="eq">eq</option>
+    <option value="ne">ne</option>
+    <option value="==">==</option>
+    <option value="!=">!=</option>
+    <option value="&gt;=">&gt;=</option>
+    <option value="&lt;=">&lt;=</option>
+</select>
+    </td>
+</tr>
+<tr>
+    <td>[% loc("notification.op_arg") %]</td>
+    <td>
+<input type="text" name="op_arg">
+    </td>
+</tr>
+<tr>
+    <td>[% loc("notification.extra_args") %]</td>
+    <td>
+<textarea name="extra_args" rows="5">
+</textarea>
+    </td>
+</tr>
+<tr>
+    <td><input type="submit" value="[% loc("Create") %]"></td>
+</tr>
+</table>
+</form>
+
+<h3>[% loc("Current Notification Rules") %]</h3>
+<table class="table">
+[% FOREACH rule IN rules %]
+<tr>
+    <td>[% rule.id %]</td>
+    <td>[% loc("notification." _ rule.op_field) %]</td>
+    <td>[% rule.operation %]</td>
+    <td>[% rule.op_arg %]</td>
+    <td>[% rule.extra_args %]</td>
+    <td><a class="rule-delete btn btn-danger" href="#" data-for="[% rule.id %]">[% loc("Delete") %]</a></td>
+</tr>
+[% END %]
+</table>
+
+<div data-for="API::Notification::Ikachan" class="extra-args-help">{ "channel": "#stf" }</div>
+<div data-for="API::Notification::Email" class="extra-args-help">{ "to": "somebody@hello.world.com" }</div>
+
+<script type="text/javascript">
+<!--
+    $(document).ready(function() {
+        var showExtraArgHelp = function(name) {
+            $("div.extra-args-help").each( function(i, e) {
+                var el = $(e);
+                if (el.attr("data-for") === name) {
+                    $("textarea[name='extra_args']").text(el.text());
+                }
+            });
+        };
+
+        var select = $("select[name='notifier_name']");
+        select.change(function(e) {
+            var el = $(e.target);
+            showExtraArgHelp(el.val());
+        });
+        if ($("textarea[name='extra_args']").text() == "") {
+            showExtraArgHelp(select.val());
+        }
+        
+        $("a.rule-delete").click(function(e) {
+            var ctx = $("#stf-rule-delete-confirm div.modal-body");
+            $("div.main", ctx).show();
+            $("div.processing", ctx).hide();
+            $("div.error", ctx).hide();
+            $("#stf-rule-delete-confirm").modal("show");
+            $("a.btn-primary", "#stf-rule-delete-confirm").attr("data-for", $(e.target).attr("data-for"));
+            return false;
+        });
+        $("a.btn-primary", "#stf-rule-delete-confirm").click(function(e) {
+            var el  = $(e.target);
+            var cxt = $("#stf-rule-delete-confirm div.modal-body");
+            $("div.main", cxt).hide();
+            $("div.processing", cxt).show();
+            $.ajax({
+                url: "/ajax/notification/rule/delete.json",
+                data: { id: el.attr("data-for") },
+                type: "POST",
+                error: function(xhr, st, err) {
+                    $("div.processing", cxt).hide();
+                    $("div.error", cxt)
+                        .text("Failed to set reload " + err).show();
+                },
+                success: function() {
+                    $("#stf-rule-delete-confirm").modal("hide");
+                    location.reload();
+                }
+            });
+        } );
+    });
+-->
+</script>
+
+[% END %]

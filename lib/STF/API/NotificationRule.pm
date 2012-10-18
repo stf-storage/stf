@@ -1,4 +1,10 @@
-package STF::API::Notification::Pattern;
+package STF::API::NotificationRule;
+use Mouse;
+
+with 'STF::API::WithDBI';
+
+package
+    STF::API::NotificationRule::Matcher;
 use Mouse;
 use feature 'switch';
 
@@ -42,5 +48,7 @@ sub match {
 
     return $match ? 1 :();
 }
+
+no Mouse;
 
 1;

@@ -7,6 +7,43 @@ use STF::API::Throttler;
 
 extends 'STF::AdminWeb::Controller';
 
+sub notification {
+    my ($self, $c) = @_;
+
+    my @rules = $c->get('API::NotificationRule')->search();
+    $c->stash->{rules} = \@rules;
+}
+
+sub notification_rule_add {
+    my ($self, $c) = @_;
+
+    my $params = $c->request->parameters->as_hashref;
+    my $result = $self->validate($c, "notification_rule_add", $params);
+    if (! $result->success) {
+        $self->notification($c); # load stuff
+        $c->stash->{template} = 'config/notification';
+        $self->fillinform( $c, $params );
+        return;
+    }
+
+    $c->get('API::NotificationRule')->create($params);
+    $c->redirect( $c->uri_for("/config/notification") );
+}
+
+sub notification_rule_delete {
+    my ($self, $c) = @_;
+
+    my $id = $c->request->param('id');
+    $c->get('API::NotificationRule')->delete($id);
+    
+    my $response = $c->response;
+    $response->code( 200 );
+    $response->content_type("application/json");
+    $c->finished(1);
+
+    $response->body(JSON::encode_json({ message => "deleted rule" }));
+}
+
 sub worker {
     my ($self, $c) = @_;
 

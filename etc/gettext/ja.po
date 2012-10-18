@@ -129,3 +129,21 @@ msgstr "各ストレージに対して書き込み・読み込みが可能か定
 
 msgid "stf.worker.StorageHealth.processed_jobs"
 msgstr "StorageHealth ジョブ処理数（過去10秒）"
+
+msgid "notification.ntype"
+msgstr "通知タイプ"
+
+msgid "notification.notifier_name"
+msgstr "通知モジュール"
+
+msgid "notification.op_field"
+msgstr "マッチ対象フィールド"
+
+msgid "notification.operation"
+msgstr "マッチ操作種別"
+
+msgid "notification.op_arg"
+msgstr "マッチ文字列（正規表現の場合はqr//で囲われます)"
+
+msgid "notification.extra_args"
+msgstr "その他通知モジュール用引数(JSON形式)"
