@@ -41,7 +41,7 @@ sub expand_key {
     # for max efficiency...
     return map {
         join ".", $_[0], ($_[1] - $_)
-    } 0 .. $_[2];
+    } 0 .. ($_[2] - 1);
 }
 
 sub current_count_multi {

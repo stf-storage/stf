@@ -1,9 +1,6 @@
 package STF::Worker::AdaptiveThrottler;
 use Mouse;
-use URI;
-use Net::SNMP;
 use STF::Constants qw(:storage STF_DEBUG);
-use STF::Utils ();
 use STF::Log;
 
 extends 'STF::Worker::Base';
@@ -18,6 +15,20 @@ has la_threshold => (
     is => 'ro',
     default => 700
 );
+
+before work => sub {
+    my $self = shift;
+
+    # before starting work, we would like to start the stats collector
+    $self->get('API::Config')->set(
+        "stf.drone.StatsCollector.instances" => 1
+    );
+
+    my $now = time();
+    $self->get('Memcached')->set_multi(
+        map { [ "stf.drone.$_", $now ] } qw(election reload balance),
+    );
+};
 
 sub work_once {
     my $self = shift;
@@ -46,18 +57,6 @@ sub work_once {
     }
 }
 
-sub create_snmp_session {
-    my ($self, $host) = @_;
-
-    # XXX cheat. Should this information be retrieved from DB?
-    my $config = $self->get('config')->{SNMP} || {};
-    return Net::SNMP->session(
-        -timeout  => 5,
-        -hostname => $host,
-        %$config,
-    );
-}
-
 sub check_loads {
     my $self = shift;
 
@@ -77,25 +76,20 @@ sub check_loads {
 
     my $la_threshold = $self->la_threshold;
     my $loadhigh = 0;
-    my $baseoid = ".1.3.6.1.4.1.2021.10.1.5"; # laLoadInt
-    foreach my $storage ( @storages ) {
-        # XXX extract host out of URI
-        my $uri = URI->new($storage->{uri});
-        my $host = $uri->host;
-        if (STF_DEBUG) {
-            debugf("Sending SNMP to %s", $host);
-        }
-        my ($session, $error) = $self->create_snmp_session($host);
-        if ($error) {
-            critf($error);
+
+    my $time = time();
+    my $t    = $time - $time % 60;
+    my @keys = map { "storage.load.$_->{id}.$t" } @storages;
+    my $h    = $self->get('Memcached')->get_multi(@keys);
+
+    foreach my $key (keys %$h) {
+        my $load    = $h->{$key};
+        if (! $load) {
             next;
         }
-        my $result = $session->get_table(
-            -baseoid => $baseoid
-        );
-        my $loadavg = $result->{"$baseoid.1"};
+        my $loadavg = $load->[0];
         if (STF_DEBUG) {
-            debugf(" + Load average for %s is %f", $host, $loadavg / 100);
+            debugf(" + Load average for %s is %f", ($key =~ /^storage\.load\.([^\.]+)/), $loadavg / 100);
         }
 
         if ($loadavg > $la_threshold) { 
@@ -113,35 +107,22 @@ sub set_throttle_limit {
     my ($self, $worker_name, $is_high) = @_;
 
     my $config_api = $self->get('API::Config');
-    my @list = $config_api->search({
-        varname => {
-            'LIKE' => sprintf('stf.worker.%s.throttle.%%', $worker_name),
-        }
-    });
-    return unless @list;
-    my $h = +{ map { ($_->{varname}, $_->{varvalue}) } @list };
-    foreach my $key (keys %$h) {
-        my $new_key = $key;
-        $new_key =~ s/^stf\.worker\.[^\.]+\.throttle\.//;
-        $h->{$new_key} = delete $h->{$key};
-    }
 
-    if ( ! $h->{"auto_adapt"}) {
+    my $auto_adapt = $config_api->load_variable("stf.worker.$worker_name.throttle.auto_adapt");
+
+    if ( ! $auto_adapt) {
         if (STF_DEBUG) {
             debugf("Auto-adapt is not enabled. Skipping worker %s", $worker_name);
         }
         return;
     }
 
-    my $threshold_key = 
-        sprintf "stf.worker.%s.throttle.current_threshold", $worker_name;
-    my $max_threshold_key = 
-        sprintf "stf.worker.%s.throttle.threshold", $worker_name;
-
-    my ($cur_threshold) = $config_api->search({ varname => $threshold_key });
-    my ($max_threshold) = $config_api->search({ varname => $max_threshold_key });
-    $cur_threshold = $cur_threshold ? $cur_threshold->{varvalue} : 0;
-    $max_threshold = $max_threshold ? $max_threshold->{varvalue} : 0;
+    my $cur_threshold = $config_api->load_variable(
+        "stf.worker.$worker_name.throttle.current_threshold"
+    ) || 0;
+    my $max_threshold = $config_api->load_variable(
+        "stf.worker$worker_name.throttle.threshold"
+    ) || 0;
 
     if ($is_high) { 
         # change the loadavg to 60%
