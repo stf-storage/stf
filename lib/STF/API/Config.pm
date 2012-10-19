@@ -4,6 +4,14 @@ use Scope::Guard ();
 
 with 'STF::API::WithDBI';
 
+sub remove {
+    my ($self, $varname) = @_;
+    my $table = $self->table;
+    $self->get('DB::Master')->do(<<EOSQL, undef, $varname);
+        DELETE FROM $table WHERE varname = ?
+EOSQL
+}
+
 sub set {
     my ($self, @args) = @_;
 
