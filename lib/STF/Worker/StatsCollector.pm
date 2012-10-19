@@ -11,7 +11,7 @@ with 'STF::Trait::WithContainer';
 has '+interval' => (
     # XXX IF YOU CHANGE THIS, YOU NEED TO CHANGE ALL THE SNMP QUERYING!
     # See L<NORMALIZING THE KEY> below
-    default => 60 * 1_000_000
+    default => 30 * 1_000_000
 );
 
 sub work_once {
