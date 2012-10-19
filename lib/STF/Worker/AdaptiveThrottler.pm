@@ -117,12 +117,10 @@ sub set_throttle_limit {
         return;
     }
 
-    my $cur_threshold = $config_api->load_variable(
-        "stf.worker.$worker_name.throttle.current_threshold"
-    ) || 0;
-    my $max_threshold = $config_api->load_variable(
-        "stf.worker$worker_name.throttle.threshold"
-    ) || 0;
+    my $threshold_key = "stf.worker.$worker_name.throttle.current_threshold";
+    my $max_threshold_key = "stf.worker.$worker_name.throttle.threshold";
+    my $cur_threshold = $config_api->load_variable($threshold_key) || 0;
+    my $max_threshold = $config_api->load_variable($max_threshold_key) || 0;
 
     if ($is_high) { 
         # change the loadavg to 60%
