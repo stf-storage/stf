@@ -172,11 +172,9 @@ EOSQL
         }
     }
 
-    my $memd = $self->get("Memcached");
-    $memd->set("stf.drone.balance", Time::HiRes::time());
-    if ($self->is_leader) {
-        $memd->set("stf.drone.election", Time::HiRes::time());
-    }
+    eval {
+        $self->broadcast_reload;
+    };
 
     wait;
 
@@ -233,7 +231,10 @@ sub check_state {
     if ($self->is_leader) {
         my $when_to_balance = $h->{"stf.drone.balance"} || 0;
         my $last_balance = $self->last_balance;
-        if ($last_balance < 0 || $last_balance < $when_to_balance) {
+        if ($last_balance < 0 ||
+            $self->now - $last_balance > 600 || # it has been 10 minutes since last balance
+             $last_balance < $when_to_balance
+        ) {
             $state |= BIT_BALANCE;
         }
     }
@@ -252,7 +253,7 @@ sub reload {
     }
 
     if (STF_DEBUG) {
-        debugf("Reloading worker configuration");
+        debugf("Reloading drone configuration");
     }
     $self->last_reload($self->now);
 
@@ -290,6 +291,22 @@ EOSQL
     my $instances = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, $self->id);
         SELECT * FROM worker_instances WHERE drone_id = ?
 EOSQL
+
+    # What?! No instances?
+    if (! @$instances) {
+        # Am I the leader? Make sure we rebalance our workers ASAP
+        if ($self->is_leader) {
+            $self->gstate( $self->gstate ^ BIT_BALANCE );
+        } else {
+            # We're not the leader. tell the leader to get something up
+            $self->broadcast_reload();
+            if (STF_DEBUG) {
+                debugf("No local instances provided for us. Sent notice to reload");
+            }
+        }
+        return;
+    }
+
     my $total = 0;
     foreach my $instance (@$instances) {
         if (STF_DEBUG) {
@@ -301,7 +318,10 @@ EOSQL
     $self->process_manager->set_max_procs($total);
 
     if (STF_DEBUG) {
-        debugf("Reloaded worker config");
+        debugf("Workers that %s needs to spawn:", $self->id);
+        foreach my $instance (@$instances) {
+            debugf(" + %s = %d instances", $instance->{worker_type}, $instance->{instances} );
+        }
     }
     return 1;
 }
@@ -327,6 +347,8 @@ sub run {
             die "Received signal during loop\n";
         };
     }
+
+    $self->join_group;
 
     while ( $signal_received !~ /^(?:TERM|INT)$/ ) {
         $signal_received = '';
@@ -373,6 +395,26 @@ sub wait_one_child {
 
 sub update_now {
     $_[0]->now(Time::HiRes::time());
+}
+
+sub broadcast_reload {
+    my $self = shift;
+    if (STF_DEBUG) {
+        debugf("Broadcast reload");
+    }
+    my $time = $self->now + 5;
+    $self->get('Memcached')->set_multi(
+        [ "stf.drone.reload"   => $time ],
+        [ "stf.drone.election" => $time ],
+        [ "stf.drone.balance"  => $time ],
+    );
+}
+
+sub join_group {
+    my $self = shift;
+    $self->update_now;
+    $self->announce;
+    $self->broadcast_reload;
 }
 
 sub announce {
@@ -566,6 +608,7 @@ EOSQL
     # We came to rebalance, we should reload
     $self->gstate( $self->gstate ^ BIT_RELOAD );
     $self->reload;
+    $self->broadcast_reload();
 }
 
 sub get_processes_by_name {
