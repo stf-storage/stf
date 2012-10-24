@@ -108,16 +108,12 @@ sub work_once {
         my ($max_object_id) = $dbh->selectrow_array(<<EOSQL);
             SELECT max(id) FROM object
 EOSQL
-        my $save_object_id_sth = $dbh->prepare(<<EOSQL);
-            REPLACE INTO config (varname, varvalue) VALUES ('stf.worker.RepairStorage.object_id', ?);
-EOSQL
-        my $load_object_id_sth = $dbh->prepare(<<EOSQL);
-            SELECT varvalue FROM config WHERE varname = 'stf.worker.RepairStorage.object_id';
-EOSQL
         my $sth = $dbh->prepare(<<EOSQL);
             SELECT object_id FROM entity WHERE storage_id = ? AND object_id > ? ORDER BY object_id ASC LIMIT $limit
 EOSQL
         my $size = $queue_api->size( 'repair_object' );
+        my $last_object_id_key = 'stf.worker.RepairStorage.object_id';
+        my $config_api = $self->get('API::Config');
         while ( $loop && $sth->execute( $storage_id, $object_id ) > 0 ) {
             $sth->bind_columns( \($object_id) );
             while ( $loop && $sth->fetchrow_arrayref ) {
@@ -126,7 +122,7 @@ EOSQL
                 $0 = "$o_e0 (object_id: $object_id, $processed)";
             }
             # save the object_id so we can view / alter it later
-            $save_object_id_sth->execute($object_id);
+            $config_api->set($last_object_id_key, $object_id);
 
             $loop = $object_id < $max_object_id;
 
@@ -150,7 +146,7 @@ EOSQL
             }
 
             # Check to see if our previous object_id has not been changed
-            my ($saved_object_id) = $dbh->selectrow_array($load_object_id_sth, undef);
+            my $saved_object_id = $config_api->load_variable($last_object_id_key);
             # XXX In the rare case that the saved_object_id is null or
             # something, we can't just overwrite $object_id
             if ($saved_object_id) {
