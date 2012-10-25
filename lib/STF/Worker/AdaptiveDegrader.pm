@@ -59,6 +59,7 @@ EOM
                 $message .= "    [$st->{id}][@{[fmt_storage_mode($st->{mode})]}] $st->{uri}\n";
             }
             $self->get('API::Notification')->create({
+                ntpye => "storage.adaptive_degrader.alter",
                 severity => "critical",
                 message => $message,
             });
