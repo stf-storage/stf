@@ -2,7 +2,8 @@
 # loads are high
 package STF::Worker::AdaptiveDegrader;
 use Mouse;
-use STF::Constants qw(STORAGE_MODE_READ_WRITE);
+use STF::Constants qw(STF_DEBUG STORAGE_MODE_READ_WRITE);
+use STF::Log;
 
 extends 'STF::Worker::Base';
 with 'STF::Trait::WithContainer';
@@ -20,7 +21,7 @@ sub work_once {
     my @storages = $storage_api->search({
         mode => { IN => [
             STORAGE_MODE_READ_WRITE,
-        }
+        ] }
     });
     my $time = time();
     my $t    = $time - $time % 60;
@@ -55,7 +56,7 @@ Load average is $loadavg->[0], $loadavg->[1], $loadavg->[2]
 Maybe change storage(s) in this cluster to be READONLY?
 Storages in cluster $storage->{cluster_id}:
 EOM
-            foreach my $st (@storages_in_Cluster) {
+            foreach my $st (@storages_in_cluster) {
                 $message .= "    [$st->{id}][@{[fmt_storage_mode($st->{mode})]}] $st->{uri}\n";
             }
             $self->get('API::Notification')->create({
