@@ -68,8 +68,8 @@ sub check_loads {
     # that it doesn't get over $la_threshold
     my @storages = $self->get("API::Storage")->search({
         mode => { IN => [
-            STORAGE_CLUSTER_MODE_READ_ONLY,
-            STORAGE_CLUSTER_MODE_READ_WRITE,
+            STORAGE_MODE_READ_ONLY,
+            STORAGE_MODE_READ_WRITE,
             STORAGE_MODE_REPAIR_NOW,
         ] }
     });
