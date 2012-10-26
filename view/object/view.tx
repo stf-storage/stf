@@ -23,7 +23,7 @@
 </tr>
 <tr>
     <td>Bucket</td>
-    <td><a href="/bucket/[% bucket.id %]">[% bucket.name %]</a></td>
+    <td><a href="/bucket/show/[% bucket.id %]">[% bucket.name %]</a></td>
 </tr>
 <tr>
     <td>Cluster</td>
