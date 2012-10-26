@@ -13,7 +13,7 @@ has '+interval' => (
 # Note: threshold from SNMP is NOT in fractional. use 1=100
 has la_threshold => (
     is => 'ro',
-    default => 700
+    default => 600
 );
 
 before work => sub {
@@ -145,11 +145,11 @@ sub set_throttle_limit {
         my ($new_threshold);
             
         if ($max_threshold > $cur_threshold) {
-            if ($cur_threshold < 10) {
-                $new_threshold = $cur_threshold + 5;
-            } else {
-                $new_threshold = int($cur_threshold * 1.1);
+            my $increment = int($cur_threshold * 0.06);
+            if ($increment < 1) {
+                $increment = 1;
             }
+            $new_threshold += $cur_threshold + $increment;
 
             if ($max_threshold < $new_threshold) {
                 $new_threshold = $max_threshold;
