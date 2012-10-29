@@ -10,12 +10,6 @@ has '+interval' => (
     default => 60 * 1_000_000
 );
 
-# Note: threshold from SNMP is NOT in fractional. use 1=100
-has la_threshold => (
-    is => 'ro',
-    default => 600
-);
-
 before work => sub {
     my $self = shift;
 
@@ -74,7 +68,13 @@ sub check_loads {
         ] }
     });
 
-    my $la_threshold = $self->la_threshold;
+    my $la_threshold = $self->get('API::Config')->load_variable(
+        "stf.worker.AdaptiveThrottler.loadavg_threshold"
+    );
+    if (! defined $la_threshold || $la_threshold <= 0) {
+        $la_threshold = 650;
+    }
+
     my $loadhigh = 0;
 
     my $time = time();
@@ -133,7 +133,11 @@ sub set_throttle_limit {
             $cur_threshold = $max_threshold / 2;
         }
 
-        my $new_threshold = int($cur_threshold * 0.6);
+        my $drop_rate = $config_api->load_variable("stf.worker.$worker_name.throttle.drop_rate");
+        if (! defined $drop_rate || $drop_rate <= 0 || $drop_rate >= 1) {
+            $drop_rate = 0.6;
+        }
+        my $new_threshold = int($cur_threshold * $drop_rate);
         if ($new_threshold < 0) {
             $new_threshold = 0;
         }
@@ -145,7 +149,11 @@ sub set_throttle_limit {
         my ($new_threshold);
             
         if ($max_threshold > $cur_threshold) {
-            my $increment = int($cur_threshold * 0.06);
+            my $increase_rate = $config_api->load_variable("stf.worker.$worker_name.throttle.increase_rate");
+            if (!defined $increase_rate || $increase_rate <= 0) {
+                $increase_rate = 0.06;
+            }
+            my $increment = int($cur_threshold * $increase_rate);
             if ($increment < 1) {
                 $increment = 1;
             }
