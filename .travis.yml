@@ -1,8 +1,10 @@
 language: perl
 perl:
+  - "5.16"
   - "5.14"
   - "5.12"
+  - "5.10"
 env:
-  - STF_QUEUE_TYPE=Schwartz STF_ENABLE_NOTIFICATIONS=1
-  - STF_QUEUE_TYPE=Resque STF_ENABLE_NOTIFICATIONS=1
-  - STF_QUEUE_TYPE=Redis STF_ENABLE_NOTIFICATIONS=1
+  - STF_QUEUE_TYPE=Schwartz
+  - STF_QUEUE_TYPE=Resque
+  - STF_QUEUE_TYPE=Redis
