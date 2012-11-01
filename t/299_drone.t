@@ -39,7 +39,7 @@ subtest 'check_state' => sub {
             note "Restoring is_leader...";
             $drone->is_leader($orig);
         });
-        local $drone->is_leader($is_leader);
+        $drone->is_leader($is_leader);
 
         $drone->update_now;
         $drone->next_check_state( $drone->now - 1 );
