@@ -197,6 +197,7 @@ sub should_reload       { $_[0]->gstate & BIT_RELOAD }
 sub check_state {
     my $self = shift;
 
+    $self->gstate(0);
     if ($self->next_check_state > $self->now) {
         return;
     }
