@@ -224,7 +224,7 @@ sub check_state {
     my $last_election = $self->last_election;
     if ($last_election < 0 ||                 # first time
         $self->now - $last_election > 300 ||  # it has been 5 minutes since last election
-        $self->last_election < $when_to_elect # explicitly told that election should be held
+        $last_election < $when_to_elect # explicitly told that election should be held
     ) {
         $state |= BIT_ELECTION;
     }
