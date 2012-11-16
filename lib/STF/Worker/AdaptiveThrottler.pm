@@ -87,7 +87,23 @@ sub check_loads {
         if (! $load) {
             next;
         }
-        my $loadavg = $load->[0];
+
+        # Get the weighted mean of 1 min, 5 min, and 10 min avg
+        # Basic idea: if the load average has been high for the last 10 min
+        # but is lower this last minute, it may just mean that we had a very
+        # short drop. So the loadavg for the longer duration is more
+        # important than the most recent one
+        #
+        # ergo, we do:
+        #   loadavg = ( ( 50 * 10min_avg ) + ( 10 * 5min_avg ) + 1min_avg ) / 61
+        #
+        # case in point:
+        #  10min: 9.1 (threshold)
+        #   5min: 6.8 (right below threshold)
+        #   1min: 5.0 (well below threshold)
+        # loadvg = (355 + 68 + 5) / 61 = 7.016
+
+        my $loadavg = ($load->[0] + 10 * $load->[1], 50 * $load->[2]) / 61;
         if (STF_DEBUG) {
             debugf(" + Load average for %s is %f", ($key =~ /^storage\.load\.([^\.]+)/), $loadavg / 100);
         }
