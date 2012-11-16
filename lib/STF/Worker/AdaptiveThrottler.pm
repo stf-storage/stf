@@ -103,7 +103,7 @@ sub check_loads {
         #   1min: 5.0 (well below threshold)
         # loadvg = (355 + 68 + 5) / 61 = 7.016
 
-        my $loadavg = ($load->[0] + 10 * $load->[1], 50 * $load->[2]) / 61;
+        my $loadavg = ($load->[0] + 10 * $load->[1] + 50 * $load->[2]) / 61;
         if (STF_DEBUG) {
             debugf(" + Load average for %s is %f", ($key =~ /^storage\.load\.([^\.]+)/), $loadavg / 100);
         }
