@@ -1,4 +1,5 @@
 use strict;
+use 5.12.0;
 use ExtUtils::MakeMaker;
 use Config ();
 
