@@ -10,14 +10,6 @@ use STF::Utils ();
 
 with 'STF::API::WithDBI';
 
-has max_num_replica => (
-    is => 'rw',
-);
-
-has min_num_replica => (
-    is => 'rw'
-);
-
 sub search_with_url {
     my ($self, $where, $opts) = @_;
 
