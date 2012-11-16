@@ -45,11 +45,6 @@ has host_id => (
     default => sub { $ENV{STF_HOST_ID} },
 );
 
-has min_consistency => (
-    is => 'ro',
-    default => 2,
-);
-
 has mutex => (
     is => 'rw',
 );
