@@ -344,16 +344,42 @@ sub repair {
         debugf( "Object %s has %d entities that's not in cluster %d",
             $object_id, scalar @entities, $designated_cluster->{id});
     }
+    my $cache_key = [ storages_for => $object_id ];
+    my $guard = Scope::Guard->new(sub {
+        if (STF_DEBUG) {
+            debugf( "Invalidating cache %s", join ".", @$cache_key );
+        }
+        $self->cache_delete(@$cache_key);
+    });
     if (@entities) {
-        $self->get('API::Entity')->remove({
+        if (STF_DEBUG) {
+            debugf( "Extra entities found: dropping status flag, then proceeding to remove %d entities", scalar @entities );
+        }
+        # drop the status field before doing the actual removal
+        foreach my $entity (@entities) {
+            $entity_api->update(
+                {
+                    storage_id => $entity->{storage_id},
+                    object_id  => $entity->{object_id},
+                },
+                {
+                    status => 0,
+                }
+            );
+        }
+
+        # Make sure to invalidate the cache here, because we don't want
+        # the dispatcher to pick the entities with status = 0
+        undef $guard;
+
+        $entity_api->remove({
             object   => $object,
             storages => [ map { $storage_api->lookup($_->{storage_id}) } @entities ],
         });
     }
 
-    my $cache_key = [ storages_for => $object_id ];
-    $self->cache_delete(@$cache_key);
-
+    # $guard gets freed, and the cache gets invalidated, if it hasn't
+    # already been released.
     return 1;
 }
 
