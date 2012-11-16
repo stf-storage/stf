@@ -3,6 +3,12 @@ use Mouse;
 use STF::Constants qw(:storage STF_DEBUG);
 use STF::Log;
 
+use constant +{
+    WEIGHT_10MIN_LOAD_AVG => 20,
+    WEIGHT_05MIN_LOAD_AVG => 10,
+    WEIGHT_01MIN_LOAD_AVG =>  1
+};
+
 extends 'STF::Worker::Base';
 with 'STF::Trait::WithContainer';
 
@@ -95,15 +101,24 @@ sub check_loads {
         # important than the most recent one
         #
         # ergo, we do:
-        #   loadavg = ( ( 50 * 10min_avg ) + ( 10 * 5min_avg ) + 1min_avg ) / 61
+        #   loadavg = (
+        #       ( weight10 * 10min_avg ) +
+        #       ( weight5 * 5min_avg ) +
+        #       ( weight1 * 1min_avg ) 
+        #   ) / (weight10 + weight5 + weight1)
         #
         # case in point:
-        #  10min: 9.1 (threshold)
-        #   5min: 6.8 (right below threshold)
-        #   1min: 5.0 (well below threshold)
-        # loadvg = (355 + 68 + 5) / 61 = 7.016
+        #   10min: 9.1 (threshold)
+        #    5min: 6.8 (right below threshold)
+        #    1min: 5.0 (well below threshold)
+        # wehn weight10 = 50, weight5 = 10, and weight1 = 1
+        #   loadvg = (355 + 68 + 5) / 61 = 7.016
 
-        my $loadavg = ($load->[0] + 10 * $load->[1] + 50 * $load->[2]) / 61;
+        my $loadavg = (
+            WEIGHT_01MIN_LOAD_AVG * $load->[0] +
+            WEIGHT_05MIN_LOAD_AVG * $load->[1] +
+            WEIGHT_10MIN_LOAD_AVG * $load->[2]
+        ) / (WEIGHT_01MIN_LOAD_AVG + WEIGHT_05MIN_LOAD_AVG + WEIGHT_10MIN_LOAD_AVG);
         if (STF_DEBUG) {
             debugf(" + Load average for %s is %f", ($key =~ /^storage\.load\.([^\.]+)/), $loadavg / 100);
         }
