@@ -119,7 +119,7 @@ EOSQL
             while ( $loop && $sth->fetchrow_arrayref ) {
                 $queue_api->enqueue( repair_object => "NP:$object_id" );
                 $processed++;
-                $0 = "$o_e0 (object_id: $object_id, $processed)";
+                $0 = "$o_e0 (object_id: $object_id, processed: $processed, max: $max_object_id)";
             }
             # save the object_id so we can view / alter it later
             $config_api->set($last_object_id_key, $object_id);
