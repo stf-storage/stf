@@ -42,7 +42,6 @@ auto-aof-rewrite-percentage 100
 auto-aof-rewrite-min-size 64mb
 slowlog-log-slower-than 10000
 slowlog-max-len 128
-vm-enabled no
 vm-swap-file /tmp/redis.swap
 vm-max-memory 0
 vm-page-size 32
