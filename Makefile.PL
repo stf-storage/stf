@@ -56,7 +56,7 @@ WriteMakefile(
         'Math::Round' => 0,
         'Mouse' => 0,
         'Net::SNMP' => 0,
-        'Plack' => '0.9981',
+        'Plack' => '1.0013',
         'Plack::Middleware::ReverseProxy' => 0,
         'Plack::Middleware::Session' => 0,
         'Plack::Middleware::Static' => 0,
