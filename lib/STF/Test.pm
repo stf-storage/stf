@@ -17,9 +17,6 @@ $Log::Minimal::LOG_LEVEL ||= "NONE";
 our @EXPORT_OK = qw(
     clear_objects
     clear_queue
-    deploy_fixtures
-    start_plackup
-    write_file
     random_string
 );
 
@@ -38,19 +35,6 @@ our @STF_BACKENDS;
         local $?;
         $self->SUPER::stop(@_);
     }
-}
-
-sub start_plackup {
-    my ($app, @args) = @_;
-    my $server = Test::TCP->new(
-        code => sub {
-            my $port = shift;
-            my $runner = Plack::Runner->new();
-            $runner->parse_options('--port' => $port, @args );
-            $runner->run( $app );
-        }
-    );
-    return $server;
 }
 
 sub start_memcached {
