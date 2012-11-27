@@ -94,6 +94,16 @@ sub check_loads {
             next;
         }
 
+        # First check the latest load average. If this is too high, 
+        # immediately bail out and get ready to drop the threshold
+        if ($load->[0] > $la_threshold) {
+            if (STF_DEBUG) {
+                debugf("    Load average too high! (1 min avg)");
+            }
+            $loadhigh++;
+            next;
+        }
+
         # Get the weighted mean of 1 min, 5 min, and 10 min avg
         # Basic idea: if the load average has been high for the last 10 min
         # but is lower this last minute, it may just mean that we had a very
@@ -125,7 +135,7 @@ sub check_loads {
 
         if ($loadavg > $la_threshold) { 
             if (STF_DEBUG) {
-                debugf("   Load average too high!");
+                debugf("   Load average too high! (weighted mean)");
             }
             $loadhigh++;
         }
