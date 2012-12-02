@@ -271,41 +271,65 @@ EOSQL
     # XXX Need to test case when entities are intact, but are in the
     # wrong cluster.
     {
-        my $dbh      = $container->get( 'DB::Master' );
-        my $clusters = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} } );
-            SELECT * FROM storage_cluster
-EOSQL
-        my %shiftmap;
-        foreach my $i (0.. (scalar(@$clusters) - 1)) {
-            $shiftmap{ $clusters->[$i]->{id} } = $clusters->[$i - 1]->{id};
-        }
+        # XXX
+        # 1. Choose random objects
+        # 2. Move them out of their current clusters
+        # 3. Send them to repair
+        my %expect_map;
+        my @clusters = $container->get('API::StorageCluster')->search({});
+        my @objects = $container->get('API::Object')->search(
+            {},
+            { limit => 10, order_by => 'rand()' }
+        );
 
+        my $entity_api = $container->get('API::Entity');
         my $storage_api = $container->get('API::Storage');
-        my @storages    = $storage_api->search({});
-        foreach my $storage ( @storages ) {
-            note "Mapping $storage->{id} from $storage->{cluster_id} to $shiftmap{ $storage->{cluster_id} } to swap";
-            $storage_api->update( $storage->{id}, {
-                cluster_id => $shiftmap{ $storage->{cluster_id} }
-            } );
+        foreach my $object (@objects) {
+            my $registered = $dbh->selectrow_hashref(<<EOSQL, undef, $object->{id});
+                SELECT * FROM object_cluster_map WHERE object_id = ?
+EOSQL
+            my $new_cluster_id;
+            foreach my $cluster (sort { rand } @clusters) {
+                next if $cluster->{id} == $registered->{cluster_id};
+                $new_cluster_id = $cluster->{id};
+                last;
+            }
+
+            my @new_storages = $storage_api->search({
+                cluster_id => $new_cluster_id,
+            });
+
+            my @entities = $entity_api->search({
+                object_id => $object->{id}
+            });
+            my @old_storages = 
+                map { $storage_api->lookup($_->{storage_id}) }
+                @entities
+            ;
+            $expect_map{$object->{id}} = \@old_storages;
+
+            my $content = $entity_api->fetch_content_from_any({
+                object => $object
+            });
+
+            note "Moving object $object->{id} from storages @{[ map { $_->{id} } @old_storages ]} to @{[ map { $_->{id} } @new_storages ]}";
+            foreach my $storage (@new_storages) {
+                $entity_api->store({
+                    object => $object,
+                    storage => $storage,
+                    content => $content
+                });
+            }
+            $entity_api->remove({
+                object => $object,
+                storages => \@old_storages,
+            });
         }
 
         # now we should have mismatch between which cluster the object thinks
         # it is stored
-
-        my $work = 0;
-        my %objects = map { ($_->{id} => 1) } @$entities_after;
-        foreach my $object_id ( keys %objects ) {
-            my $map = $dbh->selectrow_hashref( <<EOSQL, undef, $object_id );
-                SELECT * FROM object_cluster_map WHERE object_id = ?
-EOSQL
-            my $cluster_id = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id );
-                SELECT s.cluster_id FROM storage s JOIN entity e ON
-                    s.id = e.storage_id
-                    WHERE e.object_id = ?
-EOSQL
-            isnt $cluster_id->[0]->{cluster_id}, $map->{cluster_id}, "we have a mismatch";
-            $work++;
-            $container->get( 'API::Queue' )->enqueue( repair_object => $object_id );
+        foreach my $object (@objects) {
+            $container->get('API::Queue')->enqueue(repair_object => $object->{id});
         }
 
         eval {
@@ -313,8 +337,7 @@ EOSQL
             alarm(5);
             my $worker = STF::Worker::RepairObject->new(
                 container => $context->container,
-                max_works_per_child => $work,
-                breadth => 2,
+                max_works_per_child => scalar @objects,
             );
             $worker->work;
         };
@@ -323,18 +346,19 @@ EOSQL
         }
         alarm(0);
 
-        foreach my $object_id ( keys %objects ) {
-            my $map = $dbh->selectrow_hashref( <<EOSQL, undef, $object_id );
-                SELECT * FROM object_cluster_map WHERE object_id = ?
-EOSQL
-            my $cluster_id_list = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object_id );
-                SELECT s.cluster_id FROM storage s JOIN entity e ON
-                    s.id = e.storage_id
-                    WHERE e.object_id = ?
-EOSQL
-            foreach my $cluster_id (@$cluster_id_list) {
-                is $cluster_id->{cluster_id}, $map->{cluster_id}, "we DON'T have a mismatch";
-            }
+        foreach my $object ( @objects ) {
+            # Make sure that this object is stored in the original storages
+            my @entities = $entity_api->search({
+                object_id => $object->{id}
+            });
+            my @storages = 
+                sort { $a <=> $b }
+                map  { $_->{id} }
+                map  { $storage_api->lookup($_->{storage_id}) }
+                @entities
+            ;
+            my @expected = sort { $a <=> $b } map { $_->{id} } @{$expect_map{$object->{id}}};
+            is_deeply(\@storages, \@expected, "Entities have been restored!");
         }
     }
 };
