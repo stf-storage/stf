@@ -163,7 +163,7 @@ sub set_throttle_limit {
     my $cur_threshold = $config_api->load_variable($threshold_key) || 0;
     my $max_threshold = $config_api->load_variable($max_threshold_key) || 0;
 
-    if ($is_high) { 
+    if ($is_high) {
         # change the loadavg to 60%
         if ($max_threshold == 0) {
             my $default_threshold = 300;
@@ -184,6 +184,10 @@ sub set_throttle_limit {
         }
 
         $config_api->set($threshold_key, $new_threshold);
+    } elsif ($max_threshold < $cur_threshold) {
+        # If somebody changed the DB value to a lower one, reduce regardless
+        # of what our current situation is
+        $config_api->set($threshold_key, $max_threshold);
     } else {
         # otherwise, if our current threshold is less than the maximum
         # then increase over 10%.
