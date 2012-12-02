@@ -345,12 +345,15 @@ sub repair {
             $object_id, scalar @entities, $designated_cluster->{id});
     }
     my $cache_key = [ storages_for => $object_id ];
-    my $guard = Scope::Guard->new(sub {
-        if (STF_DEBUG) {
-            debugf( "Invalidating cache %s", join ".", @$cache_key );
-        }
-        $self->cache_delete(@$cache_key);
-    });
+    my $guard;
+    if (! $ok) {
+        $guard = Scope::Guard->new(sub {
+            if (STF_DEBUG) {
+                debugf( "Invalidating cache %s", join ".", @$cache_key );
+            }
+            $self->cache_delete(@$cache_key);
+        });
+    }
     if (@entities) {
         if (STF_DEBUG) {
             debugf( "Extra entities found: dropping status flag, then proceeding to remove %d entities", scalar @entities );
