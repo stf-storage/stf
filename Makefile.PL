@@ -70,7 +70,7 @@ WriteMakefile(
         'Starlet' => 0,
         'String::Urandom' => 0,
         'Task::Weaken' => 0,
-        'Text::Xslate' => 0,
+        'Text::Xslate' => '1.6001',
         'YAML' => 0,
         'STF::Dispatcher::PSGI' => '1.09',
         # Add this requirement if the environment asks for it
