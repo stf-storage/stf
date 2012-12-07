@@ -227,7 +227,7 @@ sub remove {
     my $storage_api = $self->get('API::Storage');
 
     if (STF_DEBUG) {
-        debugf( "Removing entities for %s in", $object->{id});
+        debugf( "Removing %sentities for %s in", $repair ? "(for repair) ", $object->{id});
         foreach my $storage (@$storages) {
             debugf(" - [%d] %s (%s)", $storage->{id}, $storage->{uri} || '(null)', $object->{id});
         }
@@ -254,7 +254,7 @@ sub remove {
             }
             next;
         }
-        if ( ! $storage_api->is_writable( $broken ) ) {
+        if (! $storage_api->is_writable($broken, $repair)) {
             if (STF_DEBUG) {
                 debugf("Storage %s is not writable, skipping physical delete", $broken->{uri});
             }
