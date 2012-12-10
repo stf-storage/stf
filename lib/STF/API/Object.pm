@@ -26,14 +26,6 @@ has urandom => (
     }
 );
 
-has max_num_replica => (
-    is => 'rw',
-);
-
-has min_num_replica => (
-    is => 'rw',
-);
-
 sub lookup_meta {
     if ( STF_ENABLE_OBJECT_META ) {
         my ($self, $object_id) = @_;
