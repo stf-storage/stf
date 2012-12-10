@@ -41,21 +41,6 @@ sub lookup_meta {
     }
 }
 
-sub status_for {
-    my ($self, $id) = @_;
-
-    my $object = $self->find( $id );
-    if (! $object ) {
-        return (); # no object;
-    }
-
-    my @entities = $self->get( 'API::Entity' )->search( {
-        object_id => $id
-    } );
-    $object->{entities} = @entities;
-    return $object;
-}
-
 # XXX Used only for admin, so efficiency is ignore!
 sub search_with_entity_info {
     my ($self, $where, $opts) = @_;
