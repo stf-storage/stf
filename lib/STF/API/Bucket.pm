@@ -37,9 +37,10 @@ sub rename {
     my $rv = $dbh->do(<<EOSQL, undef, $name, $bucket_id );
         UPDATE bucket SET name = ? WHERE id = ?
 EOSQL
-    if ($rv > 1) {
-        $self->cache_delete( $self->table => $bucket_id );
-    }
+
+    # In reality we only need to delete if the above UPDATE was successful,
+    # but it's better to make sure that our cache is DEFINITELY dead.
+    $self->cache_delete( $self->table => $bucket_id );
     if (STF_DEBUG) {
         debugf("Rename was %s", $rv > 1 ? "SUCCESS" : "FAIL");
     }
