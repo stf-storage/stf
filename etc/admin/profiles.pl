@@ -127,7 +127,7 @@ return +{
         required => [qw(bucket_name object_name )]
     },
     object_edit => {
-        required => [qw(id num_replica status)],
+        required => [qw(id size status)],
         optional => [qw(cluster_id)],
     },
     notification_rule_add => {

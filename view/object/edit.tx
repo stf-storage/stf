@@ -19,9 +19,9 @@
         </div>
     </div>
     <div class="control-group">
-        <label class="control-label" for="num_replica">Replicas</label>
+        <label class="control-label" for="num_replica">Size</label>
         <div class="controls">
-            <input name="num_replica" type="text" class="input-xlarge" id="input-num_replica">
+            <input name="size" type="text" class="input-xlarge" id="input-size">
         </div>
     </div>
     <div class="control-group">
