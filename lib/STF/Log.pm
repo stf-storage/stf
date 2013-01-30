@@ -1,5 +1,7 @@
 package STF::Log;
 use Log::Minimal ();
+use base qw(Exporter);
+our @EXPORT = @Log::Miimal::EXPORT;
 
 our ($PREFIX, $LOGFH);
 
@@ -23,10 +25,5 @@ $Log::Minimal::PRINT = sub {
         $message
     );
 };
-
-sub import {
-    my $class = shift;
-    Log::Minimal->export_to_level(1, @_);
-}
 
 1;
