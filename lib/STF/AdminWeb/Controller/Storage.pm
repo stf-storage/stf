@@ -1,11 +1,23 @@
 package STF::AdminWeb::Controller::Storage;
-use Mouse;
+use Mojo::Base 'STF::AdminWeb::Controller';
 use STF::Utils;
 use STF::Constants qw(
     STF_ENABLE_STORAGE_META
 );
 
-extends 'STF::AdminWeb::Controller';
+sub api_list {
+    my ($self) = @_;
+
+    my @storages = $self->get('API::Storage')->search(
+        {},
+        {
+            order_by => { id => 'DESC' }
+        }
+    );
+    $self->render_json({
+        storages => \@storages
+    });
+}
 
 sub load_storage {
     my ($self, $c) = @_;
@@ -177,7 +189,5 @@ sub delete_post {
         $self->fillinform( $c, $params );
     }
 }
-
-no Mouse;
 
 1;

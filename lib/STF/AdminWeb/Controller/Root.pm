@@ -1,8 +1,5 @@
 package STF::AdminWeb::Controller::Root;
-use Mouse;
-use STF::API::Throttler;
-
-extends 'STF::AdminWeb::Controller';
+use Mojo::Base 'STF::AdminWeb::Controller';
 
 sub index {}
 
@@ -47,7 +44,5 @@ EOSQL
 
     $c->stash->{states} = $h;
 }
-
-no Mouse;
 
 1;

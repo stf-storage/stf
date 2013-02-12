@@ -112,6 +112,7 @@ my @api_names = qw(
     API::NotificationRule
     API::Storage
     API::StorageCluster
+    API::WorkerInstances
 );
 
 if ( STF_ENABLE_STORAGE_META ) {

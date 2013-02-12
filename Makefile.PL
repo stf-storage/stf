@@ -54,6 +54,7 @@ WriteMakefile(
         'IPC::SysV' => 0,
         'Log::Minimal' => '0.14',
         'Math::Round' => 0,
+        'Mojolicious' => '3.84',
         'Mouse' => '1.05',
         'Net::SNMP' => 0,
         'Plack' => '1.0013',

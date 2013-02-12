@@ -4,4 +4,5 @@ use Plack::Builder;
 use STF::Environment;
 use STF::AdminWeb;
 
-STF::AdminWeb->bootstrap->to_app;
+my $ctx = STF::Context->bootstrap;
+STF::AdminWeb->new(context => $ctx)->psgi_app;

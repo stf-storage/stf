@@ -1,4 +1,75 @@
 package STF::AdminWeb;
+use strict;
+use Mojo::Base 'Mojolicious';
+use STF::AdminWeb::Renderer;
+use STF::Context;
+
+has 'context';
+has use_reverse_proxy => 0;
+
+sub psgi_app {
+    my ($self) = @_;
+
+    require Mojo::Server::PSGI;
+    require Plack::Middleware::Session;
+
+    my $app = Mojo::Server::PSGI->new(app => $self)->to_psgi_app;
+    my $container = $self->context->container;
+    $app = Plack::Middleware::Session->wrap($app,
+        store => $container->get("AdminWeb::Session::Store"),
+        state => $container->get("AdminWeb::Session::State"),
+    );
+    if ($self->use_reverse_proxy) {
+        require Plack::Middleware::ReverseProxy;
+        $app = Plack::Middleware::ReverseProxy->wrap( $app );
+    }
+
+    return $app;
+}
+
+sub startup {
+    my ($self) = @_;
+    $self->setup_renderer();
+    $self->setup_routes();
+
+    $self->helper(get => sub {
+        my ($c, $name) = @_;
+        $c->app->context->container->get($name);
+    });
+}
+
+sub setup_renderer {
+    my ($self) = @_;
+
+    my $renderer = $self->renderer;
+    $renderer->add_handler(tx => STF::AdminWeb::Renderer->build(app => $self));
+    $renderer->default_handler("tx");
+}
+
+sub setup_routes {
+    my ($self) = @_;
+    my $r = $self->routes;
+
+    unshift @{$r->namespaces}, "STF::AdminWeb::Controller";
+    $r->any("/")->to(
+        controller => "root",
+        action     => "index",
+    );
+
+    # API endpoints.
+    foreach my $name (qw(storage worker)) {
+        $r->get("/api/$name/list")->to(
+            controller => $name,
+            action     => "api_list",
+        );
+    }
+}
+
+1;
+
+__END__
+
+package STF::AdminWeb;
 use Mouse;
 use HTML::FillInForm::Lite;
 use STF::Constants;

@@ -1,0 +1,73 @@
+[% WRAPPER "inc/layout.tx" %]
+
+<div class="well">
+    <h1>STF Web Interface</h1>
+</div>
+
+<div>
+    <legend>System State</legend>
+    <div id="storage-state"></div>
+    <div id="worker-state"></div>
+</div>
+
+<script type="text/javascript">
+<!--
+    $(document).ready(function() {
+        $.ajax({
+            url: "/api/storage/list",
+            dataType: "json",
+            success: function(json) {
+                var html = '<table class="table table-condensed table-bordered">';
+                html += "<tr><td>Storage Nodes (Total)</td><td>" + json.storages.length + "</td></tr>";
+                var storages = {
+                    "Storage Nodes (Writable)": 0
+                };
+                $.each(json.storages, function(i, e) {
+                    if (e.status == 1) {
+                        storages["Storage Nodes (Writable)"] += 1;
+                    }
+                });
+                $.each(storages, function(k, v) {
+                    html += "<tr><td>" + k + "</td><td>" + v + "</td></tr>";
+                });
+                html += '</table>';
+                $("#storage-state").append($(html));
+            }
+        });
+
+        $.ajax({
+            url: "/api/worker/list",
+            dataType: "json",
+            success: function(json) {
+                var instances = {};
+                var total_instances = 0;
+                var html = '';
+                $.each(json.workers, function(i, e) {
+                    var list = instances[e.worker_type];
+                    if (! list) {
+                        list = instances[e.worker_type] = [];
+                    }
+                    list.push(e);
+                });
+                $.each(instances, function(k, v) {
+                    var instances = 0;
+                    $.each(v, function(i, worker) {
+                        instances += parseInt(worker.instances);
+                    });
+                    total_instances += instances;
+                    html += "<tr><td>" + k + "</td><td>" + instances + "</td></tr>";
+                });
+                html =
+                    '<table class="table table-condensed table-bordered">' +
+                    '<tr><td>Worker Instances (Total)</td><td>' + total_instances + '</td></tr>' +
+                    html +
+                    '</table>'
+                ;
+                $("#worker-state").append($(html));
+            }
+        });
+    });
+-->
+</script>
+
+[% END # WRAPPER %]
