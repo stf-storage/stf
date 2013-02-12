@@ -1,7 +1,7 @@
 package STF::Log;
-use Log::Minimal ();
+use Log::Minimal;
 use base qw(Exporter);
-our @EXPORT = @Log::Miimal::EXPORT;
+our @EXPORT = @Log::Minimal::EXPORT;
 
 our ($PREFIX, $LOGFH);
 
