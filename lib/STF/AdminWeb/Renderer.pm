@@ -32,7 +32,7 @@ sub _init {
         cache_dir => $cache_dir,
         path      => \@path,
         syntax    => 'TTerse',
-        %{ $args{xslate_options} || {} },
+        %{ $app->get('config')->{'AdminWeb::Renderer'} || {} },
     );
 
     my $xslate = $self->build_xslate(\%config);
