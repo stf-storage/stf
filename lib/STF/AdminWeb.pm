@@ -31,6 +31,7 @@ sub startup {
     my ($self) = @_;
 
     $ENV{MOJO_HOME} ||= $self->context->home;
+    $self->home->detect;
 
     $self->setup_renderer();
     $self->setup_routes();
