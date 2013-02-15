@@ -15,7 +15,7 @@ sub build {
 sub _init {
     my ($self, %args) = @_;
 
-    my $app = $args{mojo} || $args{app};
+    my $app = delete $args{mojo} || delete $args{app};
     my $cache_dir;
     my @path = $app->home->rel_dir('templates');
 
@@ -32,7 +32,7 @@ sub _init {
         cache_dir => $cache_dir,
         path      => \@path,
         syntax    => 'TTerse',
-        %{ $app->get('config')->{'AdminWeb::Renderer'} || {} },
+        %args,
     );
 
     my $xslate = $self->build_xslate(\%config);

@@ -42,7 +42,10 @@ sub setup_renderer {
     my ($self) = @_;
 
     my $renderer = $self->renderer;
-    $renderer->add_handler(tx => STF::AdminWeb::Renderer->build(app => $self));
+    $renderer->add_handler(tx => STF::AdminWeb::Renderer->build(
+        app => $self,
+        %{ $self->context->containerget('config')->{'AdminWeb::Renderer'} || {} },
+    ));
     $renderer->default_handler("tx");
 }
 
