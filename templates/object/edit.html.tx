@@ -2,7 +2,7 @@
 
 [% INCLUDE "object/heading.tx" %]
 
-<form class="form-horizontal" method="post" action="[% c.url_for('/object/edit' _ object.id) %]">
+<form class="form-horizontal" method="post" action="[% c.url_for('/object/edit/' _ object.id) %]">
 [% error_msgs(result) %]
 <fieldset>
     <legend>Edit Object</legend>
