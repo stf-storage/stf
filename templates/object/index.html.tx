@@ -16,7 +16,7 @@
             var $input = $("input[@name='id']", $e);
             var id = $input.val();
             location.href = "/object/show/" + id;
-            return true;
+            return false;
         });
     });
 -->
