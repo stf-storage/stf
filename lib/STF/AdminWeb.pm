@@ -104,6 +104,14 @@ sub setup_routes {
         controller => "object",
         action     => "view"
     );
+    $r->post("/object/edit/:object_id")->to(
+        controller => "object",
+        action     => "edit_post"
+    );
+    $r->get("/object/edit/:object_id")->to(
+        controller => "object",
+        action     => "edit"
+    );
 }
 
 1;

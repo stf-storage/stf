@@ -27,7 +27,7 @@
 </tr>
 <tr>
     <td>Cluster</td>
-    <td>[% IF (object.cluster.id) %]<a href="[% c.uri_for("/cluster/show", object.cluster.id) %]">[% object.cluster.id %]</a>[% ELSE %]N/A[% END %]</td>
+    <td>[% IF (object.cluster.id) %]<a href="[% c.url_for("/cluster/show", object.cluster.id) %]">[% object.cluster.id %]</a>[% ELSE %]N/A[% END %]</td>
 </tr>
 <tr>
     <td>Size</td>

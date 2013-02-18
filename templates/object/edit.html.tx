@@ -1,4 +1,4 @@
-[% WRAPPER "layout.tx" %]
+[% WRAPPER "inc/layout.tx" %]
 
 [% INCLUDE "object/heading.tx" %]
 
