@@ -39,6 +39,10 @@ sub startup {
     $self->setup_renderer();
     $self->setup_routes();
 
+    $self->hook(before_dispatch => sub {
+        my $c = shift;
+        $c->stash(const => STF::Constants->as_hashref);
+    });
     $self->hook(after_render => sub {
         my ($c, $output_ref, $format) = @_;
 
