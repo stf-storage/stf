@@ -1,5 +1,5 @@
 package STF::AdminWeb::Controller::Object;
-use Mojo::Base 'STF::AdminWeb::Controller');
+use Mojo::Base 'STF::AdminWeb::Controller';
 use JSON ();
 use STF::Constants qw(STF_ENABLE_OBJECT_META);
 
