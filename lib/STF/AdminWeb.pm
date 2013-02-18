@@ -4,9 +4,11 @@ use Mojo::Base 'Mojolicious';
 use STF::AdminWeb::Renderer;
 use STF::Context;
 use Data::Page;
+use HTML::FillInForm::Lite;
 
 has 'context';
 has use_reverse_proxy => 0;
+has fif => HTML::FillInForm::Lite->new;
 
 sub psgi_app {
     my ($self) = @_;
@@ -36,6 +38,20 @@ sub startup {
 
     $self->setup_renderer();
     $self->setup_routes();
+
+    $self->hook(after_render => sub {
+        my ($c, $output_ref, $format) = @_;
+
+        if ($format !~ m{^text/x?html$}) {
+            return;
+        }
+
+        if ($c->req->method eq 'POST') {
+            $$output_ref = $self->fif->fill( $output_ref, $c->req);
+        } elsif ( my $fdat = $c->stash->{fdat} ) {
+            $$output_ref = $self->fif->fill( $output_ref, $fdat );
+        }
+    });
 
     $self->helper(get => sub {
         my ($c, $name) = @_;
