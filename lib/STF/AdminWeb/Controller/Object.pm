@@ -39,7 +39,8 @@ sub resolve_public_name {
         object_name => $object_name
     } );
     $self->stash(bucket => $bucket);
-    return $object;
+
+    return $object_id;
 }
 
 sub view {
