@@ -12,8 +12,7 @@
 <!--
     $(document).ready(function () {
         $("#display-object-by-id").submit(function(e) {
-            var $e = $(e.target);
-            var $input = $("input[@name='id']", $e);
+            var $input = $("input[name='id']", "#display-object-by-id");
             var id = $input.val();
             location.href = "/object/show/" + id;
             return false;
