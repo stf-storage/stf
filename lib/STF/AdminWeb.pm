@@ -82,6 +82,22 @@ sub setup_renderer {
         %{ $self->context->container->get('config')->{'AdminWeb::Renderer'} || {} },
         function => {
             loc => sub { $self->get('Localizer')->localize(@_) },
+            error_msgs => Text::Xslate::html_builder(sub {
+                my ($result) = @_;
+
+                if (! defined $result) {
+                    return '';
+                }
+
+                if ( $result->success) {
+                    return '';
+                }
+
+                my $msgs = $result->msgs;
+                return sprintf '<ul class="error">%s</ul>',
+                    join '', map { "<li>$_: @{$msgs->{$_}}</li>" }
+                        keys %$msgs;
+            }),
         },
     ));
     $renderer->default_handler("tx");
