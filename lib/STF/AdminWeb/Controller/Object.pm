@@ -157,7 +157,7 @@ sub edit {
         return;
     }
     $object->{cluster} = $self->get('API::StorageCluster')->load_for_object( $object->{id} );
-    my $clusters = $self->get('API::StorageCluster')->search({})
+    my $clusters = $self->get('API::StorageCluster')->search({});
     $self->stash(clusters => $clusters);
     $self->fillinform({
         %$object,
