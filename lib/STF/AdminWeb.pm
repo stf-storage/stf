@@ -3,6 +3,7 @@ use strict;
 use Mojo::Base 'Mojolicious';
 use STF::AdminWeb::Renderer;
 use STF::Context;
+use Data::Page;
 
 has 'context';
 has use_reverse_proxy => 0;
@@ -40,6 +41,24 @@ sub startup {
         my ($c, $name) = @_;
         $c->app->context->container->get($name);
     });
+
+    $self->helper(pager => sub {
+        my ($c, $limit) = @_;
+        my $req = $c->request;
+        my $p   = int($req->param('p') || 0);
+        if ($p <= 0) {
+            $p = 1;
+        }
+        my $pager = Data::Page->new;
+        $pager->entries_per_page( $limit );
+        $pager->current_page($p);
+        $pager->total_entries( $p * $limit );
+        return $pager;
+    });
+}
+
+1;
+
 }
 
 sub setup_renderer {

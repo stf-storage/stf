@@ -98,18 +98,4 @@ sub uri_for {
     return $uri;
 }
 
-sub pager {
-    my ($self, $limit) = @_;
-    my $req = $self->request;
-    my $p   = int($req->param('p') || 0);
-    if ($p <= 0) {
-        $p = 1;
-    }
-    my $pager = Data::Page->new;
-    $pager->entries_per_page( $limit );
-    $pager->current_page($p);
-    $pager->total_entries( $p * $limit );
-    return $pager;
-}
-
 1;
