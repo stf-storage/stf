@@ -8,7 +8,7 @@ use HTML::FillInForm::Lite;
 
 has 'context';
 has use_reverse_proxy => 0;
-has fif => HTML::FillInForm::Lite->new;
+has fif => sub { HTML::FillInForm::Lite->new };
 
 sub psgi_app {
     my ($self) = @_;
