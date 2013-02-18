@@ -71,6 +71,7 @@ WriteMakefile(
         'Starlet' => 0,
         'String::Urandom' => 0,
         'Task::Weaken' => 0,
+        'Text::MultiMarkdown' => 0,
         'Text::Xslate' => '1.6001',
         'YAML' => 0,
         'STF::Dispatcher::PSGI' => '1.09',

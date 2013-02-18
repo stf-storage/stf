@@ -70,6 +70,22 @@ sub setup_routes {
             action     => "api_list",
         );
     }
+
+    # Docs
+    $r->get("/doc/*filename")->to(
+        controller => "document",
+        action     => "view"
+    );
+
+    # Object
+    $r->get("/object")->to(
+        controller => "object",
+        action     => "index"
+    );
+    $r->get("/object/show/:object_id")->to(
+        controller => "object",
+        action     => "view"
+    );
 }
 
 1;

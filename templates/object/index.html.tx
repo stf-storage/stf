@@ -1,0 +1,25 @@
+[% WRAPPER 'layout.tx' %]
+
+[% INCLUDE "object/heading.tx" %]
+
+<h2>[% loc("Display Object") %]</h2>
+<form id="display-object-by-id">
+    <input type="text" name="id">
+    <input type="submit" name="submit" value="Go">
+</form>
+
+<script type="text/javascript">
+<!--
+    $(document).ready(function () {
+        $("#display-object-by-id").submit(function(e) {
+            var $e = $(e.target);
+            var $input = $("input[@name='id']", $e);
+            var id = $input.val();
+            location.href = "/object/show/" + id;
+            return true;
+        });
+    });
+-->
+</script>
+
+[% END # WRAPPER %]
