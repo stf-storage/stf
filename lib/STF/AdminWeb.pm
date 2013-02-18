@@ -42,7 +42,7 @@ sub startup {
     $self->hook(after_render => sub {
         my ($c, $output_ref, $format) = @_;
 
-        if ($format !~ m{^text/x?html$}) {
+        if ($format !~ m{^x?html$}) {
             return;
         }
 
