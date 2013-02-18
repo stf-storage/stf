@@ -43,6 +43,8 @@ sub resolve_public_name {
     return $object_id;
 }
 
+sub index {}
+
 sub view {
     my ($self) = @_;
 
