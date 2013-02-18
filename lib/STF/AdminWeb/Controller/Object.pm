@@ -200,7 +200,7 @@ sub edit_post {
             }
         }
 
-        $self->redirect_to( $self->url_for( "/object/show", $object->{id} ) );
+        $self->redirect_to( $self->url_for( "/object/show/$object->{id}" ) );
     } else {
         $self->stash(template => 'object/edit');
         $self->fillinform( $params );
