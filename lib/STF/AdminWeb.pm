@@ -57,10 +57,6 @@ sub startup {
     });
 }
 
-1;
-
-}
-
 sub setup_renderer {
     my ($self) = @_;
 
