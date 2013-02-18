@@ -44,7 +44,7 @@ sub startup {
 
     $self->helper(pager => sub {
         my ($c, $limit) = @_;
-        my $req = $c->request;
+        my $req = $c->req;
         my $p   = int($req->param('p') || 0);
         if ($p <= 0) {
             $p = 1;
