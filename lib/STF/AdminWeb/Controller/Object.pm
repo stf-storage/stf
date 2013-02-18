@@ -106,7 +106,7 @@ sub delete {
 sub create {
     my ($self) = @_;
 
-    if (my $bucket_id = $self->request->param('bucket_id')) {
+    if (my $bucket_id = $self->req->param('bucket_id')) {
         my $bucket = $self->get('API::Bucket')->lookup( $bucket_id );
         $self->fillinform({ 
             map { ( "bucket_$_" => $bucket->{$_} ) } keys %$bucket
@@ -117,8 +117,8 @@ sub create {
 sub create_post {
     my ($self) = @_;
 
-    my $params = $self->request->parameters->as_hashref;
-    my $upload = $self->request->uploads->{content};
+    my $params = $self->req->params->to_hash;
+    my $upload = $self->req->uploads->{content};
     my $result = $self->validate(object_create => $params );
     if ($result->success && $upload) {
         my $stf_uri = $self->get('API::Config')->load_variable('stf.global.public_uri');
@@ -169,7 +169,7 @@ sub edit_post {
     my ($self) = @_;
     my $object = $self->load_object();
 
-    my $params = $self->request->parameters->as_hashref;
+    my $params = $self->req->params->to_hash;
     $params->{id} = $object->{id};
     my $result = $self->validate(object_edit => $params );
     if ($result->success) {
