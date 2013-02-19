@@ -1,19 +1,19 @@
-[% WRAPPER 'layout.tx' %]
+[% WRAPPER 'inc/layout.tx' %]
 
 [% INCLUDE "cluster/heading.tx" %]
 
-<form class="form-horizontal" method="post" action="[% c.uri_for('/cluster/add') %]">
+<form class="form-horizontal" method="post" action="[% c.url_for('/cluster/edit/' _ cluster.id) %]">
 [% error_msgs(result) %]
 <fieldset>
-    <legend>Add New Storage</legend>
+    <legend>Edit Cluster</legend>
     <div class="control-group">
         <label class="control-label" for="id">ID</label>
         <div class="controls">
-            <input name="id" type="text" class="input-xlarge" id="input-id">
+            <input name="id" type="text" class="input-xlarge" id="input-id" readonly="readonly">
         </div>
     </div>
     <div class="control-group">
-        <label class="control-label" for="name">Name</label>
+        <label class="control-label" for="uri">Name</label>
         <div class="controls">
             <input name="name" type="text" class="input-xlarge" id="input-name">
         </div>
@@ -39,11 +39,13 @@
         </div>
     </div>
     <div class="form-actions">
-        <button type="submit" class="btn btn-primary"><i class="icon-pencil icon-white"></i> Create</button>
+        <button type="submit" class="btn btn-primary"><i class="icon-pencil icon-white"></i> Update</button>
+        <button type="button" class="btn btn-danger" onClick="javascript: if(confirm('Are you sure you want to delete this cluster?')) { this.form.action='[% c.url_for('/cluster/delete/' _ cluster.id) %]'; this.form.submit(); } else { return false; }"><i class="icon-trash icon-white"></i> Delete</button>
     </div>
 </fieldset>
 </form>
 
 [% END %]
+
 
 

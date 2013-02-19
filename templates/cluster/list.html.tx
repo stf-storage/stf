@@ -1,4 +1,4 @@
-[% WRAPPER 'layout.tx' %]
+[% WRAPPER 'inc/layout.tx' %]
 
 [% INCLUDE "cluster/heading.tx" %]
 
@@ -16,11 +16,11 @@
 [% FOREACH cluster IN clusters %]
     <tr>
         <td>[% cluster.id %]</td>
-        <td><a href="[% c.uri_for("/cluster/show", cluster.id) %]">[% cluster.name || 'Cluster ' _ cluster.id %]</a></td>
+        <td><a href="[% c.url_for("/cluster/show/" _ cluster.id) %]">[% cluster.name || 'Cluster ' _ cluster.id %]</a></td>
         <td>[% mode_str(cluster.mode) %]</td>
         <td>[% cluster.storages.size() %]</td>
         <td>
-            <a class="btn btn-info btn-mini" href="[% c.uri_for( "/cluster/edit", cluster.id) %]">edit</a>
+            <a class="btn btn-info btn-mini" href="[% c.url_for( "/cluster/edit/" _ cluster.id) %]">edit</a>
         </td>
     </tr>
 [% END %]

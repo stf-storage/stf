@@ -47,8 +47,8 @@
             <td>[% storage.uri %]</td>
             <td>[% mode_str(storage.mode) %]</td>
             <td>
-                <a class="btn btn-info btn-mini" href="[% c.uri_for( "/storage/edit", storage.id) %]">edit</a>
-                <a class="btn btn-success btn-mini" href="[% c.uri_for('/storage/entities', storage.id) %]">entities</a></td>
+                <a class="btn btn-info btn-mini" href="[% c.url_for( "/storage/edit/" _ storage.id) %]">edit</a>
+                <a class="btn btn-success btn-mini" href="[% c.url_for('/storage/entities/' _ storage.id) %]">entities</a></td>
             </td>
         </tr>
 [% END %]
