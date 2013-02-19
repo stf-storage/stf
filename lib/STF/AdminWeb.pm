@@ -173,6 +173,28 @@ sub setup_routes {
         action     => "view"
     );
 
+    $r->get("/bucket")->to(cb => sub {
+        shift->redirect_to("/bucket/list");
+    });
+    $r->get("/bucket/add")->to(
+        controller => "bucket",
+        action     => "add",
+    );
+    $r->post("/bucket/add")->to(
+        controller => "bucket",
+        action     => "add_post",
+    );
+    $r->get("/bucket/show/:object_id")->to(
+        controller => "bucket",
+        action     => "view"
+    );
+    # XXX Fix URI path
+    $r->post("/ajax/bucket/:bucket_id/$action.json")->to(
+        controller => 'bucket',
+        action     => "delete",
+    );
+
+
     # Object
     $r->get("/object")->to(
         controller => "object",
@@ -191,6 +213,12 @@ sub setup_routes {
         action     => "edit"
     );
 
+    foreach my $action (qw(delete repair)) {
+        $r->post("/ajax/object/:object_id/$action.json")->to(
+            controller => 'object',
+            action     => $action,
+        );
+    }
     # Clusters and storages share pretty much the same
     # URL structure. yay
     foreach my $controller (qw(storage cluster)) {

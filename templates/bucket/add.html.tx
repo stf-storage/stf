@@ -1,6 +1,6 @@
-[% WRAPPER "layout.tx" %]
+[% WRAPPER 'inc/layout.tx' %]
 
-<form class="form-horizontal" method="post" action="[% c.uri_for('/bucket/add') %]">
+<form class="form-horizontal" method="post" action="[% c.url_for('/bucket/add') %]">
 [% error_msgs(result) %]
 <fieldset>
     <legend>Add New Bucket</legend>

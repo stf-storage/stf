@@ -1,6 +1,5 @@
 package STF::AdminWeb::Controller::Cluster;
 use Mojo::Base 'STF::AdminWeb::Controller';
-use JSON ();
 
 sub load_cluster {
     my ($self) = @_;

@@ -1,12 +1,12 @@
-[% WRAPPER 'layout.tx' %]
-<form class="form-inline form-search" method="get" action="[% c.uri_for('/bucket/list') %]">
+[% WRAPPER 'inc/layout.tx' %]
+<form class="form-inline form-search" method="get" action="[% c.url_for('/bucket/list') %]">
     <input class="input-xxlarge search-query" type="text" name="name" placeholder="MySQL 'LIKE' queries are supported" />
     <button type="submit" class="btn">[% loc('Find Bucket') %]</button>
 </form>
 
 <div class="well">
     <div class="pull-right">
-        <a class="btn btn-small" href="[% c.uri_for( "/bucket/add" ) %]"><i class="icon-plus"></i></a>
+        <a class="btn btn-small" href="[% c.url_for( "/bucket/add" ) %]"><i class="icon-plus"></i></a>
     </div>
     <h1>Buckets</h1>
 </div>
@@ -23,7 +23,7 @@
   </tr>
   [% END %]
 <tr>
-    <td colspan="2">[% paginate(c.uri_for('/bucket/list'), pager) %]</td>
+    <td colspan="2">[% paginate(c.url_for('/bucket/list'), pager) %]</td>
 </tr>
 </table>
 

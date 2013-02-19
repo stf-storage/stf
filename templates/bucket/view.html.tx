@@ -1,4 +1,4 @@
-[% WRAPPER 'layout.tx' %]
+[% WRAPPER 'inc/layout.tx' %]
 
 <script type="text/javascript">
 <!--
@@ -16,7 +16,7 @@
         } );
 
         $("#stf-create-object-in-bucket-btn").click( function() {
-            location.href = "[% c.uri_for("/object/create", { bucket_id => bucket.id } ) %]";
+            location.href = "[% c.url_for("/object/create", { bucket_id => bucket.id } ) %]";
         });
 
         var del_modal_id = "#stf-bucket-delete-confirm-modal";
@@ -61,7 +61,7 @@
     </div>
     <div class="modal-body">
         <div class="main">
-            <form class="form-horizontal" action="[% c.uri_for( "/bucket/object/create" ) %]" method="POST" enctype="multipart/form-data">
+            <form class="form-horizontal" action="[% c.url_for( "/bucket/object/create" ) %]" method="POST" enctype="multipart/form-data">
             <fieldset>
                 <div class="control-group">
                     <label class="control-label">Object Name</label>
@@ -141,14 +141,14 @@
   </tr>
   [% FOREACH object IN objects %]
   <tr class="[% object.status == const.OBJECT_ACTIVE ? "active" : "inactive" %]">
-    <td class="text"><a href="[% c.uri_for("/object/show", object.id) %]">[% object.name %]</a></td>
+    <td class="text"><a href="[% c.url_for("/object/show/" _ object.id) %]">[% object.name %]</a></td>
     <td class="digit">[% object.size | human_readable %]</td>
     <td>[% object.updated_at %]</td>
-    <td class="digit"><a href="[% c.uri_for('/object/show', object.id) %]">[% object.entity_count %]/[% object.num_replica %]</a></td>
+    <td class="digit"><a href="[% c.url_for('/object/show/' _ object.id) %]">[% object.entity_count %]/[% object.num_replica %]</a></td>
   </tr>
   [% END %]
 <tr>
-    <td colspan="4">[% paginate( c.uri_for('/bucket/show', bucket.id), pager) %]</td>
+    <td colspan="4">[% paginate( c.url_for('/bucket/show/' _ bucket.id), pager) %]</td>
 </tr>
 </table>
 
