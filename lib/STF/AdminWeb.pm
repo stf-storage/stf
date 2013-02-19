@@ -119,7 +119,7 @@ sub setup_renderer {
                     STF::Constants::STORAGE_MODE_REPAIR_DONE() => 'repair done',
                 };
                 return $mode_str->{$_[0]} || "unknown ($_[0])";
-            }
+            },
             paginate => Text::Xslate::html_builder(sub {
                 my ($uri, $pager) = @_;
                 my $form = $uri->query_form;
