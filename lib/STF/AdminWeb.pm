@@ -143,7 +143,7 @@ sub setup_renderer {
                     :
                     "Next"
                 ;
-            }
+            }),
         },
     ));
     $renderer->default_handler("tx");
