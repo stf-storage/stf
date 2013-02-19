@@ -60,7 +60,7 @@
     <td class="digit">[% mode_str(storage.mode) %]</td>
     <td class="digit">
         [% IF (! storage.cluster ) %](free)[% ELSE %]
-        <a href="[% c.uri_for("/cluster/show", storage.cluster_id) %]">[% storage.cluster.name || 'Cluster ' _ storage.cluster_id %]</a>
+        <a href="[% c.url_for("/cluster/show", storage.cluster_id) %]">[% storage.cluster.name || 'Cluster ' _ storage.cluster_id %]</a>
         [% END %]
     </td>
 [% IF (const.STF_ENABLE_STORAGE_META) %]
@@ -74,13 +74,13 @@
     [%- END %]</td>
 [% END %]
     <td>
-        <a class="btn btn-info btn-mini" href="[% c.uri_for( "/storage/edit", storage.id) %]">edit</a>
-        <a class="btn btn-success btn-mini" href="[% c.uri_for('/storage/entities', storage.id) %]">entities</a></td>
+        <a class="btn btn-info btn-mini" href="[% c.url_for( "/storage/edit/" _ storage.id) %]">edit</a>
+        <a class="btn btn-success btn-mini" href="[% c.url_for('/storage/entities/' _ storage.id) %]">entities</a></td>
   </tr>
   [% END %]
 <tr>
     <td colspan="[% IF (const.STF_ENABLE_STORAGE_META) %]8[% ELSE %]5[% END %]">
-        [% paginate( c.uri_for('/storage/list'), pager ) %]
+        [% paginate( c.url_for('/storage/list'), pager ) %]
     </td>
 </tr>
 

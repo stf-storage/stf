@@ -2,7 +2,7 @@
 
 [% INCLUDE "storage/heading.tx" %]
 
-<form class="form-horizontal" method="post" action="[% c.uri_for('/storage/add') %]">
+<form class="form-horizontal" method="post" action="[% c.url_for('/storage/add') %]">
 [% error_msgs(result) %]
 <fieldset>
     <legend>Add New Storage</legend>
