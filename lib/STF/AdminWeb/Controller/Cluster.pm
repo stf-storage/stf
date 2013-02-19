@@ -19,7 +19,7 @@ sub view {
         $self->render_not_found();
         return;
     }
-    my $cluster = $self->stash(cluster};
+    my $cluster = $self->stash->{cluster};
     my $storage_api = $self->get('API::Storage');
     my @storages = $storage_api->search({ cluster_id => $cluster->{id} });
     $cluster->{storages} = \@storages;
