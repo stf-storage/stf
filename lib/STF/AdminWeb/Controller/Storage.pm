@@ -154,7 +154,7 @@ sub edit_post {
         return;
     }
 
-    my $params = $self->req->parameters->as_hashref;
+    my $params = $self->req->params->to_hash;
     $params->{id} = $storage->{id};
     my $result = $self->validate( storage_edit => $params );
     if ($result->success) {
