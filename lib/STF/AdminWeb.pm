@@ -162,11 +162,11 @@ sub setup_routes {
         controller => "storage",
         action     => "view"
     );
-    $r->post("/storage/add/:object_id")->to(
+    $r->post("/storage/add")->to(
         controller => "storage",
         action     => "add_post"
     );
-    $r->get("/storage/add/:object_id")->to(
+    $r->get("/storage/add")->to(
         controller => "storage",
         action     => "add"
     );
