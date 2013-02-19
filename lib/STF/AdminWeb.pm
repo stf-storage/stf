@@ -155,7 +155,7 @@ sub setup_routes {
         action     => "list"
     );
     $r->get("/storage/entities/:object_id")->to(
-        controller => "storagE",
+        controller => "storage",
         action     => "entities",
     );
     $r->get("/storage/show/:object_id")->to(
