@@ -72,7 +72,7 @@ sub entities {
 
     my @entities = 
     my $dbh = $self->get('DB::Master');
-    my $entities = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, $storage_id, $object_id );
+    my $entities = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, $storage->{id}, $object_id );
         SELECT * FROM entity
             WHERE storage_id = ? AND object_id > ?
             ORDER BY object_id ASC
@@ -105,7 +105,7 @@ EOSQL
 
 sub add {
     my ($self) = @_;
-    $self->stash(clusters => scalar $c->get('API::StorageCluster')->search({}));
+    $self->stash(clusters => scalar $self->get('API::StorageCluster')->search({}));
 }
 
 sub add_post {
@@ -121,7 +121,7 @@ sub add_post {
             }
         }
         $self->get('API::Storage')->create( $valids );
-        $self->redirect_to( $c->url_for('/storage', {done => 1}) );
+        $self->redirect_to( $self->url_for('/storage', {done => 1}) );
     } else {
         $self->stash(template => 'storage/add');
     }
@@ -143,7 +143,7 @@ sub edit {
         }
     }
     $self->fillinform( \%fill );
-    $self->stash(clusters => scalar $c->get('API::StorageCluster')->search({}));
+    $self->stash(clusters => scalar $self->get('API::StorageCluster')->search({}));
 }
 
 sub edit_post {
