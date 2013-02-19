@@ -191,39 +191,45 @@ sub setup_routes {
         action     => "edit"
     );
 
-    $r->get("/storage")->to(cb => sub { shift->redirect_to("/storage/list") });
-    $r->get("/storage/list")->to(
-        controller => "storage",
-        action     => "list"
-    );
-    $r->get("/storage/entities/:object_id")->to(
-        controller => "storage",
-        action     => "entities",
-    );
-    $r->get("/storage/show/:object_id")->to(
-        controller => "storage",
-        action     => "view"
-    );
-    $r->post("/storage/add")->to(
-        controller => "storage",
-        action     => "add_post"
-    );
-    $r->get("/storage/add")->to(
-        controller => "storage",
-        action     => "add"
-    );
-    $r->post("/storage/edit/:object_id")->to(
-        controller => "storage",
-        action     => "edit_post"
-    );
-    $r->get("/storage/edit/:object_id")->to(
-        controller => "storage",
-        action     => "edit"
-    );
-    $r->post("/storage/delete/:object_id")->to(
-        controller => "storage",
-        action     => "delete_post"
-    );
+    # Clusters and storages share pretty much the same
+    # URL structure. yay
+    foreach my $controller (qw(storage cluster)) {
+        $r->get("/$controller")->to(cb => sub {
+            shift->redirect_to("/$controller/list");
+        });
+        $r->get("/$controller/list")->to(
+            controller => $controller,
+            action     => "list"
+        );
+        $r->get("/$controller/entities/:object_id")->to(
+            controller => $controller,
+            action     => "entities",
+        );
+        $r->get("/$controller/show/:object_id")->to(
+            controller => $controller,
+            action     => "view"
+        );
+        $r->post("/$controller/add")->to(
+            controller => $controller,
+            action     => "add_post"
+        );
+        $r->get("/$controller/add")->to(
+            controller => $controller,
+            action     => "add"
+        );
+        $r->post("/$controller/edit/:object_id")->to(
+            controller => $controller,
+            action     => "edit_post"
+        );
+        $r->get("/$controller/edit/:object_id")->to(
+            controller => $controller,
+            action     => "edit"
+        );
+        $r->post("/$controller/delete/:object_id")->to(
+            controller => $controller,
+            action     => "delete_post"
+        );
+    }
 }
 
 1;
