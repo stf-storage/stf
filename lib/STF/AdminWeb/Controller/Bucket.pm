@@ -14,7 +14,7 @@ sub delete {
 }
 
 sub list {
-    my ($sef) = @_;
+    my ($self) = @_;
     my $limit = 100;
     my $pager = $self->pager($limit);
 
