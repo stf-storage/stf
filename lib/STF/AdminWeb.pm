@@ -148,6 +148,40 @@ sub setup_routes {
         controller => "object",
         action     => "edit"
     );
+
+    $r->get("/storage")->to(cb => sub { shift->redirect_to("/storage/list") });
+    $r->get("/storage/list")->to(
+        controller => "storage",
+        action     => "list"
+    );
+    $r->get("/storage/entities/:object_id")->to(
+        controller => "storagE",
+        action     => "entities",
+    );
+    $r->get("/storage/show/:object_id")->to(
+        controller => "storage",
+        action     => "view"
+    );
+    $r->post("/storage/add/:object_id")->to(
+        controller => "storage",
+        action     => "add_post"
+    );
+    $r->get("/storage/add/:object_id")->to(
+        controller => "storage",
+        action     => "add"
+    );
+    $r->post("/storage/edit/:object_id")->to(
+        controller => "storage",
+        action     => "edit_post"
+    );
+    $r->get("/storage/edit/:object_id")->to(
+        controller => "storage",
+        action     => "edit"
+    );
+    $r->post("/storage/delete/:object_id")->to(
+        controller => "storage",
+        action     => "delete_post"
+    );
 }
 
 1;

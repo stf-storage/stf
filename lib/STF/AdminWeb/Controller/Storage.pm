@@ -181,6 +181,7 @@ sub edit_post {
     }
 }
 
+# XXX Should make this an API call?
 sub delete_post {
     my ($self) = @_;
 
