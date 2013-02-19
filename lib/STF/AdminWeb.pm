@@ -176,6 +176,10 @@ sub setup_routes {
     $r->get("/bucket")->to(cb => sub {
         shift->redirect_to("/bucket/list");
     });
+    $r->get("/bucket/list")->to(
+        controller => "bucket",
+        action     => "list",
+    );
     $r->get("/bucket/add")->to(
         controller => "bucket",
         action     => "add",
