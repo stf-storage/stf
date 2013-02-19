@@ -20,22 +20,21 @@ sub api_list {
 }
 
 sub load_storage {
-    my ($self, $c) = @_;
-    my $storage_id = $c->match->{object_id};
-    my $storage = $c->get('API::Storage')->lookup( $storage_id );
+    my ($self) = @_;
+    my $storage_id = $self->match->captures->{object_id};
+    my $storage = $self->get('API::Storage')->lookup( $storage_id );
     if (! $storage) {
-        $c->response->status(404);
-        $c->abort;
+        return;
     }
-    $c->stash->{storage} = $storage;
+    $self->stash(storage => $storage);
     return $storage;
 }
 
 sub list {
-    my ($self, $c) = @_;
-    my $limit = $c->request->param('limit') || 100;
-    my $pager = $c->pager( $limit );
-    my @storages = $c->get( 'API::Storage' )->search(
+    my ($self) = @_;
+    my $limit = $self->req->param('limit') || 100;
+    my $pager = $self->pager( $limit );
+    my @storages = $self->get( 'API::Storage' )->search(
         {},
         {
             limit    => $pager->entries_per_page + 1,
@@ -43,7 +42,7 @@ sub list {
             order_by => { 'id' => 'DESC' },
         }
     );
-    my $cluster_api = $c->get('API::StorageCluster');
+    my $cluster_api = $self->get('API::StorageCluster');
     foreach my $storage (@storages) {
         if ($storage->{cluster_id}) {
             $storage->{cluster} = $cluster_api->lookup( $storage->{cluster_id} );
@@ -54,21 +53,25 @@ sub list {
         $pager->total_entries( $limit * $pager->current_page + 1 );
         pop @storages;
     }
-    my $stash = $c->stash;
-    $stash->{storages} = \@storages;
-    $stash->{pager} = $pager;
+    $self->stash(
+        storages => \@storages,
+        pager    => $pager
+    );
 }
 
 sub entities {
-    my ($self, $c) = @_;
+    my ($self) = @_;
 
-    my $storage_id = $c->match->{object_id};
-    my $storage = $self->load_storage($c);
-    my $object_id = $c->request->param('since') || 0;
+    my $storage = $self->load_storage();
+    if (! $storage) {
+        $self->render_not_found();
+        return;
+    }
+    my $object_id = $self->req->param('since') || 0;
     my $limit = 100;
 
     my @entities = 
-    my $dbh = $c->get('DB::Master');
+    my $dbh = $self->get('DB::Master');
     my $entities = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} }, $storage_id, $object_id );
         SELECT * FROM entity
             WHERE storage_id = ? AND object_id > ?
@@ -97,20 +100,19 @@ EOSQL
         $sth->finish;
     }
 
-    my $stash = $c->stash;
-    $stash->{entities} = $entities;
+    $self->stash(entities => $entities);
 }
 
 sub add {
-    my ($self, $c) = @_;
-    $c->stash->{ clusters } = $c->get('API::StorageCluster')->search({});
+    my ($self) = @_;
+    $self->stash(clusters => scalar $c->get('API::StorageCluster')->search({}));
 }
 
 sub add_post {
-    my ($self, $c) = @_;
+    my ($self) = @_;
 
-    my $params = $c->request->parameters->as_hashref;
-    my $result = $self->validate( $c, storage_add => $params );
+    my $params = $self->req->params->to_hash;
+    my $result = $self->validate( storage_add => $params );
     if ($result->success) {
         my $valids = $result->valid;
         foreach my $key (keys %$valids) {
@@ -118,18 +120,18 @@ sub add_post {
                 $valids->{$1} = delete $valids->{$key};
             }
         }
-        $c->get('API::Storage')->create( $valids );
-        $c->redirect( $c->uri_for('/storage', {done => 1}) );
+        $self->get('API::Storage')->create( $valids );
+        $self->redirect_to( $c->url_for('/storage', {done => 1}) );
     } else {
-        $c->stash->{template} = 'storage/add';
+        $self->stash(template => 'storage/add');
     }
-    $c->stash->{ clusters } = $c->get('API::StorageCluster')->search({});
+    $self->stash(clusters => scalar $self->get('API::StorageCluster')->search({}));
 }
 
 sub edit {
-    my ($self, $c) = @_;
+    my ($self) = @_;
 
-    my $storage = $self->load_storage($c);
+    my $storage = $self->load_storage();
     my %fill = (
         %$storage,
         capacity => STF::Utils::human_readable_size( $storage->{capacity} ),
@@ -140,17 +142,21 @@ sub edit {
             $fill{ "meta_$meta_key" } = $meta->{ $meta_key };
         }
     }
-    $self->fillinform( $c, \%fill );
-    $c->stash->{ clusters } = $c->get('API::StorageCluster')->search({});
+    $self->fillinform( \%fill );
+    $self->stash(clusters => scalar $c->get('API::StorageCluster')->search({}));
 }
 
 sub edit_post {
-    my ($self, $c) = @_;
-    my $storage = $self->load_storage($c);
+    my ($self) = @_;
+    my $storage = $self->load_storage();
+    if (! $storage) {
+        $self->render_not_found;
+        return;
+    }
 
-    my $params = $c->request->parameters->as_hashref;
+    my $params = $self->req->parameters->as_hashref;
     $params->{id} = $storage->{id};
-    my $result = $self->validate( $c, storage_edit => $params );
+    my $result = $self->validate( storage_edit => $params );
     if ($result->success) {
         my $valids = $result->valid;
         my %meta;
@@ -162,31 +168,36 @@ sub edit_post {
                 $meta{$sk} = delete $valids->{$k};
             }
         }
-        my $api = $c->get('API::Storage');
+        my $api = $self->get('API::Storage');
         $api->update( $storage->{id} => $valids );
         if ( STF_ENABLE_STORAGE_META ) {
             $api->update_meta( $storage->{id}, \%meta );
         }
 
-        $c->redirect( $c->uri_for( "/storage/list", { done => 1 } ) );
+        $self->redirect_to( $self->url_for( "/storage/list", { done => 1 } ) );
     } else {
-        $c->stash->{template} = 'storage/edit';
-        $self->fillinform( $c, $params );
+        $self->stash(template => 'storage/edit');
+        $self->fillinform( $params );
     }
 }
 
 sub delete_post {
-    my ($self, $c) = @_;
+    my ($self) = @_;
 
-    my $storage = $self->load_storage($c);
+    my $storage = $self->load_storage();
+    if (! $storage) {
+        $self->render_not_found;
+        return;
+    }
+
     my $params = { id => $storage->{id} };
-    my $result = $self->validate( $c, storage_delete => $params );
+    my $result = $self->validate( storage_delete => $params );
     if ( $result->success ) {
-        $c->get('API::Storage')->delete( $storage->{id} );
-        $c->redirect( $c->uri_for( '/storage/list', {done => 1}) );
+        $self->get('API::Storage')->delete( $storage->{id} );
+        $self->redirect_to( $self->url_for( '/storage/list', {done => 1}) );
     } else {
-        $c->stash->{template} = 'storage/edit';
-        $self->fillinform( $c, $params );
+        $self->stash(template => 'storage/edit');
+        $self->fillinform( $params );
     }
 }
 
