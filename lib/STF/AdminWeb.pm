@@ -230,6 +230,10 @@ sub setup_routes {
             action     => "delete_post"
         );
     }
+    $r->get("/cluster/free")->to(
+        controller => "cluster",
+        action     => "storage_free",
+    );
 }
 
 1;

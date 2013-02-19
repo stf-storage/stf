@@ -83,7 +83,7 @@ sub storage_change {
     $self->render_json({});
 }
 
-sub storage_unclustered {
+sub storage_free {
     my ($self) = @_;
     my @storages = $self->get('API::Storage')->search({ cluster_id => undef });
     $self->stash(cluster_id => $self->req->param('id'));
