@@ -122,7 +122,7 @@ sub reload {
             qw(ContinuousRepair DeleteBucket DeleteObject RepairObject RepairStorage Replicate StorageHealth))
     );
 
-    $self->render_json({ message => "reload flag set properly" }));
+    $self->render_json({ message => "reload flag set properly" });
 }
 
 sub update {
