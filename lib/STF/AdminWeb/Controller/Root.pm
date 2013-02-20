@@ -4,34 +4,34 @@ use Mojo::Base 'STF::AdminWeb::Controller';
 sub index {}
 
 sub setlang {
-    my ($self, $c) = @_;
+    my ($self) = @_;
 
-    if (my $lang = $c->request->param('lang')) {
-        my $localizer = $c->get('Localizer')->set_languages( $lang );
-        $c->session->set(lang => $lang);
+    if (my $lang = $self->req->param('lang')) {
+        my $localizer = $self->get('Localizer')->set_languages( $lang );
+        $self->session->set(lang => $lang);
     } 
 
-    $c->redirect("/");
+    $self->redirect_to("/");
 }
 
 sub state {
-    my ($self, $c) = @_;
+    my ($self) = @_;
     # Load the current state of leader election
     # XXX Wrap in ::API ?
-    my $dbh = $c->get('DB::Master');
+    my $dbh = $self->get('DB::Master');
     my $list = $dbh->selectall_arrayref(<<EOSQL, { Slice => {} });
         SELECT * FROM worker_election ORDER BY id ASC
 EOSQL
-    $c->stash->{election} = $list;
+    $self->stash(election => $list);
 
-    my $memd = $c->get('Memcached');
+    my $memd = $self->get('Memcached');
     my $h = $memd->get_multi(
         (map { "stf.drone.$_" } qw(election reload balance)),
     );
     my $throttler = STF::API::Throttler->new(
         key => "DUMMY",
         throttle_span => 10,
-        container => $c->container,
+        container => $self->context->container,
     );
     $h = {
         %$h,
@@ -42,7 +42,7 @@ EOSQL
         ) }
     };
 
-    $c->stash->{states} = $h;
+    $self->stash(states => $h);
 }
 
 1;

@@ -16,6 +16,7 @@ sub psgi_app {
 
     require Mojo::Server::PSGI;
     require Plack::Middleware::Session;
+    require Plack::Session;
 
     my $app = Mojo::Server::PSGI->new(app => $self)->to_psgi_app;
     my $container = $self->context->container;
@@ -42,7 +43,10 @@ sub startup {
 
     $self->hook(before_dispatch => sub {
         my $c = shift;
-        $c->stash(const => STF::Constants->as_hashref);
+        $c->stash(
+            const => STF::Constants->as_hashref,
+            session => Plack::Session->new($c->req->env)
+        );
     });
     $self->hook(after_render => sub {
         my ($c, $output_ref, $format) = @_;
@@ -175,6 +179,11 @@ sub setup_routes {
             action     => "api_list",
         );
     }
+
+    $r->post('/setlang')->to(
+        controller => 'root',
+        action     => "setlang",
+    );
 
     # Docs
     $r->get("/doc/*filename")->to(
