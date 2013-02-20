@@ -15,7 +15,7 @@
             <p>Are you sure you want to do this?</p>
         </div>
         <div class="processing" style="display: none">
-            <img src="/static/images/ajax-loader.gif"> Processing...
+            <img src="/assets/img/ajax-loader.gif"> Processing...
         </div>
         <div class="error" style="display: none">
         </div>
