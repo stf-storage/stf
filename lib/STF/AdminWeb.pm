@@ -122,7 +122,6 @@ sub setup_renderer {
             },
             paginate => Text::Xslate::html_builder(sub {
                 my ($uri, $pager) = @_;
-                my $form = $uri->query_form;
                 sprintf qq{%s | %s},
                     $pager->previous_page ?
                         sprintf '<a href="%s">Prev</a>',
