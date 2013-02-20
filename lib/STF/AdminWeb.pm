@@ -268,6 +268,13 @@ sub setup_routes {
         action     => "storage_free",
     );
 
+    $r->get('/config')->to(cb => sub {
+        shift->redirect_to('/config/list');
+    });
+    $r->get('/config/list')->to(
+        controller => 'config',
+        action     => 'list',
+    );
     $r->get('/config/notification')->to(
         controller => 'config',
         action     => 'notification',
@@ -279,10 +286,6 @@ sub setup_routes {
     $r->get('/config/worker/:worker_name')->to
         controller => 'config',
         action     => 'worker',
-    );
-    $r->get('/config/list')->to(
-        controller => 'config',
-        action     => 'list',
     );
     $r->post('/config/update')->to(
         controller => 'config',
