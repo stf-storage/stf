@@ -288,7 +288,7 @@ sub setup_routes {
         controller => 'config',
         action     => 'notification_rule_add',
     );
-    $r->get('/config/worker/:worker_name')->to
+    $r->get('/config/worker/:worker_name')->to(
         controller => 'config',
         action     => 'worker',
     );
