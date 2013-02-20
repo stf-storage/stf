@@ -50,6 +50,7 @@ sub view {
 
     my $object = $self->load_object();
     if (! $object) {
+        $self->render_not_found;
         return;
     }
 
@@ -79,6 +80,7 @@ sub repair {
 
     my $object = $self->load_object();
     if (! $object) {
+        $self->render_not_found;
         return;
     }
     $self->get('API::Queue')->enqueue(repair_object => $object->{id});
@@ -92,6 +94,7 @@ sub delete {
     my ($self) = @_;
     my $object = $self->load_object();
     if (! $object) {
+        $self->render_not_found;
         return;
     }
 
@@ -154,6 +157,7 @@ sub edit {
     my ($self) = @_;
     my $object = $self->load_object();
     if (! $object) {
+        $self->render_not_found;
         return;
     }
     $object->{cluster} = $self->get('API::StorageCluster')->load_for_object( $object->{id} );
@@ -168,6 +172,10 @@ sub edit {
 sub edit_post {
     my ($self) = @_;
     my $object = $self->load_object();
+    if (! $object) {
+        $self->render_not_found();
+        return;
+    }
 
     my $params = $self->req->params->to_hash;
     $params->{id} = $object->{id};

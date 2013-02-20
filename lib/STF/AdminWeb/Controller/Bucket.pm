@@ -1,12 +1,37 @@
 package STF::AdminWeb::Controller::Bucket;
 use Mojo::Base 'STF::AdminWeb::Controller';
 
+sub load_object {
+    my ($self, $object_id) = @_;
+
+    $object_id ||= $self->match->captures->{object_id};
+    if ($object_id =~ /\D/) {
+        # resolve bucket/path/to/object to object id
+        $object_id = $self->resolve_public_name($object_id);
+        if (! $object_id) {
+            return;
+        }
+    }
+
+    my $object = $self->get('API::Bucket')->lookup( $object_id );
+    if (! $object) {
+        return;
+    }
+    $self->stash(bucket => $object);
+    return $object;
+}
+
 sub delete {
     my ($self) = @_;
-    my $bucket_id = $self->match->captures->{bucket_id};
 
-    $self->get('API::Bucket')->mark_for_delete({ id => $bucket_id });
-    $self->get('API::Queue')->enqueue( delete_bucket => $bucket_id );
+    my $bucket = $self->load_object();
+    if (! $bucket) {
+        $self->render_json({}, status => 404);
+        return;
+    }
+
+    $self->get('API::Bucket')->mark_for_delete({ id => $bucket->{id} });
+    $self->get('API::Queue')->enqueue( delete_bucket => $bucket->{id} );
 
     $self->render_json({
         message => "bucket deleted"
@@ -47,14 +72,17 @@ sub list {
 sub view {
     my ($self) = @_;
 
-    my $bucket_id = $self->match->captures->{bucket_id};
-    my $bucket = $self->get('API::Bucket')->lookup( $bucket_id );
-    my $total = $self->get('API::Object')->count({ bucket_id => $bucket_id });
+    my $bucket = $self->load_object();
+    if (! $bucket) {
+        $self->render_not_found();
+        return;
+    }
+    my $total = $self->get('API::Object')->count({ bucket_id => $bucket->{id} });
     my $limit = 100;
     my $pager = $self->pager( $limit );
 
     my @objects = $self->get('API::Object')->search_with_entity_info(
-        { bucket_id => $bucket_id },
+        { bucket_id => $bucket->{id} },
         {
             limit => $pager->entries_per_page + 1,
             offset => $pager->skipped,
