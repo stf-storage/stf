@@ -180,7 +180,7 @@ sub setup_routes {
         );
     }
 
-    $r->post('/setlang')->to(
+    $r->get('/setlang')->to(
         controller => 'root',
         action     => "setlang",
     );
@@ -287,12 +287,9 @@ sub setup_routes {
         action     => "storage_free",
     );
 
-    $r->get('/config')->to(cb => sub {
-        shift->redirect_to('/config/list');
-    });
-    $r->get('/config/list')->to(
+    $r->get('/config')->to(
         controller => 'config',
-        action     => 'list',
+        action     => 'index',
     );
     $r->get('/config/notification')->to(
         controller => 'config',
@@ -301,6 +298,13 @@ sub setup_routes {
     $r->post('/config/notification/rule/add')->to(
         controller => 'config',
         action     => 'notification_rule_add',
+    );
+    $r->get('/config/worker')->to(cb => sub {
+        shift->redirect_to("/config/worker/list");
+    });
+    $r->get('/config/worker/list')->to(
+        controller => 'config',
+        action     => 'worker_list',
     );
     $r->get('/config/worker/:worker_name')->to(
         controller => 'config',

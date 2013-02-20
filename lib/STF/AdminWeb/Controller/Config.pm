@@ -99,7 +99,7 @@ EOSQL
     $self->fillinform( \%fdat );
 }
 
-sub list {
+sub worker_list {
     my ($self) = @_;
 
     my $config_vars = $self->get('API::Config')->search({});
