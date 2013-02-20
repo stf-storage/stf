@@ -1,4 +1,4 @@
-[% WRAPPER "layout.tx" %]
+[% WRAPPER "inc/layout.tx" %]
 
 <form class="form-horizontal" action="/object/create" method="POST" enctype="multipart/form-data">
 
