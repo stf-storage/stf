@@ -60,7 +60,12 @@ sub startup {
 
     $self->helper(stf_uri => sub {
         my ($c, $bucket, $object) = @_;
-        $c->url_for(join "/", "", $bucket->{name}, $object->{name});
+        my $config = $self->context->container->get('config')->{'AdminWeb'} || {};
+        my $prefix = $config->{stf_base} || "http://changeme";
+        $prefix =~ s{/+$}{};
+        
+        $c->url_for(join "/", $prefix, $bucket->{name}, $object->{name});
+    
     });
 
     $self->helper(get => sub {
