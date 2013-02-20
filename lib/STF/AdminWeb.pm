@@ -265,6 +265,39 @@ sub setup_routes {
         controller => "cluster",
         action     => "storage_free",
     );
+
+    $r->get('/config/notification')->to(
+        controller => 'config',
+        action     => 'notification',
+    );
+    $r->post('/config/notification/rule/add')->to(
+        controller => 'config',
+        action     => 'notification_rule_add',
+    );
+    $r->get('/config/worker/:worker_name')->to
+        controller => 'config',
+        action     => 'worker',
+    );
+    $r->get('/config/list')->to(
+        controller => 'config',
+        action     => 'list',
+    );
+    $r->post('/config/update')->to(
+        controller => 'config',
+        action     => 'update',
+    );
+    $r->post('/ajax/config/reload.json')->to(
+        controller => 'config',
+        action     => 'reload',
+    );
+    $r->post('/ajax/notification/rule/toggle.json')->to(
+        controller => 'config',
+        action     => 'notification_rule_toggle',
+    );
+    $r->post('/ajax/notification/rule/delete.json')->to(
+        controller => 'config',
+        action     => 'notification_rule_delete',
+    );
 }
 
 1;
