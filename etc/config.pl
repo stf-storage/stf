@@ -50,28 +50,9 @@ my $queue_type = $ENV{STF_QUEUE_TYPE} || 'Q4M';
         httponly => 1,
         secure => 1,
     },
-    # Used for Admin interface. You should not need to change this
-    'AdminWeb::Router' => {
-        routes => path_to("etc/admin/routes.pl"),
-    },
-    # Used for Admin interface. You should not need to change this
     'AdminWeb::Validator' => {
         profiles => path_to('etc/admin/profiles.pl'),
     },
-    # Used for Admin interface. You should not need to change this
-    'AdminWeb::View::Xslate' => {
-        path => [
-            path_to("view"),
-            path_to("view", "inc"),
-        ],
-        module => [
-            'STF::Xslate::Utils',
-            'Data::Dumper::Concise',
-        ],
-        suffix => '.tx',
-        syntax => 'TTerse',
-    },
-
     # Memcached settings
     Memcached => {
         # Add as many servers as you may have.
