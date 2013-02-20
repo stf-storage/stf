@@ -58,6 +58,11 @@ sub startup {
         }
     });
 
+    $self->helper(stf_uri => sub {
+        my ($c, $bucket, $object) = @_;
+        $c->url_for(join "/", "", $bucket->{name}, $object->{name});
+    });
+
     $self->helper(get => sub {
         my ($c, $name) = @_;
         $c->app->context->container->get($name);
