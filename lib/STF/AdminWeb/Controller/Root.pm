@@ -8,7 +8,7 @@ sub setlang {
 
     if (my $lang = $self->req->param('lang')) {
         my $localizer = $self->get('Localizer')->set_languages( $lang );
-        $self->session->set(lang => $lang);
+        $self->sessions->set(lang => $lang);
     } 
 
     $self->redirect_to("/");

@@ -53,7 +53,7 @@ sub startup {
             session => $session,
         );
     });
-    $self->helper(session => sub {
+    $self->helper(sessions => sub {
         my $c = shift;
         $c->stash->{session};
     });
