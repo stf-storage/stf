@@ -55,7 +55,7 @@
           </button>
           <a class="brand" href="/">STF Web Interface</a>
           <div class="nav-collapse collapse">
-            <a class="btn btn-info pull-right" href="[% c.url_for("/setlang", { lang => session.get('lang') == 'ja' ? 'en' : 'ja' }) %]" id="setlang">[% session.get('lang') == 'ja' ? "English" : "日本語" %]</a>
+            <a class="btn btn-info pull-right" href="[% c.url_for("/setlang").query(lang => session.get('lang') == 'ja' ? 'en' : 'ja') %]" id="setlang">[% session.get('lang') == 'ja' ? "English" : "日本語" %]</a>
             <ul class="nav">
               <li><a href="/doc">Document</a></li>
             </ul>

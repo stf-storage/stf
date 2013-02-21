@@ -30,7 +30,7 @@
 [% IF (last_entity) %]
 <tr>
     <td colspan="3">
-        <a href="[% c.url_for("/storage/entities/" _ storage.id, { since => last_entity.object_id } ) %]">Next</a>
+        <a href="[% c.url_for("/storage/entities/" _ storage.id).query(since => last_entity.object_id) %]">Next</a>
     </td>
 </tr>
 [% END %]

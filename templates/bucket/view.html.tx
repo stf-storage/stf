@@ -16,7 +16,7 @@
         } );
 
         $("#stf-create-object-in-bucket-btn").click( function() {
-            location.href = "[% c.url_for("/object/create", { bucket_id => bucket.id } ) %]";
+            location.href = "[% c.url_for("/object/create").query(bucket_id => bucket.id) %]";
         });
 
         var del_modal_id = "#stf-bucket-delete-confirm-modal";
