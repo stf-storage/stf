@@ -126,6 +126,11 @@ sub setup_renderer {
                     join '', map { "<li>$_: @{$msgs->{$_}}</li>" }
                         keys %$msgs;
             }),
+            nl2br => Text::Xslate::html_builder(sub {
+                my $text = shift;
+                $text =~ s/\n/<br \/>/;
+                $text
+            }),
             mode_str => sub {
                 state $mode_str = {
                     STF::Constants::STORAGE_MODE_CRASH_RECOVERED() => 'crashed (repair done)',
