@@ -43,10 +43,18 @@ sub startup {
 
     $self->hook(before_dispatch => sub {
         my $c = shift;
+        my $session = Plack::Session->new($c->req->env);
+        my $lang = $session->get('lang') || 'ja';
+        my $localizer = $c->get('Localizer');
+        $localizer->set_languages( $lang );
+        $session->set(lang => $lang);
         $c->stash(
             const => STF::Constants->as_hashref,
-            session => Plack::Session->new($c->req->env)
+            session => $session,
         );
+    });
+    $self->helper(session => sub {
+        $c->stash->{session};
     });
     $self->hook(after_render => sub {
         my ($c, $output_ref, $format) = @_;
