@@ -226,16 +226,22 @@ sub setup_routes {
         controller => "object",
         action     => "view"
     );
-    foreach my $action (qw(create edit)) {
-        $r->post("/object/$action/:object_id")->to(
-            controller => "object",
-            action     => "${action}_post"
-        );
-        $r->get("/object/$action/:object_id")->to(
-            controller => "object",
-            action     => $action,
-        );
-    }
+    $r->post("/object/create")->to(
+        controller => "object",
+        action     => "create_post"
+    );
+    $r->get("/object/create")->to(
+        controller => "object",
+        action     => "create",
+    );
+    $r->post("/object/edit/:object_id")->to(
+        controller => "object",
+        action     => "edit_post"
+    );
+    $r->get("/object/edit/:object_id")->to(
+        controller => "object",
+        action     => "edit",
+    );
 
     foreach my $action (qw(delete repair)) {
         $r->post("/ajax/object/:object_id/$action.json")->to(
