@@ -21,7 +21,7 @@ sub load_object {
     return $object;
 }
 
-sub delete {
+sub api_delete {
     my ($self) = @_;
 
     my $bucket = $self->load_object();

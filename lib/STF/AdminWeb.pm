@@ -211,9 +211,9 @@ sub setup_routes {
         action     => "view"
     );
     # XXX Fix URI path
-    $r->post("/ajax/bucket/:bucket_id/delete.json")->to(
+    $r->post("/api/bucket/:object_id/delete.json")->to(
         controller => 'bucket',
-        action     => "delete",
+        action     => "api_delete",
     );
 
 

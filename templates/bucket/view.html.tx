@@ -29,7 +29,7 @@
             $("div.main", del_modal_id + " div.modal-body").hide();
             $("div.processing", del_modal_id + " div.modal-body").show();
             $.ajax({
-                url: "/ajax/bucket/[% bucket.id %]/delete.json",
+                url: "/api/bucket/[% bucket.id %]/delete.json",
                 type: "POST",
                 error: function(xhr, st, err) {
                     $("div.processing", del_modal_id + " div.modal-body").hide();
