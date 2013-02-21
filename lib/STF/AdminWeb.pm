@@ -54,6 +54,7 @@ sub startup {
         );
     });
     $self->helper(session => sub {
+        my $c = shift;
         $c->stash->{session};
     });
     $self->hook(after_render => sub {
