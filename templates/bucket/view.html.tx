@@ -21,7 +21,7 @@
 
         var del_modal_id = "#stf-bucket-delete-confirm-modal";
         $("a.btn-primary", del_modal_id).click(function() {
-            if ( ! confirm( "Are you sure you want to proceed DELETING this object?" ) ) {
+            if ( ! confirm( "Are you sure you want to proceed DELETING this bucket?" ) ) {
                 $(del_modal_id).modal("hide");
                 return false;
             }
@@ -39,7 +39,8 @@
                 success: function() {
                     $(del_modal_id).modal("hide");
                     setTimeout( function() {
-                        window.location.reload();
+                        alert("Bucket has been deleted");
+                        location.href = "[% c.url_for("/bucket/show") %]";
                     }, 3000 );
                 }
             });
