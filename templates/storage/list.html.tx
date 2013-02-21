@@ -60,7 +60,7 @@
     <td class="digit">[% mode_str(storage.mode) %]</td>
     <td class="digit">
         [% IF (! storage.cluster ) %](free)[% ELSE %]
-        <a href="[% c.url_for("/cluster/show", storage.cluster_id) %]">[% storage.cluster.name || 'Cluster ' _ storage.cluster_id %]</a>
+        <a href="[% c.url_for("/cluster/show/" _ storage.cluster_id) %]">[% storage.cluster.name || 'Cluster ' _ storage.cluster_id %]</a>
         [% END %]
     </td>
 [% IF (const.STF_ENABLE_STORAGE_META) %]
