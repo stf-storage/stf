@@ -4,6 +4,7 @@ use feature 'state';
 use Mojo::Base 'Mojolicious';
 use STF::AdminWeb::Renderer;
 use STF::Context;
+use STF::Utils;
 use Data::Page;
 use HTML::FillInForm::Lite;
 
@@ -110,6 +111,9 @@ sub setup_renderer {
         %{ $self->context->container->get('config')->{'AdminWeb::Renderer'} || {} },
         function => {
             loc => sub { $self->get('Localizer')->localize(@_) },
+            human_readable_size => sub {
+                return STF::Utils::human_readable_size(@_);
+            },
             error_msgs => Text::Xslate::html_builder(sub {
                 my ($result) = @_;
 

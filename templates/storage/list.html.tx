@@ -64,8 +64,8 @@
         [% END %]
     </td>
 [% IF (const.STF_ENABLE_STORAGE_META) %]
-    <td class="digit">[% storage.meta.capacity | human_readable%]</td>
-    <td class="digit">[% storage.meta.used | human_readable%]</td>
+    <td class="digit">[% storage.meta.capacity | human_readable_size %]</td>
+    <td class="digit">[% storage.meta.used | human_readable_size %]</td>
     <td>[% IF (storage.meta.notes) %]
         <a href="#" class="note-toggle" for="[% storage.id %]">notes</a>
         <div for="[% storage.id %]" class="note-content">[% storage.meta.notes | nl2br %]</div>
