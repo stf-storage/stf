@@ -114,7 +114,7 @@ sub setup_renderer {
 
     my $renderer = $self->renderer;
     $renderer->add_handler(tx => STF::AdminWeb::Renderer->build(
-        %config,
+        %$config,
         app => $self,
         function => {
             loc => sub { $self->get('Localizer')->localize(@_) },
