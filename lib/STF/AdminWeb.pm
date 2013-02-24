@@ -106,10 +106,16 @@ sub startup {
 sub setup_renderer {
     my ($self) = @_;
 
+    my $config = $self->context->container->get('config')->{'AdminWeb::Renderer'} || {};
+    # Setup static path
+    if (my $path = $config->{static}) {
+        unshift @{$self->static->paths}, $path;
+    }
+
     my $renderer = $self->renderer;
     $renderer->add_handler(tx => STF::AdminWeb::Renderer->build(
+        %config,
         app => $self,
-        %{ $self->context->container->get('config')->{'AdminWeb::Renderer'} || {} },
         function => {
             loc => sub { $self->get('Localizer')->localize(@_) },
             error_msgs => Text::Xslate::html_builder(sub {
