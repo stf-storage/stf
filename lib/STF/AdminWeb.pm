@@ -41,8 +41,9 @@ sub startup {
     $self->setup_renderer();
     $self->setup_routes();
 
-    $self->hook(before_dispatch => sub {
-        my $c = shift;
+    $self->hook(around_dispatch => sub {
+        my ($next, $c) = @_;
+        my $guard = $self->context->container->new_scope();
         my $session = Plack::Session->new($c->req->env);
         my $lang = $session->get('lang') || 'ja';
         my $localizer = $c->get('Localizer');
@@ -52,6 +53,7 @@ sub startup {
             const => STF::Constants->as_hashref,
             session => $session,
         );
+        $next->();
     });
     $self->helper(sessions => sub {
         my $c = shift;
