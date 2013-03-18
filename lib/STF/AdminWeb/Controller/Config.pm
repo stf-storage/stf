@@ -132,7 +132,7 @@ sub update {
     my @params = map { ($_ => scalar $p->param($_)) } $p->param;
 
     $self->get('API::Config')->set(@params);
-    $self->redirect_to( $self->url_for("/config/list") );
+    $self->redirect_to( $self->url_for("/config/worker/list") );
 }
 
 1;
