@@ -53,7 +53,7 @@ sub get_options {
     }
 
     if (! defined $opts{host_id}) {
-        die "--host_id is require\n";
+        die "--host_id is required\n";
     }
 
     foreach my $key (qw( max-keepalive-requests max-workers max-reqs-per-child mix-reqs-per-child) ) {
