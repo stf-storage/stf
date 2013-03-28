@@ -51,6 +51,76 @@
          "target" : "Any::Moose",
          "version" : "0.20"
       },
+      "Apache::LogFormat::Compiler" : {
+         "dist" : "Apache-LogFormat-Compiler-0.10",
+         "mymeta" : {
+            "abstract" : "Compile a log format string to perl-code",
+            "author" : [
+               "Masahiro Nagano E<lt>kazeburo@gmail.comE<gt>"
+            ],
+            "dynamic_config" : 0,
+            "generated_by" : "Module::Build version 0.4003, CPAN::Meta::Converter version 2.120921",
+            "license" : [
+               "perl_5"
+            ],
+            "meta-spec" : {
+               "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+               "version" : "2"
+            },
+            "name" : "Apache-LogFormat-Compiler",
+            "no_index" : {
+               "directory" : [
+                  "inc"
+               ]
+            },
+            "prereqs" : {
+               "build" : {
+                  "requires" : {
+                     "HTTP::Request::Common" : "0",
+                     "Test::More" : "0.98",
+                     "Test::Requires" : "0",
+                     "Try::Tiny" : "0.12",
+                     "URI::Escape" : "1.60"
+                  }
+               },
+               "configure" : {
+                  "requires" : {
+                     "Module::Build" : "0.38"
+                  }
+               },
+               "runtime" : {
+                  "requires" : {
+                     "POSIX" : "0",
+                     "Time::Local" : "0",
+                     "perl" : "5.008005"
+                  }
+               }
+            },
+            "provides" : {
+               "Apache::LogFormat::Compiler" : {
+                  "file" : "lib/Apache/LogFormat/Compiler.pm",
+                  "version" : "0.10"
+               }
+            },
+            "release_status" : "stable",
+            "resources" : {
+               "license" : [
+                  "http://dev.perl.org/licenses/"
+               ]
+            },
+            "version" : "0.10"
+         },
+         "name" : "Apache::LogFormat::Compiler",
+         "pathname" : "K/KA/KAZEBURO/Apache-LogFormat-Compiler-0.10.tar.gz",
+         "provides" : {
+            "Apache::LogFormat::Compiler" : {
+               "file" : "Apache/LogFormat/Compiler.pm",
+               "version" : "0.10"
+            }
+         },
+         "target" : "Apache::LogFormat::Compiler",
+         "version" : "0.10"
+      },
       "Bit::Vector" : {
          "dist" : "Bit-Vector-7.2",
          "mymeta" : {
@@ -2454,6 +2524,72 @@
          },
          "target" : "File::MMagic",
          "version" : "1.29"
+      },
+      "File::RotateLogs" : {
+         "dist" : "File-RotateLogs-0.02",
+         "mymeta" : {
+            "abstract" : "File logger supports log rotation",
+            "author" : [
+               "Masahiro Nagano <kazeburo {at} gmail.com>"
+            ],
+            "dynamic_config" : 0,
+            "generated_by" : "Module::Install version 1.06, CPAN::Meta::Converter version 2.120921",
+            "license" : [
+               "perl_5"
+            ],
+            "meta-spec" : {
+               "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+               "version" : "2"
+            },
+            "name" : "File-RotateLogs",
+            "no_index" : {
+               "directory" : [
+                  "inc",
+                  "t",
+                  "xt"
+               ]
+            },
+            "prereqs" : {
+               "build" : {
+                  "requires" : {
+                     "ExtUtils::MakeMaker" : "6.36",
+                     "Test::More" : "0"
+                  }
+               },
+               "configure" : {
+                  "requires" : {
+                     "ExtUtils::MakeMaker" : "6.36"
+                  }
+               },
+               "runtime" : {
+                  "requires" : {
+                     "Mouse" : "1.02",
+                     "Proc::Daemon" : "0.14"
+                  }
+               }
+            },
+            "release_status" : "stable",
+            "resources" : {
+               "license" : [
+                  "http://dev.perl.org/licenses/"
+               ],
+               "repository" : {
+                  "type" : "git",
+                  "url" : "git://github.com/kazeburo/File-RotateLogs.git"
+               }
+            },
+            "version" : "0.02"
+         },
+         "name" : "File::RotateLogs",
+         "pathname" : "K/KA/KAZEBURO/File-RotateLogs-0.02.tar.gz",
+         "provides" : {
+            "File::RotateLogs" : {
+               "file" : "File/RotateLogs.pm",
+               "version" : "0.02"
+            }
+         },
+         "target" : "File::RotateLogs",
+         "version" : "0.02"
       },
       "File::ShareDir" : {
          "dist" : "File-ShareDir-1.03",
@@ -6448,6 +6584,73 @@
          "target" : "Plack::Middleware::Static",
          "version" : "1.0016"
       },
+      "Plack::Middleware::AxsLog" : {
+         "dist" : "Plack-Middleware-AxsLog-0.10",
+         "mymeta" : {
+            "abstract" : "Yet another AccessLog Middleware",
+            "author" : [
+               "Masahiro Nagano <kazeburo {at} gmail.com>"
+            ],
+            "dynamic_config" : 0,
+            "generated_by" : "Module::Install version 1.06, CPAN::Meta::Converter version 2.120921",
+            "license" : [
+               "perl_5"
+            ],
+            "meta-spec" : {
+               "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+               "version" : "2"
+            },
+            "name" : "Plack-Middleware-AxsLog",
+            "no_index" : {
+               "directory" : [
+                  "inc",
+                  "t",
+                  "xt"
+               ]
+            },
+            "prereqs" : {
+               "build" : {
+                  "requires" : {
+                     "ExtUtils::MakeMaker" : "6.36",
+                     "Test::More" : "0"
+                  }
+               },
+               "configure" : {
+                  "requires" : {
+                     "ExtUtils::MakeMaker" : "6.36"
+                  }
+               },
+               "runtime" : {
+                  "requires" : {
+                     "Apache::LogFormat::Compiler" : "0.02",
+                     "HTTP::Status" : "0",
+                     "Plack" : "0"
+                  }
+               }
+            },
+            "release_status" : "stable",
+            "resources" : {
+               "license" : [
+                  "http://dev.perl.org/licenses/"
+               ],
+               "repository" : {
+                  "type" : "git",
+                  "url" : "git://github.com/kazeburo/Plack-Middleware-AxsLog.git"
+               }
+            },
+            "version" : "0.10"
+         },
+         "name" : "Plack::Middleware::AxsLog",
+         "pathname" : "K/KA/KAZEBURO/Plack-Middleware-AxsLog-0.10.tar.gz",
+         "provides" : {
+            "Plack::Middleware::AxsLog" : {
+               "file" : "Plack/Middleware/AxsLog.pm",
+               "version" : "0.10"
+            }
+         },
+         "target" : "Plack::Middleware::AxsLog",
+         "version" : "0.10"
+      },
       "Plack::Middleware::Header" : {
          "dist" : "Plack-Middleware-Header-0.04",
          "mymeta" : {
@@ -6759,6 +6962,49 @@
          },
          "target" : "Plack::Session",
          "version" : "0.15"
+      },
+      "Proc::Daemon" : {
+         "dist" : "Proc-Daemon-0.14",
+         "mymeta" : {
+            "abstract" : "unknown",
+            "author" : [
+               "Earl Hood earl@earlhood.com, Detlef Pilzecker deti@cpan.org"
+            ],
+            "dynamic_config" : 0,
+            "generated_by" : "ExtUtils::MakeMaker version 6.42, CPAN::Meta::Converter version 2.120921",
+            "license" : [
+               "perl_5"
+            ],
+            "meta-spec" : {
+               "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+               "version" : "2"
+            },
+            "name" : "Proc-Daemon",
+            "prereqs" : {
+               "build" : {
+                  "requires" : {
+                     "ExtUtils::MakeMaker" : "0"
+                  }
+               },
+               "runtime" : {
+                  "requires" : {
+                     "POSIX" : "0"
+                  }
+               }
+            },
+            "release_status" : "stable",
+            "version" : "0.14"
+         },
+         "name" : "Proc::Daemon",
+         "pathname" : "D/DE/DETI/Proc/Proc-Daemon-0.14.tar.gz",
+         "provides" : {
+            "Proc::Daemon" : {
+               "file" : "Proc/Daemon.pm",
+               "version" : "0.14"
+            }
+         },
+         "target" : "Proc::Daemon",
+         "version" : "0.14"
       },
       "Proc::Guard" : {
          "dist" : "Proc-Guard-0.06",

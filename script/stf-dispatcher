@@ -13,6 +13,7 @@ sub get_options {
         no_ignore_case
     ));
     my @optspec = qw(
+        accesslog=s
         app_home=s
         help!
         host_id=i
@@ -212,6 +213,7 @@ sub run_app {
     }
     logit $opts, "Running '@cmd' now...";
     local $ENV{STF_HOST_ID} = $opts->{host_id};
+    local $ENV{STF_DISPATCHER_ACCESS_LOG} = $opts->{accesslog};
     exec @cmd;
 }
 
@@ -267,6 +269,10 @@ stf-dispatcher - Execute STF Dispatcher
     stf-dispatcher --host_id=...
 
 =head1 OPTIONS
+
+=head2 C<--accesslog /path/to/accesslog>
+
+Path to where the dispatcher should log the access log
 
 =head2 C<--app_home /path/to/stf>
 
