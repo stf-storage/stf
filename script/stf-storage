@@ -1,0 +1,323 @@
+#!/usr/bin/env perl
+use strict;
+use Carp ();
+use Config ();
+use File::Find ();
+use File::Spec ();
+use Getopt::Long ();
+
+sub get_options {
+    my $p = Getopt::Long::Parser->new;
+    $p->configure(qw(
+        posix_default
+        no_ignore_case
+    ));
+    my @optspec = qw(
+        app_home=s
+        help!
+        root=s
+        install=s
+        max-keepalive-requests=i
+        max-workers=i
+        max-reqs-per-child=i
+        min-reqs-per-child=i
+        port=i
+        user=s
+        group=s
+        verbose!
+    );
+    my %opts = (
+        app_home                => Cwd::abs_path(),
+        install                 => "auto", # can be 'auto', 'force', 'no'
+        port                    => 5000,
+        max_keepalive_requests  => 1,
+        max_workers             => 30,
+        max_reqs_per_child      => 250,
+        min_reqs_per_child      => 100,
+        user                    => $< == 0 ? "www" : (getpwuid($<))[0],
+    );
+    if (! $p->getoptions(\%opts, @optspec)) {
+        return;
+    }
+
+    if ($opts{help}) {
+        require Pod::Usage;
+        Pod::Usage::pod2usage({
+            -verbose => 2
+        });
+    }
+
+    if (! defined $opts{group}) {
+        $opts{group} = (getgrgid((getpwnam($opts{user}))[3]))[0];
+    }
+
+    if (! defined $opts{root}) {
+        die "--root is required\n";
+    }
+
+    foreach my $key (qw( max-keepalive-requests max-workers max-reqs-per-child mix-reqs-per-child) ) {
+        my $underscored = $key;
+        $underscored =~ s/-/_/g;
+        if (defined $opts{$key}) {
+            $opts{$underscored} = delete $opts{$key};
+        }
+    }
+    return \%opts;
+}
+
+sub perl_binpaths {
+    my %hash = (
+        $Config::Config{installbin} => 1,
+        $Config::Config{installscript} => 1,
+        $Config::Config{installsitebin} => 1,
+        $Config::Config{installsitescript} => 1,
+    );
+    return keys %hash;
+}
+
+my %EXECUTABLE_CACHE;
+sub find_executable ($;$) {
+    my $cmd = shift;
+    my $nocache = shift;
+    return $EXECUTABLE_CACHE{$cmd} if $EXECUTABLE_CACHE{$cmd} && !$nocache;
+    foreach my $path (split /:/, $ENV{PATH}) {
+        my $cmd_path = File::Spec->catfile($path, $cmd);
+        if (-x $cmd_path) {
+            $EXECUTABLE_CACHE{$cmd} = $cmd_path;
+            return $cmd_path;
+        }
+    }
+    Carp::croak("Could not find command $cmd in PATH");
+}
+
+sub rchown ($$$) {
+    my ($uname, $gname, $dir) = @_;
+    File::Find::find({
+        no_chdir => 1,
+        wanted => sub {
+            chown(scalar getpwnam($uname), scalar getgrnam($gname), $File::Find::name);
+        }
+    }, $dir);
+}
+
+sub logit($$) {
+    my $opts = shift;
+    return unless $opts->{verbose};
+    print " + @_\n";
+}
+
+sub app_file($$) {
+    my $opts = shift;
+    File::Spec->catfile($opts->{app_home}, @_);
+}
+
+sub mysystem(@) {
+    my $cmd = shift;
+    my $fullcmd = File::Spec->file_name_is_absolute($cmd) ?
+        $cmd : find_executable($cmd);
+    system($fullcmd, @_) == 0 or Carp::croak("Failed to run '$fullcmd @_'");
+}
+
+sub read_meta($) {
+    my $opts = shift;
+    my $metafile = app_file($opts, ".app_meta.pl");
+    return do $metafile;
+}
+
+sub write_meta($$) {
+    my $opts = shift;
+    my $meta = shift;
+    my $metafile = app_file($opts, ".app_meta.pl");
+    open my $fh, '>', $metafile or
+        Carp::croak("Failed to open $metafile for writing: $!");
+
+    require Data::Dumper;
+    local $Data::Dumper::Terse = 1;
+    local $Data::Dumper::Sortkeys = 1;
+    local $Data::Dumper::Indent = 1;
+    print $fh Data::Dumper::Dumper($meta);
+    close $fh;
+
+    if ($< == 0) {
+        rchown($opts->{user}, $opts->{group}, $metafile);
+    }
+}
+
+sub update_meta($@) {
+    my ($opts, %args) = @_;
+    my $meta = read_meta($opts) || {};
+    $meta = +{ %$meta, %args };
+    write_meta $opts, $meta;
+}
+
+sub run_install {
+    my $opts = shift;
+
+    my $need_install = 0;
+    if ($opts->{install} eq 'auto') {
+        if (! -e app_file($opts, "local")) {
+            # local/ dir does not exist, need to run carton install
+            $need_install = 1;
+        } else {
+            # check .app_meta.pl file for meta data on when we last
+            # ran install
+            my $lockfile = app_file($opts, "carton.lock");
+            my $meta     = read_meta $opts;
+            $need_install =
+                ! $meta ||
+                ! $meta->{last_install} ||
+                $meta->{last_install} < (stat($lockfile))[9]
+            ;
+        }
+    } elsif ($opts->{install} eq 'force') {
+        $need_install = 1;
+    }
+
+    if ($need_install) {
+        logit $opts, "Going to run 'carton install'";
+    } else {
+        logit $opts, "Skipping 'carton install'";
+        return;
+    }
+
+    # Make sure that the entire tree is owned by $opts->{user}
+    rchown($opts->{user}, $opts->{group}, app_file($opts, "local"));
+
+    my @cmd = (find_executable("carton"), "install", "--deployment");
+    if ($< == 0) { # root
+        unshift @cmd, (find_executable("sudo"), "-E", "-u" => $opts->{user});
+    }
+    mysystem @cmd;
+
+    update_meta $opts, "last_install" => time();
+}
+
+sub run_app {
+    my $opts = shift;
+
+    my @cmd = (
+        find_executable("carton"), "exec", "-I$opts->{app_home}/lib", "--",
+        "start_server",
+            "--port" => $opts->{port}, "--",
+        "plackup",
+            "-s"                    => "Starlet",
+            "-a"                    => app_file($opts, "etc/storage.psgi"),
+            "--max-keepalive-reqs"  => $opts->{max_keepalive_requests},
+            "--max-reqs-per-child"  => $opts->{max_reqs_per_child},
+            "--min-reqs-per-child"  => $opts->{min_reqs_per_child},
+            "--max-workers"         => $opts->{max_workers},
+    );
+    if ($< == 0) { # root
+        unshift @cmd, find_executable("setuidgid"), "www";
+    }
+    logit $opts, "Running '@cmd' now...";
+    local $ENV{STF_STORAGE_ROOT} = $opts->{root};
+    exec @cmd;
+}
+
+sub find_cpanm_home {
+    my $opts = shift;
+    my $dir  = File::Spec->catdir($opts->{app_home}, ".cpanm");
+    if (-e $dir) {
+        rchown($opts->{user}, $opts->{group}, $dir);
+    }
+    return $dir;
+}
+
+sub main {
+    my $opts = get_options(@ARGV);
+    if (! $opts) {
+        exit 1;
+    }
+
+    chdir $opts->{app_home} or die "Could not change to '$opts->{app_home}'";
+
+    # cpanm（しかも5.8.8のヤツとか）が/usr/local/bin/cpanmとかに入ってて、
+    # PATHがちゃんと設定されてないとcartonは5.16なのにcpanm経由で入る
+    # モジュールは5.8.8になっちゃうとかわけわからない事が起きるので、
+    # PATHの先頭はいまから使うcartonと同じ物になるように設定する
+    #
+    # また、PATHを設定せずに/path/to/perl script/foobar とかされた時を考慮して
+    # PATHには先に$Config{installbin}系のパスを追加しておく
+
+    local $ENV{PATH} = join ":", perl_binpaths(), "/usr/local/mysql/bin", $ENV{PATH};
+    local $ENV{PERL_CPANM_HOME} = find_cpanm_home($opts);
+
+    my $carton = find_executable "carton";
+    my $cpanm  = find_executable "cpanm";
+
+    logit($opts, sprintf "Using perl from '%s'", $Config::Config{perlpath});
+    logit($opts, sprintf "Using carton from '%s'", $carton);
+    logit($opts, sprintf "Using cpanm from '%s'", $cpanm);
+
+    run_install($opts);
+    run_app($opts);
+}
+
+main() unless caller();
+
+__END__
+
+=head1 NAME
+
+stf-storage - Execute STF Storage
+
+=head1 SYNOPSIS
+
+    stf-storage 
+
+=head1 OPTIONS
+
+=head2 C<--app_home /path/to/stf>
+
+Home directory for STF. Defaults to current directory.
+
+=head2 C<--root /path/to/storage_root>
+
+Path to the root of the storage
+
+=head2 C<--install [auto|force|no]>
+
+Specifies if C<carton install> should be run. Default is auto.
+
+In C<auto> mode, detects if $app_home/carton.lock has been updated, and if so,
+runs C<carton install>.
+
+In C<force> mode, ALWAYS runs C<carton install>.
+
+In C<no> mode, does not run C<carton install>.
+
+=head2 C<--max-keepalive-requests NUMBER>
+
+Passed to C<Starlet>. Defaults to 1.
+
+=head2 C<--max-workers NUMBER>
+
+Passed to C<Starlet>. Defaults to 30.
+
+=head2 C<--max-reqs-per-child NUMBER>
+
+Passed to C<Starlet>. Defaults to 250.
+
+=head2 C<--min-reqs-per-child NUMBER>
+
+Passed to C<Starlet>. Defaults to 100.
+
+=head2 C<--port NUMBER>
+
+Passed to C<start_server>. Defaults to 5000.
+
+=head2 C<--user NAME>
+
+Used to specify what user to run the dispatcher as. Defaults to current user.
+
+=head2 C<--group NAME>
+
+Used to specify what group to run the dispatcher as. Defaults to the group
+C<--user> belongs to.
+
+=head2 C<--verbose>
+
+Show verbose message of this script (NOTE: to enable STF debug output,
+you need to set STF_DEBUG environment variable)
+=cut
