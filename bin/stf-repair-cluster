@@ -52,7 +52,6 @@ sub do_enqueue {
     }
 
     my $queue_api  = $cnt->get('API::Queue');
-    my $queue_size = $queue_api->size("repair_object");
     my $dbh = $cnt->get( $ENV{STF_DB} || 'DB::Master' );
     my $sth = $dbh->prepare(<<EOSQL);
         SELECT object_id FROM object_cluster_map WHERE cluster_id = ? AND object_id >= ? LIMIT $opts->{limit}
@@ -62,6 +61,7 @@ EOSQL
         my $rv = $sth->execute( $cluster->{id}, $object_id );
         last if $rv <= 0;
 
+        my $queue_size = $queue_api->size("repair_object");
         $sth->bind_columns( \($object_id) );
         while ( $sth->fetchrow_arrayref ) {
             $queue_api->enqueue( repair_object => $object_id );
