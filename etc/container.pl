@@ -52,7 +52,7 @@ my $register_dbh = sub {
         my $c = shift;
         my $config = $c->get('config');
 
-        $resolver = $c->get('DSNResolver');
+        my $resolver = $c->get('DSNResolver');
 
         my @connect_info = @{$config->{$key}}
         my $dsn = $resolver->resolv($connect_info[0])
