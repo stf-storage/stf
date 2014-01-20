@@ -1,4 +1,5 @@
 use strict;
+use DBIx::DSN::Resolver::Cached;
 use Furl::HTTP;
 use String::Urandom;
 use Cache::Memcached::Fast;
@@ -40,13 +41,24 @@ register Memcached => sub {
     my $config = $c->get('config');
     Cache::Memcached::Fast->new( $config->{'Memcached'} );
 };
+register DSNResolver => DBIx::DSN::Resolver::Cached->new(
+    ttl => 30,
+    negative_ttl => 5
+);
 
 my $register_dbh = sub {
     my ($key) = @_;
     register $key => sub {
         my $c = shift;
         my $config = $c->get('config');
-        my $dbh = DBI->connect( @{$config->{$key}} );
+
+        $resolver = $c->get('DSNResolver');
+
+        my @connect_info = @{$config->{$key}}
+        my $dsn = $resolver->resolv($connect_info[0])
+        $connect_info[0] = $dsn;
+
+        my $dbh = DBI->connect(@connect_info);
         $dbh->{HandleError} = sub {
             our @CARP_NOT = ('STF::API::WithDBI');
             Carp::croak(shift) };

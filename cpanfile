@@ -5,6 +5,7 @@ requires 'Data::FormValidator' => 0;
 requires 'Data::Localize' => 0;
 requires 'Digest::MurmurHash' => 0;
 requires 'DBI' => 0;
+requires 'DBIx::DSN::Resolver::Cached' => '0.04';
 requires 'DBD::mysql' => 0;
 requires 'Email::MIME' => 0;
 requires 'Email::Send' => 0;
