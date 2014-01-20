@@ -46,6 +46,7 @@ WriteMakefile(
         'Digest::MurmurHash' => 0,
         'DBI' => 0,
         'DBD::mysql' => 0,
+        'DBIx::DSN::Resolver::Cached' => '0.04',
         'Email::MIME' => 0,
         'Email::Send' => 0,
         'Furl' => '0.38',
