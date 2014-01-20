@@ -166,7 +166,6 @@ sub store {
     if (! @clusters) {
         critf(
             "No cluster defined for object %s, and could not any load cluster for it\n",
-            "Object",
             $object_id
         );
         return;
