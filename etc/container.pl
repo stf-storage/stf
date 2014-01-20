@@ -54,8 +54,8 @@ my $register_dbh = sub {
 
         my $resolver = $c->get('DSNResolver');
 
-        my @connect_info = @{$config->{$key}}
-        my $dsn = $resolver->resolv($connect_info[0])
+        my @connect_info = @{$config->{$key}};
+        my $dsn = $resolver->resolv($connect_info[0]);
         $connect_info[0] = $dsn;
 
         my $dbh = DBI->connect(@connect_info);
