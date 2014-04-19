@@ -16,21 +16,29 @@ sub _init {
     my ($self, %args) = @_;
 
     my $app = delete $args{mojo} || delete $args{app};
-    my $cache_dir;
-    my @path = $app->home->rel_dir('templates');
+    my $cache_dir = $args{cache_dir};
+    my $path = $args{path};
+    if (! $path || scalar(@$path) < 1) {
+        $path = [ $app->home->rel_dir('templates') ];
+    }
 
     if ($app) {
-        $cache_dir = $app->home->rel_dir('tmp/compiled_templates');
-        push @path, Mojo::Loader->new->data(
+        if (! $cache_dir) {
+            $cache_dir = $app->home->rel_dir('tmp/compiled_templates');
+        }
+
+        push @$path, Mojo::Loader->new->data(
             $app->renderer->classes->[0],
         );
     } else {
-        $cache_dir = File::Spec->tmpdir;
+        if (! $cache_dir) {
+            $cache_dir = File::Spec->tmpdir;
+        }
     }
 
     my %config = (
         cache_dir => $cache_dir,
-        path      => \@path,
+        path      => $path,
         syntax    => 'TTerse',
         %args,
     );
