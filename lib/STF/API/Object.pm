@@ -573,7 +573,7 @@ sub mark_for_delete {
     my $dbh = $self->dbh;
 
     # Do a SELECT / then an insert
-    my $select_sth = $dbh->prepare("SELECT 1 FROM deleted_object WHERE id = ?")
+    my $select_sth = $dbh->prepare("SELECT 1 FROM deleted_object WHERE id = ?");
     my $rv_select = $select_sth->execute($object_id);
     $select_sth->finish;
     if ($rv_select > 0) { # FOUND
