@@ -211,9 +211,29 @@ sub register_for_object {
     my $dbh = $self->dbh;
     my $rv;
     eval {
-        $rv = $dbh->do( <<EOSQL, undef, $object_id, $cluster_id );
-            REPLACE INTO object_cluster_map (object_id, cluster_id) VALUES (?, ?)
+        my $sth = $dbh->prepare(<<EOSQL);
+            SELECT 1 FROM object WHERE id = ?
 EOSQL
+        $rv = $sth->execute($object_id);
+        $sth->finish;
+        if ($rv <= 0) {
+            die "Object $object_id does not exist";
+        }
+
+        $sth = $dbh->prepare(<<EOSQL);
+            SELECT 1 FROM object_cluster_map WHERE object_id = ?
+EOSQL
+        $rv = $sth->execute($object_id);
+        $sth->finish;
+        if ($rv <= 0) {
+            $rv = $dbh->do(<<EOSQL, undef, $object_id, $cluster_id);
+                 INSERT INTO object_cluster_map (object_id, cluster_id) VALUES (?, ?)
+EOSQL
+        } else {
+            $rv = $dbh->do(<<EOSQL, undef, $object_id, $cluster_id);
+                REPLACE INTO object_cluster_map (object_id, cluster_id) VALUES (?, ?)
+EOSQL
+        }
     };
     if ($@) {
         critf("Error while registering object %s to cluster %s: %s", $object_id, $cluster_id, $@);

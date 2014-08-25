@@ -571,36 +571,87 @@ sub mark_for_delete {
     local $STF::Log::PREFIX = "MarkDel(O)" if STF_DEBUG;
 
     my $dbh = $self->dbh;
-    my ($rv_replace, $rv_delete);
 
-    $rv_replace = $dbh->do( <<EOSQL, undef, $object_id );
-        REPLACE INTO deleted_object SELECT * FROM object WHERE id = ?
+    # Do a SELECT / then an insert
+    my $select_sth = $dbh->prepare("SELECT 1 FROM deleted_object WHERE id = ?");
+    my $rv_select = $select_sth->execute($object_id);
+    $select_sth->finish;
+    if ($rv_select > 0) { # FOUND
+        # Do a REPLACE
+        my $rv = $dbh->do( <<EOSQL, undef, $object_id );
+            REPLACE INTO deleted_object SELECT * FROM object WHERE id = ?
 EOSQL
+        if ( $rv <= 0 ) {
+            if (STF_DEBUG) {
+                debugf(
+                    "Failed to replace object %s into deleted_object (rv = %s)",
+                    $object_id, $rv
+                );
+            }
+            return; # Failure to REPLACE
+        }
 
-    if ( $rv_replace <= 0 ) {
-        debugf(
-            "Failed to insert object %s into deleted_object (rv = %s)",
-            $object_id, $rv_replace
-        ) if STF_DEBUG;
+        if (STF_DEBUG) {
+            debugf(
+                "Replaced object %s into deleted_object (rv = %s)",
+                $object_id,
+                $rv,
+            );
+        }
     } else {
-        debugf(
-            "Inserted object %s into deleted_object (rv = %s)",
-            $object_id,
-            $rv_replace
-        ) if STF_DEBUG;
+        # object was not found. Insert it. if insert fails, it just measn
+        # that somebody just inserted it before us, so it's OK
 
-        $rv_delete = $dbh->do( <<EOSQL, undef, $object_id );
-            DELETE FROM object WHERE id = ?
+        # We temporarily suspend raising errors here, because we can and
+        # want to ignore this INSERT error
+        local $dbh->{RaiseError} = 0;
+        my $rv = $dbh->do(<<EOSQL, undef, $object_id);
+            INSERT INTO deleted_object SELECT * FROM object WHERE id = ?
 EOSQL
 
+        # If the insert was a failure, just return this particular
+        # request as fail. it's okay if somebody else has already
+        # inserted it before us
+        if ($rv <= 0){
+            if (STF_DEBUG) {
+                debugf("Failed to insert object %s into deleted_object (rv = %s)",
+                    $object_id,
+                    $rv,
+                );
+            }
+            return;
+        }
+
+        if (STF_DEBUG) {
+            debugf(
+                "Inserted object %s into deleted_object (rv = %s)",
+                $object_id,
+                $rv,
+            );
+        }
+    }
+
+    my $rv_delete = $dbh->do( <<EOSQL, undef, $object_id );
+        DELETE FROM object WHERE id = ?
+EOSQL
+    if ($rv_delete <= 0) {
+        if (STF_DEBUG) {
+            debugf("Failed to delete object %s from object (rv = %s)",
+                $object_id,
+                $rv_delete,
+            );
+        }
+    }
+
+    if (STF_DEBUG) {
         debugf(
             "Deleted object %s from object (rv = %s)",
             $object_id,
             $rv_delete
-        ) if STF_DEBUG;
+        );
     }
 
-    return $rv_replace && $rv_delete;
+    return 1;
 }
 
 sub rename {
