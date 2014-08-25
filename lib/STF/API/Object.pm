@@ -605,7 +605,7 @@ EOSQL
         # We temporarily suspend raising errors here, because we can and
         # want to ignore this INSERT error
         local $dbh->{RaiseError} = 0;
-        my $rv = $dbh->do(<<EOSQL, undef, $object_id)
+        my $rv = $dbh->do(<<EOSQL, undef, $object_id);
             INSERT INTO deleted_object SELECT * FROM object WHERE id = ?
 EOSQL
 
