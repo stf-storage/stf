@@ -211,7 +211,7 @@ sub register_for_object {
     my $dbh = $self->dbh;
     my $rv;
     eval {
-        my $sth = $dbh->prepare(<<EOSQL)
+        my $sth = $dbh->prepare(<<EOSQL);
             SELECT 1 FROM object WHERE id = ?
 EOSQL
         $rv = $sth->execute($object_id);
