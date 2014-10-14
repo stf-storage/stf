@@ -209,35 +209,32 @@ sub register_for_object {
     ) if STF_DEBUG;
 
     my $dbh = $self->dbh;
+
     my $rv;
     eval {
-        my $sth = $dbh->prepare(<<EOSQL);
-            SELECT 1 FROM object WHERE id = ?
+        my $row = $dbh->selectrow_hashref(<<EOSQL, {}, $object_id);
+                 SELECT * FROM object_cluster_map WHERE object_id = ? FOR UPDATE
 EOSQL
-        $rv = $sth->execute($object_id);
-        $sth->finish;
-        if ($rv <= 0) {
-            die "Object $object_id does not exist";
-        }
-
-        $sth = $dbh->prepare(<<EOSQL);
-            SELECT 1 FROM object_cluster_map WHERE object_id = ?
-EOSQL
-        $rv = $sth->execute($object_id);
-        $sth->finish;
-        if ($rv <= 0) {
-            $rv = $dbh->do(<<EOSQL, undef, $object_id, $cluster_id);
+        if (!$row) {
+            my $sth = $dbh->prepare(<<EOSQL);
                  INSERT INTO object_cluster_map (object_id, cluster_id) VALUES (?, ?)
 EOSQL
-        } else {
-            $rv = $dbh->do(<<EOSQL, undef, $object_id, $cluster_id);
-                REPLACE INTO object_cluster_map (object_id, cluster_id) VALUES (?, ?)
+            $rv = $sth->execute($object_id, $cluster_id);
+            $sth->finish;
+        }
+        else {
+            my $sth = $dbh->prepare(<<EOSQL);
+                UPDATE object_cluster_map SET cluster_id = ? WHERE object_id = ?
 EOSQL
+            $rv = $sth->execute($cluster_id, $object_id);
+            $sth->finish;
         }
     };
+
     if ($@) {
         critf("Error while registering object %s to cluster %s: %s", $object_id, $cluster_id, $@);
     }
+    
     return $rv;
 }
 
