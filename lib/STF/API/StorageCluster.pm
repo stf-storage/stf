@@ -209,7 +209,6 @@ sub register_for_object {
     ) if STF_DEBUG;
 
     my $dbh = $self->dbh;
-    $dbh->begin_work;
 
     my $rv;
     eval {
@@ -230,11 +229,9 @@ EOSQL
             $rv = $sth->execute($cluster_id, $object_id);
             $sth->finish;
         }
-        $dbh->commit;
     };
-    
+
     if ($@) {
-        $dbh->rollback;
         critf("Error while registering object %s to cluster %s: %s", $object_id, $cluster_id, $@);
     }
     
