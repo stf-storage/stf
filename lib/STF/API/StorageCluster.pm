@@ -214,7 +214,7 @@ sub register_for_object {
     my $rv;
     eval {
         my $row = $dbh->selectrow_hashref(<<EOSQL, {}, $object_id);
-                 SELECT * FROM  WHERE object_id = ? FOR UPDATE
+                 SELECT * FROM WHERE object_id = ? FOR UPDATE
 EOSQL
         if (!$row) {
             my $sth = $dbh->prepare(<<EOSQL);
