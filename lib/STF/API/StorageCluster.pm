@@ -214,7 +214,7 @@ sub register_for_object {
     my $rv;
     eval {
         my $row = $dbh->selectrow_hashref(<<EOSQL, {}, $object_id);
-                 SELECT * FROM WHERE object_id = ? FOR UPDATE
+                 SELECT * FROM object_cluster_map WHERE object_id = ? FOR UPDATE
 EOSQL
         if (!$row) {
             my $sth = $dbh->prepare(<<EOSQL);
@@ -238,7 +238,7 @@ EOSQL
         critf("Error while registering object %s to cluster %s: %s", $object_id, $cluster_id, $@);
     }
     
-    return 1;
+    return $rv;
 }
 
 sub load_for_object {
