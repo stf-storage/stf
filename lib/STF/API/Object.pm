@@ -182,10 +182,6 @@ sub store {
             force     => $force,
         });
         if ($ok) {
-            $cluster_api->register_for_object( {
-                cluster_id => $cluster->{id},
-                object_id  => $object_id
-            });
             # done
             $guard->dismiss;
             return 1;
@@ -273,12 +269,6 @@ sub repair {
         ) if STF_DEBUG;
 
         $designated_cluster = $clusters[0];
-        if (! $cluster || $designated_cluster->{id} != $cluster->{id}) {
-            $cluster_api->register_for_object({
-                cluster_id => $designated_cluster->{id},
-                object_id => $object_id,
-            });
-        }
     } else {
         debugf( "Object %s needs repair", $object_id ) if STF_DEBUG;
         # If it got here, either the object was not properly in clusters[0]
