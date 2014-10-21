@@ -10,6 +10,30 @@ use STF::Utils ();
 
 with 'STF::API::WithDBI';
 
+sub load_majority_cluster_for {
+    my ($self, $object_id) = @_;
+    my $dbh = $self->dbh('DB::Master');
+
+    my $sth = $dbh->prepare(<<EOSQL);
+        SELECT s.cluster_id, COUNT(s.cluster_id) FROM storage s JOIN entity e ON s.id = e.storage_id WHERE e.object_id = ? GROUP BY s.cluster_id
+EOSQL
+    $sth->execute($object_id);
+
+    my ($id, $count, %ret);
+    $sth->bind_columns(\($id, $count));
+    while ($sth->fetchrow_arrayref) {
+        $ret{$id} = $count;
+    }
+    $sth->finish;
+
+    if (scalar keys %ret < 1) {
+        return;
+    }
+
+    my ($max) = sort { $ret{$a} <=> $ret{$b} } keys %ret;
+    return $self->get('API::StorageCluster')->lookup($max);
+}
+
 sub search_with_url {
     my ($self, $where, $opts) = @_;
 

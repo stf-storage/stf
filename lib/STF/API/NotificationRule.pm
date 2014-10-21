@@ -37,14 +37,20 @@ sub match {
     # NOT return the value of the evaluated when block. So explicitly
     # assign to $match in each when()
     my $match = 0;
-    given ($self->operation) {
-        $match = $args->{$self->op_field} eq $self->op_arg when ("eq");
-        $match = $args->{$self->op_field} == $self->op_arg when ("==");
-        $match = $args->{$self->op_field} != $self->op_arg when ("!=");
-        $match = $args->{$self->op_field} >= $self->op_arg when (">=");
-        $match = $args->{$self->op_field} <= $self->op_arg when ("<=");
-        $match = $args->{$self->op_field} =~ $self->op_arg when ("=~");
-    };
+    my $op = $self->operation;
+    if ($op eq "eq") {
+        $match = $args->{$self->op_field} eq $self->op_arg;
+    } elsif ($op eq "==") {
+        $match = $args->{$self->op_field} == $self->op_arg;
+    } elsif ($op eq "!=") {
+        $match = $args->{$self->op_field} != $self->op_arg;
+    } elsif ($op eq ">=") {
+        $match = $args->{$self->op_field} >= $self->op_arg;
+    } elsif ($op eq "<=") {
+        $match = $args->{$self->op_field} <= $self->op_arg;
+    } elsif ($op eq "=~") {
+        $match = $args->{$self->op_field} =~ $self->op_arg;
+    }
 
     return $match ? 1 :();
 }

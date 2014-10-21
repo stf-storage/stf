@@ -248,10 +248,6 @@ EOSQL
         return $clusters->[0];
     }
 
-    if ( ! $create ) {
-        return;
-    }
-
     my $cluster = $self->calculate_for_object( $object_id );
     if (! $cluster) {
         return;
