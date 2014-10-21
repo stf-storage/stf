@@ -251,7 +251,6 @@ sub repair {
     my $cluster_api = $self->get( 'API::StorageCluster' );
 
     # find the current cluster
-    my $cluster = $cluster_api->load_for_object( $object_id  );
     my @clusters = $cluster_api->load_candidates_for( $object_id );
 
     # The object should be in the first cluster found, so run a health check
@@ -268,7 +267,7 @@ sub repair {
             $object_id, $clusters[0]->{id}
         ) if STF_DEBUG;
 
-        $designated_cluster = $clusters[0];
+        $designated_cluster = $entity_api->load_majority_cluster_for($object_id);
     } else {
         debugf( "Object %s needs repair", $object_id ) if STF_DEBUG;
         # If it got here, either the object was not properly in clusters[0]

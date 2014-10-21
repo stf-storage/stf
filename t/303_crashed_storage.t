@@ -13,6 +13,7 @@ BEGIN {
     use_ok "STF::Constants",
         "STF_TRACE",
         "STORAGE_MODE_CRASH",
+        "STORAGE_MODE_READ_ONLY",
         "STORAGE_MODE_READ_WRITE",
         "STORAGE_MODE_TEMPORARILY_DOWN",
     ;
@@ -67,9 +68,6 @@ my $code = sub {
             JOIN bucket b ON o.bucket_id = b.id
             WHERE b.name = ? AND o.name = ?
 EOSQL
-    my $find_cluster_id_sth = $dbh->prepare( <<EOSQL );
-        SELECT cluster_id FROM object_cluster_map WHERE object_id = ?
-EOSQL
     # Disable everyting in the specified
 
     my ($cluster) = $cluster_api->load_writable();
@@ -89,8 +87,8 @@ EOSQL
         );
         my ($object_id) = $dbh->selectrow_array($find_object_id_sth, undef, $bucket_name, $object_name);
         ok $object_id, "Found object ID of $bucket_name/$object_name ($object_id)";
-        my ($my_cluster_id) = $dbh->selectrow_array($find_cluster_id_sth, undef, $object_id);
-        if ($my_cluster_id eq $cluster->{id}) {
+        my $new_cluster = $cluster_api->calculate_for_object($object_id);
+        if ($new_cluster->{id} eq $cluster->{id}) {
             push @object_names, $object_name;
         }
         $total_objects++;
@@ -152,8 +150,15 @@ EOSQL
     # original one that they were created in
     foreach my $object_name (@object_names) {
         my ($object_id) = $dbh->selectrow_array($find_object_id_sth, undef, $bucket_name, $object_name);
-        my ($my_cluster_id) = $dbh->selectrow_array($find_cluster_id_sth, undef, $object_id);
-        isnt $my_cluster_id, $cluster->{id}, "object $bucket_name/$object_name should be in a different cluster";
+        my $storages = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, STORAGE_MODE_READ_ONLY, STORAGE_MODE_READ_WRITE, $object_id );
+            SELECT s.id, s.cluster_id
+                FROM storage s JOIN entity e ON s.id = e.storage_id
+                WHERE s.mode IN (?, ?) AND e.object_id = ?
+                ORDER BY rand()
+EOSQL
+        foreach my $storage (@$storages) {
+            isnt $storage->{cluster_id}, $cluster->{id}, "object $bucket_name/$object_name should be in a different cluster";
+        }
     }
 
     if (STF_TRACE) {

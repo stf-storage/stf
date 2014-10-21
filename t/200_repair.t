@@ -285,12 +285,10 @@ EOSQL
         my $entity_api = $container->get('API::Entity');
         my $storage_api = $container->get('API::Storage');
         foreach my $object (@objects) {
-            my $registered = $dbh->selectrow_hashref(<<EOSQL, undef, $object->{id});
-                SELECT * FROM object_cluster_map WHERE object_id = ?
-EOSQL
+            my $registered = $entity_api->load_majority_cluster_for($object->{id});
             my $new_cluster_id;
             foreach my $cluster (sort { rand } @clusters) {
-                next if $cluster->{id} == $registered->{cluster_id};
+                next if $cluster->{id} == $registered->{id};
                 $new_cluster_id = $cluster->{id};
                 last;
             }
@@ -358,7 +356,10 @@ EOSQL
                 @entities
             ;
             my @expected = sort { $a <=> $b } map { $_->{id} } @{$expect_map{$object->{id}}};
-            is_deeply(\@storages, \@expected, "Entities have been restored!");
+            if (! is_deeply(\@storages, \@expected, "Entities have been restored!")) {
+                diag explain \@entities;
+                diag explain \%expect_map;
+            }
         }
     }
 };

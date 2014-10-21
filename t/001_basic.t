@@ -38,6 +38,7 @@ my $get_entity_count = sub {
             JOIN bucket b ON o.bucket_id = b.id
             WHERE b.name = ? AND o.name = ?
 EOSQL
+    note("Entity count for $bucket_name/$object_name = $e_count");
     return $e_count;
 };
 
