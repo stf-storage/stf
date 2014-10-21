@@ -117,8 +117,17 @@ EOSQL
             "X-STF-Consistency" => 3,
             "Content" => $random_string->(1024)
     );
-    my $new_cluster = $cluster_api->load_for_object( $object->{id} );
-    isnt $cluster->{id}, $new_cluster->{id}, "object is now in a different cluster";
+
+    my $storages = $dbh->selectall_arrayref( <<EOSQL, { Slice => {} }, $object->{id} );
+        SELECT s.id, s.cluster_id 
+            FROM storage s JOIN entity e ON s.id = e.storage_id
+            WHERE e.object_id = ?
+EOSQL
+    ok scalar( @$storages ) > 0, "at least 1 storage";
+
+    for my $storage (@$storages) {
+        isnt $cluster->{id}, $storage->{cluster_id}, "object is now in a different cluster";
+    }
 
     undef $guard;
 
