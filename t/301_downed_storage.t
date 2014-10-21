@@ -119,7 +119,7 @@ EOSQL
     );
 
     my $find_object_id_sth = $dbh->prepare( <<EOSQL );
-        SELECT o.* FROM object o
+        SELECT o.id FROM object o
             JOIN bucket b ON o.bucket_id = b.id
             WHERE b.name = ? AND o.name = ?
 EOSQL
