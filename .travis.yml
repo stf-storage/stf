@@ -1,6 +1,8 @@
 language: perl
 before_install: perlbrew -f install-cpanm
 perl:
+  - "5.20"
+  - "5.18"
   - "5.16"
   - "5.14"
   - "5.12"
