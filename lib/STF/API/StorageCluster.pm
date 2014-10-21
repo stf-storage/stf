@@ -137,23 +137,7 @@ sub store {
         defined $minimum ? $minimum : scalar @storages
     );
 
-    if ($ok) {
-        $ok = $self->register_for_object( {
-            cluster_id => $cluster->{id},
-            object_id  => $object_id,
-        } );
-
-        if (! $ok) {
-            debugf("Failed to store cluster mapping for object %s, cluster %s",
-                $cluster->{id},
-                $object_id,
-            );
-            return;
-        }
-    }
-
-
-    return 1;
+    return $ok;
 }
 
 sub check_entity_health {
@@ -242,6 +226,7 @@ EOSQL
 
     if ($@) {
         critf("Error while registering object %s to cluster %s: %s", $object_id, $cluster_id, $@);
+        return;
     }
     
     return $rv;
