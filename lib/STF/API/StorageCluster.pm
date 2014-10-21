@@ -213,7 +213,7 @@ sub register_for_object {
     my $rv;
     eval {
         my $row = $dbh->selectrow_hashref(<<EOSQL, {}, $object_id);
-                 SELECT * FROM object_cluster_map WHERE object_id = ? FOR UPDATE
+            SELECT * FROM object_cluster_map WHERE object_id = ? FOR UPDATE
 EOSQL
         if (!$row) {
             my $sth = $dbh->prepare(<<EOSQL);
@@ -263,14 +263,6 @@ EOSQL
         return;
     }
 
-    $self->register_for_object( {
-        cluster_id => $cluster->{id},
-        object_id  => $object_id,
-    } );
-    debugf(
-        "No cluster defined for object %s yet. Created mapping for cluster %d",
-        $object_id, $cluster->{id},
-    ) if STF_DEBUG;
     return $cluster;
 }
 
